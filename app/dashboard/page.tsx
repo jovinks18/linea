@@ -1,4 +1,7 @@
-import Link from "next/link";
+import { AppShell } from "../../components/AppShell";
+import { MetricCard } from "../../components/MetricCard";
+import { Panel } from "../../components/Panel";
+import { StatusPill } from "../../components/StatusPill";
 import { getDashboardData } from "../../lib/dashboard/repository";
 
 export const dynamic = "force-dynamic";
@@ -6,17 +9,8 @@ export const runtime = "nodejs";
 
 function EmptyState({ label }: { label: string }) {
   return (
-    <div className="rounded-xl border border-neutral-800 bg-neutral-950 p-5 text-sm text-neutral-500">
+    <div className="rounded-lg border border-dashed border-white/10 bg-black/20 p-5 text-sm text-zinc-500">
       {label}
-    </div>
-  );
-}
-
-function SummaryCard({ label, value }: { label: string; value: number }) {
-  return (
-    <div className="rounded-xl border border-neutral-800 bg-neutral-900 p-5">
-      <p className="text-sm text-neutral-500">{label}</p>
-      <p className="mt-2 text-3xl font-semibold text-white">{value}</p>
     </div>
   );
 }
@@ -27,226 +21,221 @@ function formatDate(value: string | null) {
   return new Date(value).toLocaleString();
 }
 
+function formatLabel(value: string | null | undefined) {
+  if (!value) return "Not set";
+
+  return value
+    .split("_")
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
+}
+
 export default async function DashboardPage() {
   const data = await getDashboardData();
+  const openCaseCount = data.recentCases.filter(
+    (supportCase) => supportCase.status === "open"
+  ).length;
 
   return (
-    <main className="min-h-screen bg-neutral-950 px-6 py-10 text-white">
-      <div className="mx-auto w-full max-w-7xl">
-        <header className="mb-8 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
-          <div>
-            <p className="text-sm text-neutral-400">Linea Demo</p>
-            <h1 className="mt-1 text-3xl font-semibold">
-              Post-Sales Command Center
-            </h1>
-            <p className="mt-2 max-w-2xl text-neutral-400">
-              Review account risk, follow-up tasks, product signals, and recent
-              support cases.
-            </p>
-          </div>
-
-          <Link
-            href="/chat"
-            className="w-fit rounded-lg border border-neutral-700 px-4 py-2 text-sm text-neutral-200 hover:border-neutral-500"
-          >
-            Back to Chat
-          </Link>
+    <AppShell active="dashboard">
+      <div className="grid gap-6">
+        <header>
+          <p className="text-xs font-medium uppercase tracking-[0.18em] text-cyan-300/80">
+            Command center
+          </p>
+          <h1 className="mt-2 text-3xl font-semibold text-zinc-50 sm:text-4xl">
+            Post-sales operations console
+          </h1>
+          <p className="mt-3 max-w-3xl text-sm leading-6 text-zinc-400 sm:text-base">
+            Monitor account risk, follow-up work, product signals, and recent
+            support activity from the local demo database.
+          </p>
         </header>
 
-        <section className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <SummaryCard
+        <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          <MetricCard
             label="At-risk accounts"
             value={data.atRiskAccounts.length}
+            detail="health_status = at_risk"
           />
-          <SummaryCard label="Open tasks" value={data.openTasks.length} />
-          <SummaryCard
+          <MetricCard
+            label="Open tasks"
+            value={data.openTasks.length}
+            detail="CSM follow-ups"
+          />
+          <MetricCard
             label="Product signals"
             value={data.recentProductSignals.length}
+            detail="recent signals"
           />
-          <SummaryCard
+          <MetricCard
             label="Open cases"
-            value={
-              data.recentCases.filter((supportCase) => supportCase.status === "open")
-                .length
-            }
+            value={openCaseCount}
+            detail="from recent activity"
           />
         </section>
 
         <div className="grid gap-6 xl:grid-cols-2">
-          <section className="rounded-2xl border border-neutral-800 bg-neutral-900 p-6 shadow-xl">
-            <div className="mb-5">
-              <p className="text-sm text-neutral-400">Accounts</p>
-              <h2 className="mt-1 text-2xl font-semibold">At-Risk Accounts</h2>
-            </div>
-
+          <Panel eyebrow="Accounts" title="At-risk accounts">
             {data.atRiskAccounts.length === 0 ? (
               <EmptyState label="No at-risk accounts yet." />
             ) : (
-              <div className="space-y-3">
+              <div className="divide-y divide-white/10 overflow-hidden rounded-lg border border-white/10">
                 {data.atRiskAccounts.map((account) => (
                   <div
                     key={account.id}
-                    className="rounded-xl border border-neutral-800 bg-neutral-950 p-4"
+                    className="grid gap-4 bg-black/25 p-4 sm:grid-cols-[1fr_auto]"
                   >
-                    <div className="flex items-start justify-between gap-4">
-                      <div>
-                        <p className="font-medium">{account.name}</p>
-                        <p className="mt-1 text-sm text-neutral-500">
-                          {account.plan ?? "No plan"} /{" "}
-                          {account.stage ?? "No stage"}
-                        </p>
-                      </div>
-                      <span className="rounded-full border border-red-800 bg-red-950 px-3 py-1 text-xs text-red-200">
-                        {account.health_status ?? "unknown"}
-                      </span>
+                    <div>
+                      <p className="font-medium text-zinc-100">
+                        {account.name}
+                      </p>
+                      <p className="mt-1 text-sm text-zinc-500">
+                        {account.plan ?? "No plan"} /{" "}
+                        {account.stage ?? "No stage"}
+                      </p>
+                      <p className="mt-3 text-sm text-zinc-400">
+                        Owner: {account.owner_name ?? "Unassigned"}
+                      </p>
                     </div>
-                    <p className="mt-3 text-sm text-neutral-400">
-                      Owner: {account.owner_name ?? "Unassigned"}
-                    </p>
+                    <div className="sm:text-right">
+                      <StatusPill variant="danger">
+                        {account.health_status ?? "unknown"}
+                      </StatusPill>
+                    </div>
                   </div>
                 ))}
               </div>
             )}
-          </section>
+          </Panel>
 
-          <section className="rounded-2xl border border-neutral-800 bg-neutral-900 p-6 shadow-xl">
-            <div className="mb-5">
-              <p className="text-sm text-neutral-400">Follow-Up</p>
-              <h2 className="mt-1 text-2xl font-semibold">Open Tasks</h2>
-            </div>
-
+          <Panel eyebrow="Follow-up" title="Open tasks">
             {data.openTasks.length === 0 ? (
               <EmptyState label="No open tasks yet." />
             ) : (
-              <div className="space-y-3">
+              <div className="divide-y divide-white/10 overflow-hidden rounded-lg border border-white/10">
                 {data.openTasks.map((task) => (
-                  <div
-                    key={task.id}
-                    className="rounded-xl border border-neutral-800 bg-neutral-950 p-4"
-                  >
-                    <div className="flex items-start justify-between gap-4">
+                  <div key={task.id} className="bg-black/25 p-4">
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                       <div>
-                        <p className="font-medium">{task.title}</p>
-                        <p className="mt-1 text-sm text-neutral-500">
+                        <p className="font-medium text-zinc-100">
+                          {task.title}
+                        </p>
+                        <p className="mt-1 text-sm text-zinc-500">
                           {task.account ?? "No account"}
                         </p>
                       </div>
-                      <span className="rounded-full border border-neutral-700 bg-neutral-900 px-3 py-1 text-xs text-neutral-300">
-                        {task.priority ?? "P2"}
-                      </span>
+                      <div className="flex flex-wrap gap-2 sm:justify-end">
+                        <StatusPill variant="default">
+                          {formatLabel(task.status)}
+                        </StatusPill>
+                        <StatusPill
+                          variant={task.priority === "P1" ? "danger" : "info"}
+                        >
+                          {task.priority ?? "P2"}
+                        </StatusPill>
+                      </div>
                     </div>
-                    <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
+                    <div className="mt-4 grid gap-3 text-sm sm:grid-cols-2">
                       <div>
-                        <p className="text-neutral-500">Status</p>
-                        <p>{task.status ?? "Not set"}</p>
+                        <p className="text-zinc-500">Owner</p>
+                        <p className="mt-1 text-zinc-200">
+                          {task.owner_role ?? "Unassigned"}
+                        </p>
                       </div>
                       <div>
-                        <p className="text-neutral-500">Owner</p>
-                        <p>{task.owner_role ?? "Unassigned"}</p>
-                      </div>
-                      <div className="col-span-2">
-                        <p className="text-neutral-500">Due</p>
-                        <p>{task.due_date ?? "Not set"}</p>
+                        <p className="text-zinc-500">Due date</p>
+                        <p className="mt-1 text-zinc-200">
+                          {task.due_date ?? "Not set"}
+                        </p>
                       </div>
                     </div>
                   </div>
                 ))}
               </div>
             )}
-          </section>
+          </Panel>
 
-          <section className="rounded-2xl border border-neutral-800 bg-neutral-900 p-6 shadow-xl">
-            <div className="mb-5">
-              <p className="text-sm text-neutral-400">Product</p>
-              <h2 className="mt-1 text-2xl font-semibold">
-                Recent Product Signals
-              </h2>
-            </div>
-
+          <Panel eyebrow="Product" title="Recent product signals">
             {data.recentProductSignals.length === 0 ? (
               <EmptyState label="No product signals yet." />
             ) : (
-              <div className="space-y-3">
+              <div className="divide-y divide-white/10 overflow-hidden rounded-lg border border-white/10">
                 {data.recentProductSignals.map((signal) => (
-                  <div
-                    key={signal.id}
-                    className="rounded-xl border border-neutral-800 bg-neutral-950 p-4"
-                  >
-                    <div className="flex items-start justify-between gap-4">
+                  <div key={signal.id} className="bg-black/25 p-4">
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                       <div>
-                        <p className="font-medium">{signal.title}</p>
-                        <p className="mt-1 text-sm text-neutral-500">
+                        <p className="font-medium text-zinc-100">
+                          {signal.title}
+                        </p>
+                        <p className="mt-1 text-sm text-zinc-500">
                           {signal.account ?? "No account"}
                         </p>
                       </div>
-                      <span className="rounded-full border border-neutral-700 bg-neutral-900 px-3 py-1 text-xs text-neutral-300">
-                        {signal.severity ?? "medium"}
-                      </span>
-                    </div>
-                    <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
-                      <div>
-                        <p className="text-neutral-500">Type</p>
-                        <p>{signal.signal_type}</p>
+                      <div className="flex flex-wrap gap-2 sm:justify-end">
+                        <StatusPill
+                          variant={
+                            signal.severity === "high" ? "warning" : "default"
+                          }
+                        >
+                          {signal.severity ?? "medium"}
+                        </StatusPill>
+                        <StatusPill variant="muted">
+                          {formatLabel(signal.status)}
+                        </StatusPill>
                       </div>
-                      <div>
-                        <p className="text-neutral-500">Status</p>
-                        <p>{signal.status ?? "new"}</p>
-                      </div>
                     </div>
+                    <p className="mt-4 text-sm text-zinc-400">
+                      Type: {formatLabel(signal.signal_type)}
+                    </p>
                   </div>
                 ))}
               </div>
             )}
-          </section>
+          </Panel>
 
-          <section className="rounded-2xl border border-neutral-800 bg-neutral-900 p-6 shadow-xl">
-            <div className="mb-5">
-              <p className="text-sm text-neutral-400">Cases</p>
-              <h2 className="mt-1 text-2xl font-semibold">Recent Cases</h2>
-            </div>
-
+          <Panel eyebrow="Cases" title="Recent cases">
             {data.recentCases.length === 0 ? (
               <EmptyState label="No recent cases yet." />
             ) : (
-              <div className="space-y-3">
+              <div className="divide-y divide-white/10 overflow-hidden rounded-lg border border-white/10">
                 {data.recentCases.map((supportCase) => (
-                  <div
-                    key={supportCase.id}
-                    className="rounded-xl border border-neutral-800 bg-neutral-950 p-4"
-                  >
-                    <div className="flex items-start justify-between gap-4">
+                  <div key={supportCase.id} className="bg-black/25 p-4">
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                       <div>
-                        <p className="font-medium">
+                        <p className="font-mono text-sm font-medium text-zinc-100">
                           {supportCase.case_number}
                         </p>
-                        <p className="mt-1 text-sm text-neutral-500">
+                        <p className="mt-1 text-sm text-zinc-500">
                           {supportCase.customer_email}
                         </p>
                       </div>
-                      <span className="rounded-full border border-neutral-700 bg-neutral-900 px-3 py-1 text-xs text-neutral-300">
-                        {supportCase.status ?? "open"}
-                      </span>
+                      <div className="flex flex-wrap gap-2 sm:justify-end">
+                        <StatusPill variant="default">
+                          {formatLabel(supportCase.status)}
+                        </StatusPill>
+                        <StatusPill
+                          variant={
+                            supportCase.priority === "P1" ? "danger" : "info"
+                          }
+                        >
+                          {supportCase.priority ?? "P2"}
+                        </StatusPill>
+                      </div>
                     </div>
-                    <p className="mt-3 text-sm text-neutral-200">
+                    <p className="mt-4 text-sm text-zinc-200">
                       {supportCase.subject ?? "No subject"}
                     </p>
-                    <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
-                      <div>
-                        <p className="text-neutral-500">Priority</p>
-                        <p>{supportCase.priority ?? "P2"}</p>
-                      </div>
-                      <div>
-                        <p className="text-neutral-500">Last activity</p>
-                        <p>{formatDate(supportCase.last_activity_at)}</p>
-                      </div>
-                    </div>
+                    <p className="mt-3 text-xs text-zinc-500">
+                      Last activity: {formatDate(supportCase.last_activity_at)}
+                    </p>
                   </div>
                 ))}
               </div>
             )}
-          </section>
+          </Panel>
         </div>
       </div>
-    </main>
+    </AppShell>
   );
 }

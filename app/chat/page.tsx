@@ -1,6 +1,18 @@
 "use client";
 
 import { useState } from "react";
+import { AppShell } from "../../components/AppShell";
+import { Panel } from "../../components/Panel";
+import { StatusPill } from "../../components/StatusPill";
+
+type AgentDecision = {
+  classification: string;
+  confidence: number;
+  reasoning_summary: string;
+  recommended_actions: string[];
+  executed_actions: string[];
+  requires_human_review: boolean;
+};
 
 type ChatResponse = {
   case_number: string;
@@ -21,6 +33,7 @@ type ChatResponse = {
     } | null;
     actions?: PostSalesActions;
   };
+  agent_decision?: AgentDecision;
 };
 
 type PostSalesActions = {
@@ -53,6 +66,32 @@ type CaseDetails = {
   }[];
 };
 
+type DemoScenario = {
+  label: string;
+  email: string;
+  message: string;
+};
+
+const demoScenarios: DemoScenario[] = [
+  {
+    label: "API go-live blocker",
+    email: "maya.chen@example.com",
+    message:
+      "Our API setup is still blocked and we are supposed to go live Friday.",
+  },
+  {
+    label: "Smart lock issue",
+    email: "maya.chen@example.com",
+    message: "My smart lock is not responding after I changed the batteries.",
+  },
+  {
+    label: "Unknown account blocker",
+    email: "unknown.blocker@example.com",
+    message:
+      "Our API setup is still blocked and we are supposed to go live Friday.",
+  },
+];
+
 const emptyPostSalesActions: PostSalesActions = {
   onboarding_blocker_detected: false,
   task_created: false,
@@ -61,14 +100,10 @@ const emptyPostSalesActions: PostSalesActions = {
   account_health_updated: false,
 };
 
-const postSalesActionLabels: {
+const accountActionLabels: {
   key: keyof PostSalesActions;
   label: string;
 }[] = [
-  {
-    key: "onboarding_blocker_detected",
-    label: "Onboarding blocker detected",
-  },
   {
     key: "task_created",
     label: "CSM task created",
@@ -87,18 +122,59 @@ const postSalesActionLabels: {
   },
 ];
 
+function formatLabel(value: string | null | undefined) {
+  if (!value) return "Not set";
+
+  return value
+    .split("_")
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
+}
+
+function formatDate(value: string) {
+  return new Date(value).toLocaleString();
+}
+
+function DetailRow({
+  label,
+  value,
+}: {
+  label: string;
+  value: React.ReactNode;
+}) {
+  return (
+    <div>
+      <p className="text-xs font-medium uppercase tracking-[0.14em] text-zinc-600">
+        {label}
+      </p>
+      <div className="mt-1 text-sm text-zinc-200">{value}</div>
+    </div>
+  );
+}
+
 export default function ChatPage() {
   const [email, setEmail] = useState("maya.chen@example.com");
   const [caseNumber, setCaseNumber] = useState("");
   const [message, setMessage] = useState(
     "My smart lock is not responding after I changed the batteries."
   );
+  const [latestSubmittedMessage, setLatestSubmittedMessage] = useState("");
 
   const [loading, setLoading] = useState(false);
   const [historyLoading, setHistoryLoading] = useState(false);
   const [reply, setReply] = useState<ChatResponse | null>(null);
   const [caseDetails, setCaseDetails] = useState<CaseDetails | null>(null);
   const [error, setError] = useState("");
+
+  function applyDemoScenario(scenario: DemoScenario) {
+    setEmail(scenario.email);
+    setMessage(scenario.message);
+    setCaseNumber("");
+    setReply(null);
+    setCaseDetails(null);
+    setLatestSubmittedMessage("");
+    setError("");
+  }
 
   async function fetchCaseHistory(targetCaseNumber: string) {
     if (!targetCaseNumber) return;
@@ -149,6 +225,7 @@ export default function ChatPage() {
       const data = await res.json();
       setReply(data);
       setCaseNumber(data.case_number);
+      setLatestSubmittedMessage(message);
 
       await fetchCaseHistory(data.case_number);
     } catch {
@@ -158,271 +235,417 @@ export default function ChatPage() {
     }
   }
 
+  const actions = reply?.post_sales?.actions ?? emptyPostSalesActions;
+  const account = reply?.post_sales?.account ?? null;
+  const agentDecision = reply?.agent_decision;
+  const completedActions = accountActionLabels.filter(
+    (action) => actions[action.key]
+  );
+
   return (
-    <main className="min-h-screen bg-neutral-950 text-white flex items-center justify-center px-6 py-10">
-      <div className="w-full max-w-5xl grid gap-6 lg:grid-cols-[420px_1fr]">
-        <section className="rounded-2xl border border-neutral-800 bg-neutral-900 p-6 shadow-xl">
-          <div className="mb-6">
-            <p className="text-sm text-neutral-400">Linea Demo</p>
-            <div className="mt-1 flex items-start justify-between gap-4">
-              <h1 className="text-3xl font-semibold">
-                Post-Sales Command Center
-              </h1>
-              <a
-                href="/dashboard"
-                className="rounded-lg border border-neutral-700 px-3 py-2 text-sm text-neutral-200 hover:border-neutral-500"
-              >
-                View Dashboard
-              </a>
-            </div>
-            <p className="text-neutral-400 mt-2">
-              Turn customer messages into cases, tasks, product signals, and
-              account health updates.
-            </p>
-          </div>
+    <AppShell active="chat">
+      <div className="grid gap-6">
+        <header>
+          <p className="text-xs font-medium uppercase tracking-[0.18em] text-cyan-300/80">
+            Chat intake
+          </p>
+          <h1 className="mt-2 text-3xl font-semibold text-zinc-50 sm:text-4xl">
+            Run an intake workflow
+          </h1>
+          <p className="mt-3 max-w-3xl text-sm leading-6 text-zinc-400 sm:text-base">
+            Send one customer message and see what Linea understood, which
+            account it found, and which post-sales actions actually ran.
+          </p>
+        </header>
 
-          <div className="space-y-4">
-            <div>
-              <label className="block text-sm mb-2 text-neutral-300">
-                Customer Email
-              </label>
-              <input
-                className="w-full rounded-lg bg-neutral-950 border border-neutral-700 px-4 py-3 outline-none focus:border-white"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="maya.chen@example.com"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm mb-2 text-neutral-300">
-                Case Number Optional
-              </label>
-              <div className="flex gap-2">
-                <input
-                  className="w-full rounded-lg bg-neutral-950 border border-neutral-700 px-4 py-3 outline-none focus:border-white"
-                  value={caseNumber}
-                  onChange={(e) => setCaseNumber(e.target.value)}
-                  placeholder="LIN-20260618-72TC"
-                />
-                <button
-                  onClick={() => fetchCaseHistory(caseNumber)}
-                  disabled={!caseNumber || historyLoading}
-                  className="rounded-lg border border-neutral-700 px-4 text-sm disabled:opacity-50"
-                >
-                  Load
-                </button>
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-sm mb-2 text-neutral-300">
-                Message
-              </label>
-              <textarea
-                className="w-full min-h-32 rounded-lg bg-neutral-950 border border-neutral-700 px-4 py-3 outline-none focus:border-white"
-                value={message}
-                onChange={(e) => setMessage(e.target.value)}
-              />
-            </div>
-
-            <button
-              onClick={sendMessage}
-              disabled={loading}
-              className="w-full rounded-lg bg-white text-black py-3 font-medium disabled:opacity-50"
-            >
-              {loading ? "Sending..." : "Send to Linea"}
-            </button>
-          </div>
-
-          {error && (
-            <div className="mt-6 rounded-lg border border-red-900 bg-red-950 p-4 text-red-200">
-              {error}
-            </div>
-          )}
-
-          {reply && (
-            <div className="mt-6 rounded-xl border border-neutral-800 bg-neutral-950 p-5">
-              <div className="flex items-center justify-between mb-4">
-                <p className="text-sm text-neutral-400">Latest Case</p>
-                <span className="rounded-full bg-neutral-800 px-3 py-1 text-sm">
-                  {reply.status}
-                </span>
-              </div>
-
-              <p className="text-lg font-medium">{reply.case_number}</p>
-
-              <div className="mt-4 border-t border-neutral-800 pt-4">
-                <p className="text-sm text-neutral-400 mb-2">Latest Response</p>
-                <p className="text-neutral-100 leading-relaxed">
-                  {reply.response}
-                </p>
-              </div>
-
-              <div className="mt-4 border-t border-neutral-800 pt-4">
-                <p className="text-sm text-neutral-400 mb-3">
-                  Account Context
-                </p>
-
-                {reply.post_sales?.account ? (
-                  <div className="grid grid-cols-2 gap-3 text-sm">
-                    <div>
-                      <p className="text-neutral-500">Account</p>
-                      <p>{reply.post_sales.account.name}</p>
-                    </div>
-                    <div>
-                      <p className="text-neutral-500">Plan</p>
-                      <p>{reply.post_sales.account.plan ?? "Not set"}</p>
-                    </div>
-                    <div>
-                      <p className="text-neutral-500">Stage</p>
-                      <p>{reply.post_sales.account.stage ?? "Not set"}</p>
-                    </div>
-                    <div>
-                      <p className="text-neutral-500">Health</p>
-                      <p>{reply.post_sales.account.health_status ?? "Not set"}</p>
-                    </div>
-                    <div className="col-span-2">
-                      <p className="text-neutral-500">Owner</p>
-                      <p>{reply.post_sales.account.owner_name ?? "Unassigned"}</p>
-                    </div>
-                  </div>
-                ) : (
-                  <p className="text-sm text-neutral-400">
-                    No linked account found.
-                  </p>
-                )}
-              </div>
-
-              <div className="mt-4 border-t border-neutral-800 pt-4">
-                <p className="text-sm text-neutral-400 mb-3">
-                  Post-sales Actions
-                </p>
-
-                <div className="space-y-2">
-                  {postSalesActionLabels.map((action) => {
-                    const actions =
-                      reply.post_sales?.actions ?? emptyPostSalesActions;
-                    const triggered = actions[action.key];
-
-                    return (
-                      <div
-                        key={action.key}
-                        className="flex items-center justify-between gap-4 text-sm"
-                      >
-                        <span className="text-neutral-200">
-                          {action.label}
-                        </span>
-                        <span
-                          className={`rounded-full px-3 py-1 text-xs ${
-                            triggered
-                              ? "bg-emerald-950 text-emerald-200 border border-emerald-800"
-                              : "bg-neutral-900 text-neutral-500 border border-neutral-800"
-                          }`}
-                        >
-                          {triggered ? "Triggered" : "Not triggered"}
-                        </span>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            </div>
-          )}
-        </section>
-
-        <section className="rounded-2xl border border-neutral-800 bg-neutral-900 p-6 shadow-xl">
-          <div className="mb-6">
-            <p className="text-sm text-neutral-400">Case Timeline</p>
-            <h2 className="text-2xl font-semibold mt-1">Conversation History</h2>
-          </div>
-
-          {historyLoading && (
-            <p className="text-neutral-400">Loading case history...</p>
-          )}
-
-          {!historyLoading && !caseDetails && (
-            <div className="rounded-xl border border-neutral-800 bg-neutral-950 p-5 text-neutral-400">
-              Enter a case number and click Load, or send a new message to create
-              a case.
-            </div>
-          )}
-
-          {caseDetails && (
-            <div>
-              <div className="rounded-xl border border-neutral-800 bg-neutral-950 p-5 mb-5">
-                <div className="flex items-center justify-between gap-4">
-                  <div>
-                    <p className="text-sm text-neutral-400">Case Number</p>
-                    <p className="text-lg font-medium">
-                      {caseDetails.case.case_number}
-                    </p>
-                  </div>
-                  <span className="rounded-full bg-neutral-800 px-3 py-1 text-sm">
-                    {caseDetails.case.status}
-                  </span>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4 mt-5 text-sm">
-                  <div>
-                    <p className="text-neutral-500">Subject</p>
-                    <p>{caseDetails.case.subject}</p>
-                  </div>
-                  <div>
-                    <p className="text-neutral-500">Customer</p>
-                    <p>{caseDetails.case.customer_email}</p>
-                  </div>
-                  <div>
-                    <p className="text-neutral-500">Intent</p>
-                    <p>{caseDetails.case.intent}</p>
-                  </div>
-                  <div>
-                    <p className="text-neutral-500">Sentiment</p>
-                    <p>{caseDetails.case.sentiment}</p>
-                  </div>
-                  <div>
-                    <p className="text-neutral-500">Priority</p>
-                    <p>{caseDetails.case.priority}</p>
-                  </div>
-                  <div>
-                    <p className="text-neutral-500">Last Activity</p>
-                    <p>
-                      {new Date(
-                        caseDetails.case.last_activity_at
-                      ).toLocaleString()}
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="space-y-3">
-                {caseDetails.messages.map((msg) => (
-                  <div
-                    key={msg.id}
-                    className={`rounded-xl border p-4 ${
-                      msg.sender_type === "customer"
-                        ? "border-neutral-700 bg-neutral-950"
-                        : "border-neutral-800 bg-neutral-800/60"
-                    }`}
+        <div className="grid gap-6 xl:grid-cols-[420px_1fr]">
+          <div className="grid gap-4">
+            <Panel eyebrow="Demo" title="Try a demo scenario">
+              <div className="grid gap-2">
+                {demoScenarios.map((scenario) => (
+                  <button
+                    key={scenario.label}
+                    type="button"
+                    onClick={() => applyDemoScenario(scenario)}
+                    className="rounded-lg border border-white/10 bg-black/25 px-3 py-2.5 text-left text-sm text-zinc-200 transition hover:border-cyan-300/30 hover:bg-cyan-300/10 focus:outline-none focus:ring-2 focus:ring-cyan-300/30"
                   >
-                    <div className="flex items-center justify-between mb-2">
-                      <p className="text-sm font-medium capitalize">
-                        {msg.sender_type}
-                      </p>
-                      <p className="text-xs text-neutral-500">
-                        {new Date(msg.created_at).toLocaleString()}
-                      </p>
-                    </div>
-                    <p className="text-neutral-200 leading-relaxed">
-                      {msg.message_text}
-                    </p>
-                  </div>
+                    {scenario.label}
+                  </button>
                 ))}
               </div>
-            </div>
-          )}
-        </section>
+            </Panel>
+
+            <Panel eyebrow="Input" title="Customer message">
+              <div className="space-y-4">
+                <div>
+                  <label className="mb-2 block text-sm font-medium text-zinc-300">
+                    Customer email
+                  </label>
+                  <input
+                    className="w-full rounded-lg border border-white/10 bg-black/40 px-3 py-3 text-sm text-zinc-100 outline-none transition placeholder:text-zinc-600 focus:border-cyan-300/50 focus:ring-2 focus:ring-cyan-300/20"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="maya.chen@example.com"
+                  />
+                </div>
+
+                <div>
+                  <label className="mb-2 block text-xs font-medium uppercase tracking-[0.14em] text-zinc-600">
+                    Optional case restore
+                  </label>
+                  <div className="flex gap-2">
+                    <input
+                      className="min-w-0 flex-1 rounded-lg border border-white/10 bg-black/25 px-3 py-2.5 text-sm text-zinc-300 outline-none transition placeholder:text-zinc-700 focus:border-cyan-300/40 focus:ring-2 focus:ring-cyan-300/15"
+                      value={caseNumber}
+                      onChange={(e) => setCaseNumber(e.target.value)}
+                      placeholder="LIN-20260618-72TC"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => fetchCaseHistory(caseNumber)}
+                      disabled={!caseNumber || historyLoading}
+                      className="rounded-lg border border-white/10 px-3 text-sm font-medium text-zinc-300 transition hover:border-white/20 hover:bg-white/5 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      Load
+                    </button>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="mb-2 block text-sm font-medium text-zinc-300">
+                    Message
+                  </label>
+                  <textarea
+                    className="min-h-40 w-full resize-y rounded-lg border border-white/10 bg-black/40 px-3 py-3 text-sm leading-6 text-zinc-100 outline-none transition focus:border-cyan-300/50 focus:ring-2 focus:ring-cyan-300/20"
+                    value={message}
+                    onChange={(e) => setMessage(e.target.value)}
+                  />
+                </div>
+
+                <button
+                  type="button"
+                  onClick={sendMessage}
+                  disabled={loading}
+                  className="w-full rounded-lg bg-zinc-100 px-4 py-3 text-sm font-semibold text-zinc-950 transition hover:bg-white disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {loading ? "Running workflow..." : "Run intake workflow"}
+                </button>
+              </div>
+
+              {error && (
+                <div className="mt-5 rounded-lg border border-rose-400/20 bg-rose-400/10 p-4 text-sm text-rose-100">
+                  {error}
+                </div>
+              )}
+            </Panel>
+          </div>
+
+          <div className="grid gap-4">
+            <Panel
+              eyebrow="Result"
+              title={reply ? "Result Summary" : "Result Summary"}
+              action={
+                reply && (
+                  <StatusPill variant="default">
+                    {formatLabel(reply.status)}
+                  </StatusPill>
+                )
+              }
+            >
+              {reply ? (
+                <div className="grid gap-6">
+                  <div className="rounded-lg border border-white/10 bg-black/25 p-4">
+                    <p className="text-xs font-medium uppercase tracking-[0.14em] text-zinc-600">
+                      Customer message
+                    </p>
+                    <p className="mt-2 text-sm leading-6 text-zinc-200">
+                      {latestSubmittedMessage}
+                    </p>
+                  </div>
+
+                  <div className="grid gap-3 sm:grid-cols-4">
+                    <DetailRow
+                      label="Case"
+                      value={
+                        <span className="font-mono">{reply.case_number}</span>
+                      }
+                    />
+                    <DetailRow
+                      label="Priority"
+                      value={
+                        <StatusPill
+                          variant={reply.priority === "P1" ? "danger" : "info"}
+                        >
+                          {reply.priority ?? "P2"}
+                        </StatusPill>
+                      }
+                    />
+                    <DetailRow
+                      label="Sentiment"
+                      value={
+                        <StatusPill
+                          variant={
+                            reply.sentiment === "negative"
+                              ? "warning"
+                              : "muted"
+                          }
+                        >
+                          {formatLabel(reply.sentiment)}
+                        </StatusPill>
+                      }
+                    />
+                    <DetailRow
+                      label="Human review"
+                      value={
+                        <StatusPill
+                          variant={
+                            agentDecision?.requires_human_review
+                              ? "danger"
+                              : "success"
+                          }
+                        >
+                          {agentDecision?.requires_human_review
+                            ? "Required"
+                            : "Not required"}
+                        </StatusPill>
+                      }
+                    />
+                  </div>
+
+                  <div className="grid gap-4 lg:grid-cols-2">
+                    <section className="rounded-lg border border-white/10 bg-black/25 p-4">
+                      <h2 className="text-sm font-semibold text-zinc-100">
+                        What Linea understood
+                      </h2>
+                      {agentDecision ? (
+                        <div className="mt-4 grid gap-4">
+                          <DetailRow
+                            label="Type"
+                            value={
+                              <StatusPill
+                                variant={
+                                  agentDecision.classification ===
+                                  "implementation_blocker"
+                                    ? "warning"
+                                    : "info"
+                                }
+                              >
+                                {formatLabel(agentDecision.classification)}
+                              </StatusPill>
+                            }
+                          />
+                          <DetailRow
+                            label="Confidence"
+                            value={`${Math.round(
+                              agentDecision.confidence * 100
+                            )}%`}
+                          />
+                          <DetailRow
+                            label="Explanation"
+                            value={agentDecision.reasoning_summary}
+                          />
+                        </div>
+                      ) : (
+                        <p className="mt-3 text-sm text-zinc-500">
+                          Run a workflow to see Linea&apos;s interpretation.
+                        </p>
+                      )}
+                    </section>
+
+                    <section className="rounded-lg border border-white/10 bg-black/25 p-4">
+                      <h2 className="text-sm font-semibold text-zinc-100">
+                        Account
+                      </h2>
+                      {account ? (
+                        <div className="mt-4 grid grid-cols-2 gap-4">
+                          <DetailRow label="Name" value={account.name} />
+                          <DetailRow
+                            label="Plan"
+                            value={account.plan ?? "Not set"}
+                          />
+                          <DetailRow
+                            label="Stage"
+                            value={account.stage ?? "Not set"}
+                          />
+                          <DetailRow
+                            label="Health"
+                            value={
+                              <StatusPill
+                                variant={
+                                  account.health_status === "at_risk"
+                                    ? "danger"
+                                    : "success"
+                                }
+                              >
+                                {formatLabel(account.health_status)}
+                              </StatusPill>
+                            }
+                          />
+                          <div className="col-span-2">
+                            <DetailRow
+                              label="Owner"
+                              value={account.owner_name ?? "Unassigned"}
+                            />
+                          </div>
+                        </div>
+                      ) : (
+                        <p className="mt-3 text-sm text-zinc-500">
+                          No linked account found.
+                        </p>
+                      )}
+                    </section>
+                  </div>
+
+                  <section className="rounded-lg border border-white/10 bg-black/25 p-4">
+                    <h2 className="text-sm font-semibold text-zinc-100">
+                      Actions completed
+                    </h2>
+                    {completedActions.length > 0 ? (
+                      <div className="mt-4 flex flex-wrap gap-2">
+                        {completedActions.map((action) => (
+                          <StatusPill key={action.key} variant="success">
+                            {action.label}
+                          </StatusPill>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="mt-3 text-sm text-zinc-500">
+                        No account-level actions were executed.
+                      </p>
+                    )}
+                  </section>
+
+                  <section className="rounded-lg border border-cyan-300/15 bg-cyan-300/5 p-4">
+                    <h2 className="text-sm font-semibold text-zinc-100">
+                      Linea reply
+                    </h2>
+                    <p className="mt-3 text-sm leading-6 text-zinc-200">
+                      {reply.response}
+                    </p>
+                  </section>
+
+                  {agentDecision && (
+                    <details className="rounded-lg border border-white/10 bg-black/20">
+                      <summary className="cursor-pointer px-4 py-3 text-sm font-medium text-zinc-300">
+                        Technical agent decision
+                      </summary>
+                      <div className="grid gap-4 border-t border-white/10 p-4 text-sm">
+                        <DetailRow
+                          label="Classification"
+                          value={agentDecision.classification}
+                        />
+                        <DetailRow
+                          label="Confidence"
+                          value={agentDecision.confidence}
+                        />
+                        <DetailRow
+                          label="Recommended actions"
+                          value={
+                            agentDecision.recommended_actions.length > 0
+                              ? agentDecision.recommended_actions.join(", ")
+                              : "None"
+                          }
+                        />
+                        <DetailRow
+                          label="Executed actions"
+                          value={
+                            agentDecision.executed_actions.length > 0
+                              ? agentDecision.executed_actions.join(", ")
+                              : "None"
+                          }
+                        />
+                        <DetailRow
+                          label="Requires human review"
+                          value={String(agentDecision.requires_human_review)}
+                        />
+                      </div>
+                    </details>
+                  )}
+
+                  <details className="rounded-lg border border-white/10 bg-black/20">
+                    <summary className="cursor-pointer px-4 py-3 text-sm font-medium text-zinc-300">
+                      Conversation timeline
+                    </summary>
+                    <div className="border-t border-white/10 p-4">
+                      {historyLoading && (
+                        <p className="text-sm text-zinc-500">
+                          Loading case history...
+                        </p>
+                      )}
+
+                      {!historyLoading && !caseDetails && (
+                        <p className="text-sm text-zinc-500">
+                          Enter a case number and click Load, or send a new
+                          message to create a case.
+                        </p>
+                      )}
+
+                      {caseDetails && (
+                        <div className="grid gap-4">
+                          <div className="grid gap-3 rounded-lg border border-white/10 bg-black/25 p-4 text-sm sm:grid-cols-2">
+                            <DetailRow
+                              label="Case"
+                              value={caseDetails.case.case_number}
+                            />
+                            <DetailRow
+                              label="Customer"
+                              value={caseDetails.case.customer_email}
+                            />
+                            <DetailRow
+                              label="Subject"
+                              value={caseDetails.case.subject}
+                            />
+                            <DetailRow
+                              label="Last activity"
+                              value={formatDate(
+                                caseDetails.case.last_activity_at
+                              )}
+                            />
+                          </div>
+
+                          <div className="grid gap-3">
+                            {caseDetails.messages.map((msg) => (
+                              <div
+                                key={msg.id}
+                                className="rounded-lg border border-white/10 bg-black/25 p-4"
+                              >
+                                <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+                                  <p className="text-sm font-medium text-zinc-200">
+                                    {formatLabel(msg.sender_type)}
+                                  </p>
+                                  <p className="text-xs text-zinc-600">
+                                    {formatDate(msg.created_at)}
+                                  </p>
+                                </div>
+                                <p className="mt-3 text-sm leading-6 text-zinc-400">
+                                  {msg.message_text}
+                                </p>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </details>
+                </div>
+              ) : (
+                <div className="grid gap-4 text-sm text-zinc-500">
+                  <p>
+                    Choose a scenario or enter a customer message, then run the
+                    intake workflow.
+                  </p>
+                  <div className="grid gap-3 rounded-lg border border-dashed border-white/10 bg-black/20 p-4">
+                    <p className="text-zinc-400">
+                      The summary will show what the customer sent, what Linea
+                      understood, and what Linea did.
+                    </p>
+                  </div>
+                </div>
+              )}
+            </Panel>
+          </div>
+        </div>
       </div>
-    </main>
+    </AppShell>
   );
 }

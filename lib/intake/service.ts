@@ -115,6 +115,7 @@ export async function processIntakeMessage({
     const aiResponse = generateIntakeResponse({
       message,
       onboardingBlockerDetected: messageLevelOnboardingBlocker,
+      hasLinkedAccount: account !== null,
     });
 
     const agentDecision = buildAgentDecision({
