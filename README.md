@@ -10,6 +10,7 @@ The current repo is an early local demo. It uses only synthetic data and should 
 - `POST /api/intake` creates or restores a support case.
 - `GET /api/cases/[case_number]` fetches case metadata and message history.
 - PostgreSQL stores customers, cases, messages, and case events.
+- PostgreSQL includes post-sales foundation tables for accounts, contacts, implementation steps, tasks, product signals, and account health events.
 - Demo AI responses are persisted as messages.
 - Docker Compose includes PostgreSQL, Qdrant, and n8n services.
 - A sample knowledge-base article exists for smart lock battery troubleshooting.
@@ -55,19 +56,25 @@ cp .env.example .env.local
 docker compose up -d
 ```
 
-4. Start the development server:
+4. Load synthetic post-sales demo seed data:
+
+```bash
+docker compose exec -T postgres psql -U linea -d linea_db < sql/seed.sql
+```
+
+5. Start the development server:
 
 ```bash
 npm run dev
 ```
 
-5. Open the app:
+6. Open the app:
 
 ```text
 http://localhost:3000/chat
 ```
 
-PostgreSQL is initialized from `sql/schema.sql` when the database volume is first created.
+PostgreSQL is initialized from `sql/schema.sql` when the database volume is first created. The optional `sql/seed.sql` script adds synthetic post-sales accounts, contacts, onboarding steps, tasks, product signals, and account health events for demos.
 
 ## Demo Flow
 
@@ -81,6 +88,10 @@ PostgreSQL is initialized from `sql/schema.sql` when the database volume is firs
 
 See `docs/DEMO-SCENARIOS.md` for suggested demo prompts.
 
+## Using Your Own Data
+
+Linea currently uses synthetic demo data only. Future real workspace mode will support company data ingestion through CSV imports, API import endpoints, webhooks, native connectors, and direct database or warehouse sync. See `docs/INTEGRATIONS.md` for the planned integration model and source-system mappings.
+
 ## Current Limitations
 
 - All response generation is currently deterministic demo logic.
@@ -89,7 +100,7 @@ See `docs/DEMO-SCENARIOS.md` for suggested demo prompts.
 - n8n is available in Docker but not integrated with the app.
 - There is no authentication or authorization yet.
 - There is no agent dashboard yet.
-- There is no account, onboarding, product signal, or health-event layer yet.
+- The account, onboarding, task, product signal, and health-event tables are present, but app behavior does not use them yet.
 - There is no production migration system yet.
 - Database credentials are for local development only.
 
