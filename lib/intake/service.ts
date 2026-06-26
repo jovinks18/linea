@@ -2,6 +2,7 @@ import {
   findCustomerAccount,
   type PostSalesAccount,
 } from "../accounts/repository";
+import { buildAgentDecision, type AgentDecision } from "../agent/decision";
 import {
   createCaseCreatedEvent,
   createSupportCase,
@@ -11,7 +12,10 @@ import {
 import { findOrCreateCustomer } from "../customers/repository";
 import { pool } from "../db";
 import { createMessage } from "../messages/repository";
-import { type PostSalesActions } from "../post-sales/automation";
+import {
+  detectOnboardingBlocker,
+  type PostSalesActions,
+} from "../post-sales/automation";
 import { runPostSalesAutomation } from "../post-sales/repository";
 import { generateIntakeResponse } from "../responses/router";
 import { runBasicTriage } from "../triage/engine";
@@ -34,6 +38,7 @@ export type IntakeResponse = {
     account: PostSalesAccount | null;
     actions: PostSalesActions;
   };
+  agent_decision?: AgentDecision;
 };
 
 function generateCaseNumber() {
@@ -60,6 +65,7 @@ export async function processIntakeMessage({
     });
 
     const account = await findCustomerAccount(client, customer.id);
+    const messageLevelOnboardingBlocker = detectOnboardingBlocker(message);
 
     let supportCase = case_number
       ? await findCaseForCustomer({
@@ -108,8 +114,18 @@ export async function processIntakeMessage({
 
     const aiResponse = generateIntakeResponse({
       message,
-      onboardingBlockerDetected:
-        postSalesActions.onboarding_blocker_detected,
+      onboardingBlockerDetected: messageLevelOnboardingBlocker,
+    });
+
+    const agentDecision = buildAgentDecision({
+      message,
+      hasLinkedAccount: account !== null,
+      accountName: account?.name,
+      intent: supportCase.intent ?? "question",
+      sentiment: supportCase.sentiment ?? "neutral",
+      priority: supportCase.priority,
+      onboardingBlockerDetected: messageLevelOnboardingBlocker,
+      actions: postSalesActions,
     });
 
     await createMessage({
@@ -138,6 +154,7 @@ export async function processIntakeMessage({
         account,
         actions: postSalesActions,
       },
+      agent_decision: agentDecision,
     };
   } catch (error) {
     await client.query("ROLLBACK");
