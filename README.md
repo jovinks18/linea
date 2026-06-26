@@ -116,6 +116,36 @@ The `openai_compatible` provider is an optional adapter for users who choose a h
 
 Models only return validated structured plans. Linea's deterministic policy layer decides what may execute, repository functions perform approved writes, and `agent_actions` records executed, suggested, skipped, or failed outcomes in the same transaction. Models never write directly to PostgreSQL.
 
+## Data Onboarding Agent
+
+Linea can inspect CSV exports, recommend mappings into its canonical schema, and validate a complete preview before deterministic import code writes anything. Custom company fields such as ARR, renewal date, and usage score are stored in JSON metadata instead of changing the canonical schema.
+
+Profile the source files:
+
+```bash
+npm run data:profile -- --dir docs/import-templates
+```
+
+Generate a deterministic mapping recommendation. When a model provider is configured, its suggestions appear as review-only notes and are never applied automatically:
+
+```bash
+npm run data:recommend-mapping -- --dir docs/import-templates
+```
+
+Review or edit `docs/import-templates/mapping.example.json`, then validate the import without database writes:
+
+```bash
+npm run import:csv -- --dir docs/import-templates --mapping docs/import-templates/mapping.example.json --dry-run
+```
+
+Run the reviewed import:
+
+```bash
+npm run import:csv -- --dir docs/import-templates --mapping docs/import-templates/mapping.example.json
+```
+
+The importer uses parameterized SQL inside one transaction. Models can suggest mappings, but only deterministic import functions can create or update records.
+
 ## Current Demo Flow
 
 1. Open `/chat`.

@@ -8,6 +8,7 @@ export type PostSalesAccount = {
   stage: string | null;
   health_status: string | null;
   owner_name: string | null;
+  metadata: Record<string, unknown>;
 };
 
 export async function findCustomerAccount(
@@ -22,7 +23,8 @@ export async function findCustomerAccount(
       a.plan,
       a.stage,
       a.health_status,
-      a.owner_name
+      a.owner_name,
+      a.metadata
     FROM account_contacts ac
     JOIN accounts a ON a.id = ac.account_id
     WHERE ac.customer_id = $1

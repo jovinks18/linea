@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { AccountMetadata } from "../../components/AccountMetadata";
 import { AppShell } from "../../components/AppShell";
 import { Panel } from "../../components/Panel";
 import { StatusPill } from "../../components/StatusPill";
@@ -36,6 +37,7 @@ type ChatResponse = {
       stage: string | null;
       health_status: string | null;
       owner_name: string | null;
+      metadata: Record<string, unknown>;
     } | null;
     actions?: PostSalesActions;
   };
@@ -499,6 +501,9 @@ export default function ChatPage() {
                               label="Owner"
                               value={account.owner_name ?? "Unassigned"}
                             />
+                          </div>
+                          <div className="col-span-2">
+                            <AccountMetadata metadata={account.metadata} />
                           </div>
                         </div>
                       ) : (

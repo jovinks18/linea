@@ -7,6 +7,7 @@ export type DashboardAccount = {
   stage: string | null;
   health_status: string | null;
   owner_name: string | null;
+  metadata: Record<string, unknown>;
 };
 
 export type DashboardTask = {
@@ -40,6 +41,7 @@ export type DashboardCase = {
 };
 
 export type DashboardData = {
+  importedAccounts: DashboardAccount[];
   atRiskAccounts: DashboardAccount[];
   openTasks: DashboardTask[];
   recentProductSignals: DashboardProductSignal[];
@@ -48,13 +50,22 @@ export type DashboardData = {
 
 export async function getDashboardData(): Promise<DashboardData> {
   const [
+    importedAccountsResult,
     atRiskAccountsResult,
     openTasksResult,
     recentProductSignalsResult,
     recentCasesResult,
   ] = await Promise.all([
     pool.query<DashboardAccount>(
-      `SELECT id, name, plan, stage, health_status, owner_name
+      `SELECT id, name, plan, stage, health_status, owner_name, metadata
+       FROM accounts
+       WHERE metadata <> '{}'::jsonb
+         AND health_status IS DISTINCT FROM 'at_risk'
+       ORDER BY updated_at DESC, name ASC
+       LIMIT 10`
+    ),
+    pool.query<DashboardAccount>(
+      `SELECT id, name, plan, stage, health_status, owner_name, metadata
        FROM accounts
        WHERE health_status = 'at_risk'
        ORDER BY updated_at DESC, name ASC
@@ -108,6 +119,7 @@ export async function getDashboardData(): Promise<DashboardData> {
   ]);
 
   return {
+    importedAccounts: importedAccountsResult.rows,
     atRiskAccounts: atRiskAccountsResult.rows,
     openTasks: openTasksResult.rows,
     recentProductSignals: recentProductSignalsResult.rows,

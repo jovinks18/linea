@@ -1,0 +1,54 @@
+{
+  "version": 1,
+  "entities": {
+    "accounts": {
+      "file": "accounts.csv",
+      "fields": {
+        "company_name": "name",
+        "industry": "industry",
+        "plan": "plan",
+        "lifecycle_stage": "stage",
+        "health_status": "health_status",
+        "owner_name": "owner_name"
+      },
+      "metadata": {
+        "arr": "arr",
+        "renewal_date": "renewal_date",
+        "usage_score": "usage_score"
+      }
+    },
+    "contacts": {
+      "file": "contacts.csv",
+      "fields": {
+        "email": "email",
+        "name": "name",
+        "role": "contact_role",
+        "company_name": "account_name"
+      },
+      "metadata": {}
+    },
+    "implementation_steps": {
+      "file": "implementation_steps.csv",
+      "fields": {
+        "company_name": "account_name",
+        "step_name": "step_name",
+        "status": "status",
+        "due_date": "due_date",
+        "owner_name": "owner_role"
+      },
+      "metadata": {}
+    },
+    "cases": {
+      "file": "cases.csv",
+      "fields": {
+        "customer_email": "customer_email",
+        "subject": "subject",
+        "status": "status",
+        "priority": "priority",
+        "channel": "channel",
+        "message": "message"
+      },
+      "metadata": {}
+    }
+  }
+}

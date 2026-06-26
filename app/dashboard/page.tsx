@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { AccountMetadata } from "../../components/AccountMetadata";
 import { AppShell } from "../../components/AppShell";
 import { MetricCard } from "../../components/MetricCard";
 import { Panel } from "../../components/Panel";
@@ -184,6 +185,40 @@ export default async function DashboardPage({
           />
         </section>
 
+        {data.importedAccounts.length > 0 && (
+          <Panel eyebrow="Imported data" title="Account context">
+            <div className="divide-y divide-[var(--border-subtle)] overflow-hidden rounded-lg border border-[var(--border-subtle)]">
+              {data.importedAccounts.map((account) => (
+                <div
+                  key={account.id}
+                  className="grid gap-4 bg-[var(--surface-2)] p-4 sm:grid-cols-[1fr_auto]"
+                >
+                  <div>
+                    <p className="font-medium text-[var(--text-primary)]">
+                      {account.name}
+                    </p>
+                    <p className="mt-1 text-sm text-[var(--text-muted)]">
+                      {account.plan ?? "No plan"} /{" "}
+                      {account.stage ?? "No stage"}
+                    </p>
+                    <p className="mt-3 text-sm text-[var(--text-secondary)]">
+                      Owner: {account.owner_name ?? "Unassigned"}
+                    </p>
+                  </div>
+                  <div className="sm:text-right">
+                    <StatusPill variant={healthVariant(account.health_status)}>
+                      {account.health_status ?? "unknown"}
+                    </StatusPill>
+                  </div>
+                  <div className="sm:col-span-2">
+                    <AccountMetadata metadata={account.metadata} />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </Panel>
+        )}
+
         <div className="grid gap-6 xl:grid-cols-2">
           <Panel eyebrow="Accounts" title="At-risk accounts">
             {data.atRiskAccounts.length === 0 ? (
@@ -211,6 +246,9 @@ export default async function DashboardPage({
                       <StatusPill variant={healthVariant(account.health_status)}>
                         {account.health_status ?? "unknown"}
                       </StatusPill>
+                    </div>
+                    <div className="sm:col-span-2">
+                      <AccountMetadata metadata={account.metadata} />
                     </div>
                   </div>
                 ))}

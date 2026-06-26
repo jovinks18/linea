@@ -19,6 +19,7 @@ CREATE TABLE cases (
   sentiment TEXT,
   priority TEXT DEFAULT 'P2',
   channel_origin TEXT,
+  metadata JSONB NOT NULL DEFAULT '{}'::jsonb,
   last_activity_at TIMESTAMP DEFAULT NOW(),
   created_at TIMESTAMP DEFAULT NOW(),
   updated_at TIMESTAMP DEFAULT NOW(),
@@ -55,6 +56,7 @@ CREATE TABLE accounts (
   health_status TEXT DEFAULT 'unknown',
   owner_name TEXT,
   go_live_date DATE,
+  metadata JSONB NOT NULL DEFAULT '{}'::jsonb,
   created_at TIMESTAMP DEFAULT NOW(),
   updated_at TIMESTAMP DEFAULT NOW()
 );

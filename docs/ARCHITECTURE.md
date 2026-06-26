@@ -11,6 +11,7 @@ Linea is currently a Next.js App Router application with a PostgreSQL-backed sup
 - Model provider layer: `lib/models`
 - Agent planner: `lib/agent/planner.ts`
 - Agent action audit repository: `lib/agent/repository.ts`
+- Data onboarding scripts: `scripts/profile-csv.js`, `scripts/recommend-mapping.js`, and `scripts/import-csv.js`
 - PostgreSQL schema: `sql/schema.sql`
 - Demo knowledge base: `knowledge-base/smart-lock-battery.md`
 
@@ -88,6 +89,18 @@ The model never writes SQL or calls a repository. It can only return a validated
 
 This boundary prepares Linea for future approval queues and external tools: integrations can consume explicit action records without granting a model direct database access.
 
+## Data Onboarding Agent
+
+Linea keeps a stable canonical schema for accounts, customers, account contacts, implementation steps, cases, and messages. Source-specific columns do not become new database columns: reviewed mappings place custom account and case attributes into JSON `metadata`.
+
+CSV onboarding has three explicit phases:
+
+1. The profiler reads headers and sample rows, infers an entity type, and reports missing required fields.
+2. The mapping recommender applies deterministic column heuristics first. An optional configured model may add review-only suggestions, but it cannot apply mappings, call repositories, or execute SQL.
+3. The importer validates every required field and prints a preview. Only after validation, and only without `--dry-run`, deterministic parameterized repository code writes records inside one PostgreSQL transaction.
+
+Accounts are upserted by name, customers by email, and contacts are linked through `account_contacts`. Implementation steps are upserted by account and step name. Imported cases receive a first customer message. This separation keeps the model advisory while preserving an auditable, deterministic mutation boundary.
+
 ## Automation Notes
 
 Post-sales automation currently uses deterministic rule-based detection. Messages containing phrases such as `blocked`, `go live`, `go-live`, `implementation`, `setup not working`, `API setup`, or `cannot launch` are treated as onboarding blockers when the customer is linked to an account.
@@ -105,7 +118,7 @@ The current schema is intentionally simple. Some product concepts are mapped int
 - `cases`: support case metadata such as case number, status, intent, sentiment, priority, and channel origin.
 - `messages`: customer, AI, and future human-agent messages.
 - `case_events`: timeline events such as case creation and future workflow or triage events.
-- `accounts`: synthetic post-sales account records with stage and health status.
+- `accounts`: synthetic post-sales account records with stage, health status, and source-specific metadata.
 - `account_contacts`: links synthetic customers to accounts.
 - `implementation_steps`: onboarding or implementation work associated with an account and optional case.
 - `tasks`: human follow-up work for customer success, support, or implementation teams.

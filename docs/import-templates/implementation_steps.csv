@@ -1,0 +1,4 @@
+company_name,step_name,status,due_date,owner_name
+Harbor Health Systems,Validate API credentials,blocked,2026-07-08,Solutions Engineer
+Harbor Health Systems,Train regional admins,not_started,2026-07-12,Customer Success Manager
+Redwood Property Group,Configure access gateway,in_progress,2026-07-18,Implementation Manager

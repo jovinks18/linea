@@ -1,0 +1,3 @@
+customer_email,subject,status,priority,channel,message
+devon.reed@example.com,API credential validation blocker,open,P1,email,Our API credentials are still failing validation before launch.
+leila.brooks@example.com,Gateway configuration question,open,P2,web_chat,Can you help us confirm the gateway setup steps?
