@@ -1,36 +1,105 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Linea
 
-## Getting Started
+Linea is an open-source AI post-sales command center. It turns customer conversations into support cases, onboarding tasks, product signals, account health updates, and human follow-ups.
 
-First, run the development server:
+The current repo is an early local demo. It uses only synthetic data and should never contain real customer data, secrets, tokens, or production credentials.
+
+## Current Working Features
+
+- Next.js App Router application with a working `/chat` demo page.
+- `POST /api/intake` creates or restores a support case.
+- `GET /api/cases/[case_number]` fetches case metadata and message history.
+- PostgreSQL stores customers, cases, messages, and case events.
+- Demo AI responses are persisted as messages.
+- Docker Compose includes PostgreSQL, Qdrant, and n8n services.
+- A sample knowledge-base article exists for smart lock battery troubleshooting.
+
+## Product Direction
+
+Linea starts from customer conversations, but the goal is broader than ticket handling. The command center should help post-sales teams see what every conversation means for the customer account:
+
+- Support cases for immediate customer issues.
+- Onboarding tasks for implementation blockers.
+- Product signals for recurring gaps, bugs, and requests.
+- Account health updates for risk, adoption, and lifecycle status.
+- Human follow-ups for CSMs, support agents, and implementation teams.
+
+## Tech Stack
+
+- Next.js App Router
+- TypeScript
+- React
+- Tailwind CSS
+- PostgreSQL
+- `pg` for database access
+- Docker Compose
+- Qdrant and n8n containers for planned future milestones
+
+## Local Setup
+
+1. Install dependencies:
+
+```bash
+npm install
+```
+
+2. Copy the environment template:
+
+```bash
+cp .env.example .env.local
+```
+
+3. Start the local services:
+
+```bash
+docker compose up -d
+```
+
+4. Start the development server:
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+5. Open the app:
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```text
+http://localhost:3000/chat
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+PostgreSQL is initialized from `sql/schema.sql` when the database volume is first created.
 
-## Learn More
+## Demo Flow
 
-To learn more about Next.js, take a look at the following resources:
+1. Open `/chat`.
+2. Use a synthetic customer email such as `maya.chen@example.com`.
+3. Send a smart lock support message.
+4. Linea creates or restores a case.
+5. Linea stores the customer message and a demo AI response.
+6. The chat page loads the case timeline from `GET /api/cases/[case_number]`.
+7. Send another message with the same case number to continue the case history.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+See `docs/DEMO-SCENARIOS.md` for suggested demo prompts.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Current Limitations
 
-## Deploy on Vercel
+- All response generation is currently deterministic demo logic.
+- The smart lock knowledge-base article is not connected to retrieval yet.
+- Qdrant is available in Docker but not integrated with the app.
+- n8n is available in Docker but not integrated with the app.
+- There is no authentication or authorization yet.
+- There is no agent dashboard yet.
+- There is no account, onboarding, product signal, or health-event layer yet.
+- There is no production migration system yet.
+- Database credentials are for local development only.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Roadmap Summary
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- v0.1: Cleanup and open-source readiness.
+- v0.2: Triage engine.
+- v0.3: Agent dashboard.
+- v0.4: Post-sales account layer.
+- v0.5: Product signals and account health.
+- v0.6: Qdrant RAG and workflow integrations.
+
+See `docs/ROADMAP.md` for more detail.
