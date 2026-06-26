@@ -1,13 +1,48 @@
 import { NextResponse } from "next/server";
+import type { PoolClient } from "pg";
 import { pool } from "../../../lib/db";
 import { runBasicTriage } from "../../../lib/triage/engine";
 
 export const runtime = "nodejs";
 
+type PostSalesAccount = {
+  id: number;
+  name: string;
+  industry: string | null;
+  plan: string | null;
+  stage: string | null;
+  health_status: string | null;
+  owner_name: string | null;
+};
+
 function generateCaseNumber() {
   const today = new Date().toISOString().slice(0, 10).replaceAll("-", "");
   const random = Math.random().toString(36).substring(2, 6).toUpperCase();
   return `LIN-${today}-${random}`;
+}
+
+async function findCustomerAccount(
+  client: PoolClient,
+  customerId: number
+): Promise<PostSalesAccount | null> {
+  const accountResult = await client.query(
+    `SELECT
+      a.id,
+      a.name,
+      a.industry,
+      a.plan,
+      a.stage,
+      a.health_status,
+      a.owner_name
+    FROM account_contacts ac
+    JOIN accounts a ON a.id = ac.account_id
+    WHERE ac.customer_id = $1
+    ORDER BY ac.is_primary DESC, ac.created_at ASC
+    LIMIT 1`,
+    [customerId]
+  );
+
+  return accountResult.rows[0] ?? null;
 }
 
 export async function POST(req: Request) {
@@ -51,6 +86,8 @@ export async function POST(req: Request) {
 
       customer = newCustomerResult.rows[0];
     }
+
+    const account = await findCustomerAccount(client, customer.id);
 
     let supportCase = null;
 
@@ -149,6 +186,9 @@ export async function POST(req: Request) {
       intent: supportCase.intent,
       sentiment: supportCase.sentiment,
       priority: supportCase.priority,
+      post_sales: {
+        account,
+      },
     });
   } catch (error) {
     if (client) {

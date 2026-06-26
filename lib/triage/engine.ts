@@ -45,7 +45,18 @@ function classifySentiment(message: string): TriageSentiment {
     lower.includes("frustrated") ||
     lower.includes("angry") ||
     lower.includes("terrible") ||
-    lower.includes("not working")
+    lower.includes("not working") ||
+    lower.includes("not responding") ||
+    lower.includes("does not respond") ||
+    lower.includes("doesn't respond") ||
+    lower.includes("broken") ||
+    lower.includes("failed") ||
+    lower.includes("failing") ||
+    lower.includes("blocked") ||
+    lower.includes("stuck") ||
+    lower.includes("cannot access") ||
+    lower.includes("can't access") ||
+    lower.includes("locked out")
   ) {
     return "negative";
   }

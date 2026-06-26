@@ -46,6 +46,98 @@ CREATE TABLE case_events (
   created_at TIMESTAMP DEFAULT NOW()
 );
 
+CREATE TABLE accounts (
+  id SERIAL PRIMARY KEY,
+  name TEXT UNIQUE NOT NULL,
+  industry TEXT,
+  plan TEXT,
+  stage TEXT DEFAULT 'onboarding',
+  health_status TEXT DEFAULT 'unknown',
+  owner_name TEXT,
+  go_live_date DATE,
+  created_at TIMESTAMP DEFAULT NOW(),
+  updated_at TIMESTAMP DEFAULT NOW()
+);
+
+CREATE TABLE account_contacts (
+  id SERIAL PRIMARY KEY,
+  account_id INTEGER NOT NULL REFERENCES accounts(id),
+  customer_id INTEGER NOT NULL REFERENCES customers(id),
+  contact_role TEXT,
+  is_primary BOOLEAN DEFAULT FALSE,
+  created_at TIMESTAMP DEFAULT NOW(),
+  updated_at TIMESTAMP DEFAULT NOW(),
+  UNIQUE(account_id, customer_id)
+);
+
+CREATE TABLE implementation_steps (
+  id SERIAL PRIMARY KEY,
+  account_id INTEGER NOT NULL REFERENCES accounts(id),
+  related_case_id INTEGER REFERENCES cases(id),
+  step_name TEXT NOT NULL,
+  status TEXT DEFAULT 'not_started',
+  owner_role TEXT,
+  due_date DATE,
+  completed_at TIMESTAMP,
+  metadata JSONB DEFAULT '{}'::jsonb,
+  created_at TIMESTAMP DEFAULT NOW(),
+  updated_at TIMESTAMP DEFAULT NOW(),
+  UNIQUE(account_id, step_name)
+);
+
+CREATE TABLE tasks (
+  id SERIAL PRIMARY KEY,
+  account_id INTEGER REFERENCES accounts(id),
+  case_id INTEGER REFERENCES cases(id),
+  title TEXT NOT NULL,
+  description TEXT,
+  status TEXT DEFAULT 'open',
+  priority TEXT DEFAULT 'P2',
+  owner_role TEXT,
+  due_date DATE,
+  completed_at TIMESTAMP,
+  created_at TIMESTAMP DEFAULT NOW(),
+  updated_at TIMESTAMP DEFAULT NOW(),
+  UNIQUE(account_id, title)
+);
+
+CREATE TABLE product_signals (
+  id SERIAL PRIMARY KEY,
+  account_id INTEGER REFERENCES accounts(id),
+  case_id INTEGER REFERENCES cases(id),
+  source_message_id INTEGER REFERENCES messages(id),
+  signal_type TEXT NOT NULL,
+  title TEXT NOT NULL,
+  description TEXT,
+  severity TEXT DEFAULT 'medium',
+  status TEXT DEFAULT 'new',
+  created_at TIMESTAMP DEFAULT NOW(),
+  updated_at TIMESTAMP DEFAULT NOW(),
+  UNIQUE(account_id, signal_type, title)
+);
+
+CREATE TABLE account_health_events (
+  id SERIAL PRIMARY KEY,
+  account_id INTEGER NOT NULL REFERENCES accounts(id),
+  case_id INTEGER REFERENCES cases(id),
+  health_status TEXT NOT NULL,
+  event_type TEXT NOT NULL,
+  event_description TEXT,
+  metadata JSONB DEFAULT '{}'::jsonb,
+  created_at TIMESTAMP DEFAULT NOW(),
+  UNIQUE(account_id, event_type, event_description)
+);
+
+CREATE INDEX idx_accounts_health_status ON accounts(health_status);
+CREATE INDEX idx_accounts_stage ON accounts(stage);
+CREATE INDEX idx_account_contacts_customer_id ON account_contacts(customer_id);
+CREATE INDEX idx_implementation_steps_account_id ON implementation_steps(account_id);
+CREATE INDEX idx_tasks_account_id ON tasks(account_id);
+CREATE INDEX idx_tasks_status ON tasks(status);
+CREATE INDEX idx_product_signals_account_id ON product_signals(account_id);
+CREATE INDEX idx_product_signals_signal_type ON product_signals(signal_type);
+CREATE INDEX idx_account_health_events_account_id ON account_health_events(account_id);
+
 INSERT INTO customers 
 (name, email, phone, telegram_id, preferred_channel)
 VALUES

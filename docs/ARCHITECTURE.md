@@ -60,6 +60,12 @@ In the future architecture, an inbound customer message should do more than crea
 - `cases`: support case metadata such as case number, status, intent, sentiment, priority, and channel origin.
 - `messages`: customer, AI, and future human-agent messages.
 - `case_events`: timeline events such as case creation and future workflow or triage events.
+- `accounts`: synthetic post-sales account records with stage and health status.
+- `account_contacts`: links synthetic customers to accounts.
+- `implementation_steps`: onboarding or implementation work associated with an account and optional case.
+- `tasks`: human follow-up work for customer success, support, or implementation teams.
+- `product_signals`: structured product feedback, gaps, bugs, or requests surfaced from conversations.
+- `account_health_events`: account-level health changes and risk events.
 
 ## Planned Components
 
