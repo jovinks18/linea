@@ -11,11 +11,9 @@ import {
 import { findOrCreateCustomer } from "../customers/repository";
 import { pool } from "../db";
 import { createMessage } from "../messages/repository";
-import {
-  detectOnboardingBlocker,
-  type PostSalesActions,
-} from "../post-sales/automation";
+import { type PostSalesActions } from "../post-sales/automation";
 import { runPostSalesAutomation } from "../post-sales/repository";
+import { generateIntakeResponse } from "../responses/router";
 import { runBasicTriage } from "../triage/engine";
 
 export type IntakeRequest = {
@@ -42,14 +40,6 @@ function generateCaseNumber() {
   const today = new Date().toISOString().slice(0, 10).replaceAll("-", "");
   const random = Math.random().toString(36).substring(2, 6).toUpperCase();
   return `LIN-${today}-${random}`;
-}
-
-function createDemoResponse(message: string) {
-  if (detectOnboardingBlocker(message)) {
-    return "Thanks for flagging this. I've marked this as an onboarding blocker, created a CSM follow-up task, logged an implementation product signal, and updated the account health to at-risk. A team member should follow up before the go-live date.";
-  }
-
-  return "Thanks for reaching out. I found this looks related to CasaIQ Smart Lock battery troubleshooting. Please replace all four AA batteries with new alkaline batteries, wait 30 seconds, then press the reset button once. Are you currently locked out, or is the lock just not responding?";
 }
 
 export async function processIntakeMessage({
@@ -116,7 +106,11 @@ export async function processIntakeMessage({
       message,
     });
 
-    const aiResponse = createDemoResponse(message);
+    const aiResponse = generateIntakeResponse({
+      message,
+      onboardingBlockerDetected:
+        postSalesActions.onboarding_blocker_detected,
+    });
 
     await createMessage({
       client,
