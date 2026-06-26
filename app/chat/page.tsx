@@ -164,9 +164,17 @@ export default function ChatPage() {
         <section className="rounded-2xl border border-neutral-800 bg-neutral-900 p-6 shadow-xl">
           <div className="mb-6">
             <p className="text-sm text-neutral-400">Linea Demo</p>
-            <h1 className="text-3xl font-semibold mt-1">
-              Post-Sales Command Center
-            </h1>
+            <div className="mt-1 flex items-start justify-between gap-4">
+              <h1 className="text-3xl font-semibold">
+                Post-Sales Command Center
+              </h1>
+              <a
+                href="/dashboard"
+                className="rounded-lg border border-neutral-700 px-3 py-2 text-sm text-neutral-200 hover:border-neutral-500"
+              >
+                View Dashboard
+              </a>
+            </div>
             <p className="text-neutral-400 mt-2">
               Turn customer messages into cases, tasks, product signals, and
               account health updates.
