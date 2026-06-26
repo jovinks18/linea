@@ -112,6 +112,22 @@ Expected result:
 
 See `docs/DEMO-SCENARIOS.md` for suggested demo prompts.
 
+## Smoke Test
+
+With the app running, the local smoke test verifies the smart lock demo, API/go-live blocker demo, and unknown-account blocker demo.
+
+```bash
+docker compose up -d postgres
+docker compose exec -T postgres psql -U linea -d linea_db < sql/seed.sql
+npm run dev
+```
+
+In another terminal:
+
+```bash
+npm run smoke
+```
+
 ## Using Your Own Data
 
 Linea currently uses synthetic demo data only. Future real workspace mode will support company data ingestion through CSV imports, API import endpoints, webhooks, native connectors, and direct database or warehouse sync. See `docs/INTEGRATIONS.md` for the planned integration model and source-system mappings.
