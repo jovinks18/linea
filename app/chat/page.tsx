@@ -9,6 +9,26 @@ type ChatResponse = {
   intent?: string;
   sentiment?: string;
   priority?: string;
+  post_sales?: {
+    account: {
+      id: number;
+      name: string;
+      industry: string | null;
+      plan: string | null;
+      stage: string | null;
+      health_status: string | null;
+      owner_name: string | null;
+    } | null;
+    actions?: PostSalesActions;
+  };
+};
+
+type PostSalesActions = {
+  onboarding_blocker_detected: boolean;
+  task_created: boolean;
+  product_signal_created: boolean;
+  health_event_created: boolean;
+  account_health_updated: boolean;
 };
 
 type CaseDetails = {
@@ -32,6 +52,40 @@ type CaseDetails = {
     created_at: string;
   }[];
 };
+
+const emptyPostSalesActions: PostSalesActions = {
+  onboarding_blocker_detected: false,
+  task_created: false,
+  product_signal_created: false,
+  health_event_created: false,
+  account_health_updated: false,
+};
+
+const postSalesActionLabels: {
+  key: keyof PostSalesActions;
+  label: string;
+}[] = [
+  {
+    key: "onboarding_blocker_detected",
+    label: "Onboarding blocker detected",
+  },
+  {
+    key: "task_created",
+    label: "CSM task created",
+  },
+  {
+    key: "product_signal_created",
+    label: "Product signal logged",
+  },
+  {
+    key: "health_event_created",
+    label: "Health event created",
+  },
+  {
+    key: "account_health_updated",
+    label: "Account health updated",
+  },
+];
 
 export default function ChatPage() {
   const [email, setEmail] = useState("maya.chen@example.com");
@@ -61,7 +115,7 @@ export default function ChatPage() {
 
       const data = await res.json();
       setCaseDetails(data);
-    } catch (err) {
+    } catch {
       setError("Could not load case history.");
       setCaseDetails(null);
     } finally {
@@ -97,7 +151,7 @@ export default function ChatPage() {
       setCaseNumber(data.case_number);
 
       await fetchCaseHistory(data.case_number);
-    } catch (err) {
+    } catch {
       setError("Something went wrong. Check your API route.");
     } finally {
       setLoading(false);
@@ -192,6 +246,75 @@ export default function ChatPage() {
                 <p className="text-neutral-100 leading-relaxed">
                   {reply.response}
                 </p>
+              </div>
+
+              <div className="mt-4 border-t border-neutral-800 pt-4">
+                <p className="text-sm text-neutral-400 mb-3">
+                  Account Context
+                </p>
+
+                {reply.post_sales?.account ? (
+                  <div className="grid grid-cols-2 gap-3 text-sm">
+                    <div>
+                      <p className="text-neutral-500">Account</p>
+                      <p>{reply.post_sales.account.name}</p>
+                    </div>
+                    <div>
+                      <p className="text-neutral-500">Plan</p>
+                      <p>{reply.post_sales.account.plan ?? "Not set"}</p>
+                    </div>
+                    <div>
+                      <p className="text-neutral-500">Stage</p>
+                      <p>{reply.post_sales.account.stage ?? "Not set"}</p>
+                    </div>
+                    <div>
+                      <p className="text-neutral-500">Health</p>
+                      <p>{reply.post_sales.account.health_status ?? "Not set"}</p>
+                    </div>
+                    <div className="col-span-2">
+                      <p className="text-neutral-500">Owner</p>
+                      <p>{reply.post_sales.account.owner_name ?? "Unassigned"}</p>
+                    </div>
+                  </div>
+                ) : (
+                  <p className="text-sm text-neutral-400">
+                    No linked account found.
+                  </p>
+                )}
+              </div>
+
+              <div className="mt-4 border-t border-neutral-800 pt-4">
+                <p className="text-sm text-neutral-400 mb-3">
+                  Post-sales Actions
+                </p>
+
+                <div className="space-y-2">
+                  {postSalesActionLabels.map((action) => {
+                    const actions =
+                      reply.post_sales?.actions ?? emptyPostSalesActions;
+                    const triggered = actions[action.key];
+
+                    return (
+                      <div
+                        key={action.key}
+                        className="flex items-center justify-between gap-4 text-sm"
+                      >
+                        <span className="text-neutral-200">
+                          {action.label}
+                        </span>
+                        <span
+                          className={`rounded-full px-3 py-1 text-xs ${
+                            triggered
+                              ? "bg-emerald-950 text-emerald-200 border border-emerald-800"
+                              : "bg-neutral-900 text-neutral-500 border border-neutral-800"
+                          }`}
+                        >
+                          {triggered ? "Created" : "Not triggered"}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
             </div>
           )}
