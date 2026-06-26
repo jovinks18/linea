@@ -8,6 +8,9 @@ Linea is currently a Next.js App Router application with a PostgreSQL-backed sup
 - Intake API: `app/api/intake/route.ts`
 - Case history API: `app/api/cases/[case_number]/route.ts`
 - Database pool: `lib/db.ts`
+- Model provider layer: `lib/models`
+- Agent planner: `lib/agent/planner.ts`
+- Agent action audit repository: `lib/agent/repository.ts`
 - PostgreSQL schema: `sql/schema.sql`
 - Demo knowledge base: `knowledge-base/smart-lock-battery.md`
 
@@ -18,9 +21,11 @@ Linea is currently a Next.js App Router application with a PostgreSQL-backed sup
   -> POST /api/intake
   -> deterministic triage
   -> account lookup
+  -> optional structured model plan
   -> case restore/create
   -> message persistence
   -> post-sales automation
+  -> agent action audit
   -> demo AI response persistence
   -> response UI with account context and action status
   -> GET /api/cases/[case_number]
@@ -50,16 +55,38 @@ An inbound customer message can now do more than create a ticket. Linea preserve
 5. PostgreSQL is queried for an existing customer by email.
 6. If no customer exists, a synthetic customer record is created.
 7. Account context is looked up through `account_contacts`.
-8. If a case number is provided, the route tries to restore a case owned by that customer.
-9. If no matching case is found, a new case is created.
-10. The route persists the customer message.
-11. Rule-based post-sales automation checks for onboarding or go-live blocker language.
-12. For a known account blocker, Linea creates or updates a task, product signal, and health event, then updates account health to `at_risk`.
-13. The route persists a deterministic demo AI response.
-14. The route updates the case activity timestamp.
-15. The chat page requests `GET /api/cases/[case_number]`.
-16. The case history route returns case metadata and ordered messages.
-17. The chat page displays the latest response, account context, post-sales actions, and conversation timeline.
+8. The optional model planner can enrich the agent decision with a validated structured plan.
+9. If a case number is provided, the route tries to restore a case owned by that customer.
+10. If no matching case is found, a new case is created.
+11. The route persists the customer message.
+12. Rule-based post-sales automation checks for onboarding or go-live blocker language.
+13. For a known account blocker, Linea creates or updates a task, product signal, and health event, then updates account health to `at_risk`.
+14. Linea records executed, suggested, skipped, or failed policy actions in `agent_actions`.
+15. The route persists a deterministic demo AI response.
+16. The route updates the case activity timestamp.
+17. The chat page requests `GET /api/cases/[case_number]`.
+18. The case history route returns case metadata and ordered messages.
+19. The chat page displays the latest response, account context, post-sales actions, and conversation timeline.
+
+## Model Provider Layer
+
+Linea is local-first and open-source-first. The model layer supports three paths:
+
+1. **Deterministic fallback:** the default mode. It requires no model server, API key, or paid API and keeps the current workflow fully functional.
+2. **Local model planner via Ollama:** the recommended model-powered path. Ollama runs an open-source model locally and returns a structured plan that enriches the deterministic agent decision.
+3. **Optional hosted OpenAI-compatible adapter:** available for users who choose a compatible hosted API. It is an adapter, not a requirement or the default architecture.
+
+The provider boundary is intentionally narrow. A model may classify a message and return a validated JSON plan containing confidence, urgency, a user-safe reasoning summary, and recommended actions. It never calls repositories, writes to PostgreSQL, or claims that actions were executed. Deterministic application policy remains responsible for deciding whether account-linked tasks, product signals, and health events may be created.
+
+If a provider is missing configuration, fails, times out, or returns invalid JSON, the planner returns no model plan and intake continues with the deterministic decision.
+
+## Agent Action Audit
+
+`agent_actions` is Linea's durable audit layer between an agent recommendation and a database mutation. It records the case and account context, action type, outcome, decision source, confidence, user-safe reasoning, metadata, and execution time.
+
+The model never writes SQL or calls a repository. It can only return a validated structured plan. The deterministic service and policy layer decides which recommendations are safe, repository functions perform approved writes, and the resulting outcomes are logged inside the same PostgreSQL transaction. Unknown-account blocker actions are skipped rather than applied to account-level tables, while human review is recorded as suggested until a human workflow actually accepts or assigns it.
+
+This boundary prepares Linea for future approval queues and external tools: integrations can consume explicit action records without granting a model direct database access.
 
 ## Automation Notes
 
@@ -84,6 +111,7 @@ The current schema is intentionally simple. Some product concepts are mapped int
 - `tasks`: human follow-up work for customer success, support, or implementation teams.
 - `product_signals`: structured product feedback, gaps, bugs, or requests surfaced from conversations.
 - `account_health_events`: account-level health changes and risk events.
+- `agent_actions`: audit records for recommended, executed, skipped, and failed agent actions.
 
 ## Planned Components
 

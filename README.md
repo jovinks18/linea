@@ -81,6 +81,41 @@ PostgreSQL is initialized from `sql/schema.sql` when the database volume is firs
 
 > Database reset warning: existing Docker volumes do not automatically pick up schema changes. For a fresh local demo database, run `docker compose down -v` before starting Postgres again. This deletes local Docker volume data.
 
+## Local-First Model Setup
+
+Linea works locally without any paid model API. Deterministic mode is the safest default and preserves the complete demo workflow without calling a model:
+
+```dotenv
+MODEL_PROVIDER=deterministic
+MODEL_BASE_URL=
+MODEL_API_KEY=
+MODEL_NAME=
+MODEL_TIMEOUT_MS=15000
+```
+
+Ollama is the recommended open-source path for optional model-powered planning. Install Ollama, then download and run the local model service:
+
+```bash
+ollama pull llama3.2
+ollama serve
+```
+
+Configure `.env.local`:
+
+```dotenv
+MODEL_PROVIDER=ollama
+MODEL_BASE_URL=http://localhost:11434
+MODEL_API_KEY=
+MODEL_NAME=llama3.2
+MODEL_TIMEOUT_MS=15000
+```
+
+Restart the Next.js development server after changing environment variables. If Ollama is unavailable, times out, or returns an invalid plan, Linea falls back to deterministic behavior.
+
+The `openai_compatible` provider is an optional adapter for users who choose a hosted API. It is not required for local development or the core Linea demo.
+
+Models only return validated structured plans. Linea's deterministic policy layer decides what may execute, repository functions perform approved writes, and `agent_actions` records executed, suggested, skipped, or failed outcomes in the same transaction. Models never write directly to PostgreSQL.
+
 ## Current Demo Flow
 
 1. Open `/chat`.
@@ -134,7 +169,7 @@ Linea currently uses synthetic demo data only. Future real workspace mode will s
 
 ## Current Limitations
 
-- All response generation is currently deterministic demo logic.
+- Customer-facing response generation remains deterministic; model planning is optional and safely falls back to deterministic decisions.
 - The smart lock knowledge-base article is not connected to retrieval yet.
 - Qdrant is available in Docker but not integrated with the app.
 - n8n is available in Docker but not integrated with the app.

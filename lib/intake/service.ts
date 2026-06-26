@@ -2,7 +2,10 @@ import {
   findCustomerAccount,
   type PostSalesAccount,
 } from "../accounts/repository";
+import { buildAgentActionAudit } from "../agent/audit";
 import { buildAgentDecision, type AgentDecision } from "../agent/decision";
+import { planWithModel } from "../agent/planner";
+import { insertAgentActions } from "../agent/repository";
 import {
   createCaseCreatedEvent,
   createSupportCase,
@@ -66,6 +69,19 @@ export async function processIntakeMessage({
 
     const account = await findCustomerAccount(client, customer.id);
     const messageLevelOnboardingBlocker = detectOnboardingBlocker(message);
+    const deterministicTriage = runBasicTriage(message);
+    const modelPlan = await planWithModel({
+      message,
+      account: account
+        ? {
+            name: account.name,
+            industry: account.industry,
+            plan: account.plan,
+            stage: account.stage,
+            health_status: account.health_status,
+          }
+        : null,
+    });
 
     let supportCase = case_number
       ? await findCaseForCustomer({
@@ -74,15 +90,14 @@ export async function processIntakeMessage({
           customerId: customer.id,
         })
       : null;
+    const caseWasCreated = supportCase === null;
 
     if (!supportCase) {
-      const triage = runBasicTriage(message);
-
       supportCase = await createSupportCase({
         client,
         caseNumber: generateCaseNumber(),
         customerId: customer.id,
-        triage,
+        triage: deterministicTriage,
         channel,
       });
 
@@ -127,7 +142,19 @@ export async function processIntakeMessage({
       priority: supportCase.priority,
       onboardingBlockerDetected: messageLevelOnboardingBlocker,
       actions: postSalesActions,
+      modelPlan,
     });
+
+    const agentActionAudit = buildAgentActionAudit({
+      caseId: supportCase.id,
+      accountId: account?.id ?? null,
+      caseWasCreated,
+      onboardingBlockerDetected: messageLevelOnboardingBlocker,
+      actions: postSalesActions,
+      decision: agentDecision,
+    });
+
+    await insertAgentActions(client, agentActionAudit);
 
     await createMessage({
       client,

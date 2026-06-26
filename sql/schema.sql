@@ -128,6 +128,22 @@ CREATE TABLE account_health_events (
   UNIQUE(account_id, event_type, event_description)
 );
 
+CREATE TABLE agent_actions (
+  id BIGSERIAL PRIMARY KEY,
+  case_id BIGINT REFERENCES cases(id) ON DELETE SET NULL,
+  account_id BIGINT REFERENCES accounts(id) ON DELETE SET NULL,
+  action_type TEXT NOT NULL,
+  status TEXT NOT NULL CHECK (
+    status IN ('executed', 'suggested', 'skipped', 'failed')
+  ),
+  source TEXT NOT NULL DEFAULT 'deterministic',
+  confidence NUMERIC,
+  reasoning_summary TEXT,
+  metadata JSONB NOT NULL DEFAULT '{}'::jsonb,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  executed_at TIMESTAMPTZ
+);
+
 CREATE INDEX idx_accounts_health_status ON accounts(health_status);
 CREATE INDEX idx_accounts_stage ON accounts(stage);
 CREATE INDEX idx_account_contacts_customer_id ON account_contacts(customer_id);
@@ -137,6 +153,12 @@ CREATE INDEX idx_tasks_status ON tasks(status);
 CREATE INDEX idx_product_signals_account_id ON product_signals(account_id);
 CREATE INDEX idx_product_signals_signal_type ON product_signals(signal_type);
 CREATE INDEX idx_account_health_events_account_id ON account_health_events(account_id);
+CREATE INDEX idx_agent_actions_case_id ON agent_actions(case_id);
+CREATE INDEX idx_agent_actions_account_id ON agent_actions(account_id);
+CREATE INDEX idx_agent_actions_action_type ON agent_actions(action_type);
+CREATE INDEX idx_agent_actions_status ON agent_actions(status);
+CREATE INDEX idx_agent_actions_source ON agent_actions(source);
+CREATE INDEX idx_agent_actions_created_at ON agent_actions(created_at);
 
 INSERT INTO customers 
 (name, email, phone, telegram_id, preferred_channel)
