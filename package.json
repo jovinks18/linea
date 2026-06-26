@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "smoke": "bash scripts/smoke-test.sh"
+    "smoke": "bash scripts/smoke-test.sh",
+    "test:triage": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON tests/triage-subjects.test.mjs"
   },
   "dependencies": {
     "next": "16.2.9",

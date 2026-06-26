@@ -35,7 +35,7 @@ export default function Home() {
           <div className="grid gap-8 p-6 sm:p-8 xl:grid-cols-[1.08fr_0.92fr] xl:p-10">
             <div className="flex min-h-[440px] flex-col justify-between">
               <div>
-                <div className="inline-flex rounded-full border border-cyan-300/20 bg-cyan-300/10 px-3 py-1 text-xs font-medium uppercase tracking-[0.18em] text-cyan-200">
+                <div className="inline-flex rounded-full border border-[var(--border-subtle)] bg-[var(--surface-2)] px-3 py-1 text-xs font-medium uppercase tracking-[0.18em] text-[var(--text-subtle)]">
                   Open-source AI ops console
                 </div>
                 <h1 className="mt-6 max-w-4xl text-4xl font-semibold leading-tight text-zinc-50 sm:text-5xl lg:text-6xl">

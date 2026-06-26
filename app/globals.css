@@ -1,8 +1,36 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  color-scheme: dark;
+  --background: #050608;
+  --foreground: #f4f4f5;
+  --surface-1: #09090b;
+  --surface-2: #111113;
+  --surface-3: #18181b;
+  --border-subtle: rgba(255, 255, 255, 0.1);
+  --border-strong: rgba(255, 255, 255, 0.18);
+  --text-primary: #fafafa;
+  --text-secondary: #d4d4d8;
+  --text-muted: #a1a1aa;
+  --text-subtle: #71717a;
+  --accent: #67e8f9;
+  --accent-muted: rgba(103, 232, 249, 0.12);
+  --status-red-bg: rgba(244, 63, 94, 0.12);
+  --status-red-border: rgba(244, 63, 94, 0.28);
+  --status-red-text: #fecdd3;
+  --status-amber-bg: rgba(245, 158, 11, 0.13);
+  --status-amber-border: rgba(245, 158, 11, 0.3);
+  --status-amber-text: #fde68a;
+  --status-green-bg: rgba(16, 185, 129, 0.12);
+  --status-green-border: rgba(16, 185, 129, 0.28);
+  --status-green-text: #a7f3d0;
+  --status-blue-bg: rgba(56, 189, 248, 0.12);
+  --status-blue-border: rgba(56, 189, 248, 0.28);
+  --status-blue-text: #bae6fd;
+  --status-neutral-bg: rgba(255, 255, 255, 0.06);
+  --status-neutral-border: rgba(255, 255, 255, 0.12);
+  --status-neutral-text: #d4d4d8;
+  --space-section: 1.5rem;
 }
 
 @theme inline {
@@ -12,15 +40,48 @@
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+[data-theme="light"] {
+  color-scheme: light;
+  --background: #f6f7f9;
+  --foreground: #18181b;
+  --surface-1: #ffffff;
+  --surface-2: #f4f4f5;
+  --surface-3: #eceef2;
+  --border-subtle: rgba(24, 24, 27, 0.12);
+  --border-strong: rgba(24, 24, 27, 0.2);
+  --text-primary: #18181b;
+  --text-secondary: #3f3f46;
+  --text-muted: #52525b;
+  --text-subtle: #71717a;
+  --accent: #0891b2;
+  --accent-muted: rgba(8, 145, 178, 0.1);
+  --status-red-bg: rgba(225, 29, 72, 0.09);
+  --status-red-border: rgba(225, 29, 72, 0.24);
+  --status-red-text: #9f1239;
+  --status-amber-bg: rgba(217, 119, 6, 0.1);
+  --status-amber-border: rgba(217, 119, 6, 0.26);
+  --status-amber-text: #92400e;
+  --status-green-bg: rgba(5, 150, 105, 0.1);
+  --status-green-border: rgba(5, 150, 105, 0.24);
+  --status-green-text: #065f46;
+  --status-blue-bg: rgba(2, 132, 199, 0.1);
+  --status-blue-border: rgba(2, 132, 199, 0.24);
+  --status-blue-text: #075985;
+  --status-neutral-bg: rgba(24, 24, 27, 0.05);
+  --status-neutral-border: rgba(24, 24, 27, 0.12);
+  --status-neutral-text: #3f3f46;
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
   font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
+}
+
+button,
+a,
+input,
+textarea,
+summary {
+  outline-offset: 2px;
 }

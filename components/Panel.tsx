@@ -13,18 +13,18 @@ export function Panel({
 }) {
   return (
     <section
-      className={`rounded-lg border border-white/10 bg-zinc-950/70 shadow-[0_1px_0_rgba(255,255,255,0.04)] backdrop-blur ${className}`}
+      className={`rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-1)] shadow-[0_1px_0_rgba(255,255,255,0.04)] backdrop-blur ${className}`}
     >
       {(title || eyebrow || action) && (
-        <div className="flex items-start justify-between gap-4 border-b border-white/10 px-5 py-4">
+        <div className="flex items-start justify-between gap-4 border-b border-[var(--border-subtle)] px-5 py-4">
           <div>
             {eyebrow && (
-              <p className="text-xs font-medium uppercase tracking-[0.18em] text-cyan-300/80">
+              <p className="text-xs font-medium uppercase tracking-[0.18em] text-[var(--text-subtle)]">
                 {eyebrow}
               </p>
             )}
             {title && (
-              <h2 className="mt-1 text-base font-semibold text-zinc-50">
+              <h2 className="mt-1 text-base font-semibold text-[var(--text-primary)]">
                 {title}
               </h2>
             )}

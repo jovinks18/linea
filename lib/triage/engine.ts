@@ -7,7 +7,26 @@ import type {
 function createSubject(message: string) {
   const lower = message.toLowerCase();
 
-  if (lower.includes("lock")) return "Smart lock support issue";
+  if (
+    lower.includes("api setup") ||
+    lower.includes("go live") ||
+    lower.includes("go-live") ||
+    lower.includes("implementation") ||
+    lower.includes("cannot launch") ||
+    lower.includes("onboarding blocked") ||
+    lower.includes("launch is blocked")
+  ) {
+    return "Implementation Blocker - API go-live";
+  }
+
+  if (
+    lower.includes("smart lock") ||
+    /\block\b/.test(lower) ||
+    lower.includes("locked out")
+  ) {
+    return "Smart lock support issue";
+  }
+
   if (lower.includes("camera")) return "Camera support issue";
   if (lower.includes("thermostat")) return "Thermostat support issue";
   if (lower.includes("battery")) return "Battery troubleshooting request";

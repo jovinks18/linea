@@ -34,6 +34,7 @@ export type DashboardCase = {
   subject: string | null;
   priority: string | null;
   status: string | null;
+  account: string | null;
   customer_email: string;
   last_activity_at: string | null;
 };
@@ -94,10 +95,13 @@ export async function getDashboardData(): Promise<DashboardData> {
         c.subject,
         c.priority,
         c.status,
+        a.name AS account,
         cu.email AS customer_email,
         c.last_activity_at::text AS last_activity_at
        FROM cases c
        JOIN customers cu ON cu.id = c.customer_id
+       LEFT JOIN account_contacts ac ON ac.customer_id = cu.id
+       LEFT JOIN accounts a ON a.id = ac.account_id
        ORDER BY c.last_activity_at DESC
        LIMIT 10`
     ),

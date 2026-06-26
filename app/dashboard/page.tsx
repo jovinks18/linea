@@ -1,15 +1,21 @@
+import Link from "next/link";
 import { AppShell } from "../../components/AppShell";
 import { MetricCard } from "../../components/MetricCard";
 import { Panel } from "../../components/Panel";
 import { StatusPill } from "../../components/StatusPill";
 import { getDashboardData } from "../../lib/dashboard/repository";
+import {
+  healthVariant,
+  priorityVariant,
+  severityVariant,
+} from "../../lib/ui/status";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
 function EmptyState({ label }: { label: string }) {
   return (
-    <div className="rounded-lg border border-dashed border-white/10 bg-black/20 p-5 text-sm text-zinc-500">
+    <div className="rounded-lg border border-dashed border-[var(--border-subtle)] bg-[var(--surface-2)] p-5 text-sm text-[var(--text-muted)]">
       {label}
     </div>
   );
@@ -30,23 +36,126 @@ function formatLabel(value: string | null | undefined) {
     .join(" ");
 }
 
-export default async function DashboardPage() {
+type DashboardSearchParams = {
+  account?: string;
+  priority?: string;
+  show?: string;
+  sort?: string;
+  status?: string;
+};
+
+function priorityRank(priority: string | null) {
+  if (priority === "P0") return 0;
+  if (priority === "P1") return 1;
+  if (priority === "P2") return 2;
+  if (priority === "P3") return 3;
+
+  return 4;
+}
+
+function buildCaseQuery(
+  params: DashboardSearchParams,
+  updates: DashboardSearchParams
+) {
+  const nextParams = new URLSearchParams();
+  const merged = { ...params, ...updates };
+
+  for (const [key, value] of Object.entries(merged)) {
+    if (value && value !== "all") {
+      nextParams.set(key, value);
+    }
+  }
+
+  const query = nextParams.toString();
+
+  return query ? `/dashboard?${query}` : "/dashboard";
+}
+
+function FilterLink({
+  active,
+  children,
+  href,
+}: {
+  active: boolean;
+  children: React.ReactNode;
+  href: string;
+}) {
+  return (
+    <Link
+      href={href}
+      className={`rounded-lg border px-3 py-2 text-sm transition focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/40 ${
+        active
+          ? "border-[var(--border-strong)] bg-[var(--surface-3)] text-[var(--text-primary)]"
+          : "border-[var(--border-subtle)] text-[var(--text-muted)] hover:bg-[var(--surface-2)] hover:text-[var(--text-primary)]"
+      }`}
+    >
+      {children}
+    </Link>
+  );
+}
+
+export default async function DashboardPage({
+  searchParams,
+}: {
+  searchParams?: Promise<DashboardSearchParams>;
+}) {
   const data = await getDashboardData();
+  const params = (await searchParams) ?? {};
   const openCaseCount = data.recentCases.filter(
     (supportCase) => supportCase.status === "open"
   ).length;
+  const accountOptions = Array.from(
+    new Set(data.recentCases.map((supportCase) => supportCase.account).filter(Boolean))
+  ) as string[];
+  const filteredCases = data.recentCases
+    .filter((supportCase) => {
+      const priorityMatches =
+        !params.priority ||
+        params.priority === "all" ||
+        supportCase.priority === params.priority;
+      const statusMatches =
+        !params.status ||
+        params.status === "all" ||
+        supportCase.status === params.status;
+      const accountMatches =
+        !params.account ||
+        params.account === "all" ||
+        supportCase.account === params.account;
+
+      return priorityMatches && statusMatches && accountMatches;
+    })
+    .sort((caseA, caseB) => {
+      if (params.sort === "priority") {
+        return priorityRank(caseA.priority) - priorityRank(caseB.priority);
+      }
+
+      if (params.sort === "account") {
+        return (caseA.account ?? "").localeCompare(caseB.account ?? "");
+      }
+
+      if (params.sort === "status") {
+        return (caseA.status ?? "").localeCompare(caseB.status ?? "");
+      }
+
+      return (
+        new Date(caseB.last_activity_at ?? 0).getTime() -
+        new Date(caseA.last_activity_at ?? 0).getTime()
+      );
+    });
+  const visibleCases =
+    params.show === "all" ? filteredCases : filteredCases.slice(0, 5);
 
   return (
     <AppShell active="dashboard">
       <div className="grid gap-6">
         <header>
-          <p className="text-xs font-medium uppercase tracking-[0.18em] text-cyan-300/80">
+          <p className="text-xs font-medium uppercase tracking-[0.18em] text-[var(--text-subtle)]">
             Command center
           </p>
-          <h1 className="mt-2 text-3xl font-semibold text-zinc-50 sm:text-4xl">
+          <h1 className="mt-2 text-3xl font-semibold text-[var(--text-primary)] sm:text-4xl">
             Post-sales operations console
           </h1>
-          <p className="mt-3 max-w-3xl text-sm leading-6 text-zinc-400 sm:text-base">
+          <p className="mt-3 max-w-3xl text-sm leading-6 text-[var(--text-muted)] sm:text-base">
             Monitor account risk, follow-up work, product signals, and recent
             support activity from the local demo database.
           </p>
@@ -78,28 +187,28 @@ export default async function DashboardPage() {
         <div className="grid gap-6 xl:grid-cols-2">
           <Panel eyebrow="Accounts" title="At-risk accounts">
             {data.atRiskAccounts.length === 0 ? (
-              <EmptyState label="No at-risk accounts yet." />
+              <EmptyState label="No at-risk accounts - all accounts are currently stable." />
             ) : (
               <div className="divide-y divide-white/10 overflow-hidden rounded-lg border border-white/10">
                 {data.atRiskAccounts.map((account) => (
                   <div
                     key={account.id}
-                    className="grid gap-4 bg-black/25 p-4 sm:grid-cols-[1fr_auto]"
+                    className="grid gap-4 bg-[var(--surface-2)] p-4 sm:grid-cols-[1fr_auto]"
                   >
                     <div>
-                      <p className="font-medium text-zinc-100">
+                      <p className="font-medium text-[var(--text-primary)]">
                         {account.name}
                       </p>
-                      <p className="mt-1 text-sm text-zinc-500">
+                      <p className="mt-1 text-sm text-[var(--text-muted)]">
                         {account.plan ?? "No plan"} /{" "}
                         {account.stage ?? "No stage"}
                       </p>
-                      <p className="mt-3 text-sm text-zinc-400">
+                      <p className="mt-3 text-sm text-[var(--text-secondary)]">
                         Owner: {account.owner_name ?? "Unassigned"}
                       </p>
                     </div>
                     <div className="sm:text-right">
-                      <StatusPill variant="danger">
+                      <StatusPill variant={healthVariant(account.health_status)}>
                         {account.health_status ?? "unknown"}
                       </StatusPill>
                     </div>
@@ -111,17 +220,17 @@ export default async function DashboardPage() {
 
           <Panel eyebrow="Follow-up" title="Open tasks">
             {data.openTasks.length === 0 ? (
-              <EmptyState label="No open tasks yet." />
+              <EmptyState label="No open tasks - no CSM follow-up is waiting." />
             ) : (
               <div className="divide-y divide-white/10 overflow-hidden rounded-lg border border-white/10">
                 {data.openTasks.map((task) => (
-                  <div key={task.id} className="bg-black/25 p-4">
+                  <div key={task.id} className="bg-[var(--surface-2)] p-4">
                     <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                       <div>
-                        <p className="font-medium text-zinc-100">
+                        <p className="font-medium text-[var(--text-primary)]">
                           {task.title}
                         </p>
-                        <p className="mt-1 text-sm text-zinc-500">
+                        <p className="mt-1 text-sm text-[var(--text-muted)]">
                           {task.account ?? "No account"}
                         </p>
                       </div>
@@ -130,7 +239,7 @@ export default async function DashboardPage() {
                           {formatLabel(task.status)}
                         </StatusPill>
                         <StatusPill
-                          variant={task.priority === "P1" ? "danger" : "info"}
+                          variant={priorityVariant(task.priority)}
                         >
                           {task.priority ?? "P2"}
                         </StatusPill>
@@ -138,14 +247,14 @@ export default async function DashboardPage() {
                     </div>
                     <div className="mt-4 grid gap-3 text-sm sm:grid-cols-2">
                       <div>
-                        <p className="text-zinc-500">Owner</p>
-                        <p className="mt-1 text-zinc-200">
+                        <p className="text-[var(--text-subtle)]">Owner</p>
+                        <p className="mt-1 text-[var(--text-secondary)]">
                           {task.owner_role ?? "Unassigned"}
                         </p>
                       </div>
                       <div>
-                        <p className="text-zinc-500">Due date</p>
-                        <p className="mt-1 text-zinc-200">
+                        <p className="text-[var(--text-subtle)]">Due date</p>
+                        <p className="mt-1 text-[var(--text-secondary)]">
                           {task.due_date ?? "Not set"}
                         </p>
                       </div>
@@ -158,25 +267,23 @@ export default async function DashboardPage() {
 
           <Panel eyebrow="Product" title="Recent product signals">
             {data.recentProductSignals.length === 0 ? (
-              <EmptyState label="No product signals yet." />
+              <EmptyState label="No product signals - nothing has been logged for Product Ops." />
             ) : (
               <div className="divide-y divide-white/10 overflow-hidden rounded-lg border border-white/10">
                 {data.recentProductSignals.map((signal) => (
-                  <div key={signal.id} className="bg-black/25 p-4">
+                  <div key={signal.id} className="bg-[var(--surface-2)] p-4">
                     <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                       <div>
-                        <p className="font-medium text-zinc-100">
+                        <p className="font-medium text-[var(--text-primary)]">
                           {signal.title}
                         </p>
-                        <p className="mt-1 text-sm text-zinc-500">
+                        <p className="mt-1 text-sm text-[var(--text-muted)]">
                           {signal.account ?? "No account"}
                         </p>
                       </div>
                       <div className="flex flex-wrap gap-2 sm:justify-end">
                         <StatusPill
-                          variant={
-                            signal.severity === "high" ? "warning" : "default"
-                          }
+                          variant={severityVariant(signal.severity)}
                         >
                           {signal.severity ?? "medium"}
                         </StatusPill>
@@ -185,7 +292,7 @@ export default async function DashboardPage() {
                         </StatusPill>
                       </div>
                     </div>
-                    <p className="mt-4 text-sm text-zinc-400">
+                    <p className="mt-4 text-sm text-[var(--text-secondary)]">
                       Type: {formatLabel(signal.signal_type)}
                     </p>
                   </div>
@@ -195,19 +302,74 @@ export default async function DashboardPage() {
           </Panel>
 
           <Panel eyebrow="Cases" title="Recent cases">
-            {data.recentCases.length === 0 ? (
-              <EmptyState label="No recent cases yet." />
+            <div className="mb-5 grid gap-3">
+              <div className="flex flex-wrap gap-2">
+                {["all", "P1", "P2", "P3"].map((priority) => (
+                  <FilterLink
+                    key={priority}
+                    active={(params.priority ?? "all") === priority}
+                    href={buildCaseQuery(params, { priority })}
+                  >
+                    {priority === "all" ? "All priorities" : priority}
+                  </FilterLink>
+                ))}
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {["all", "open", "closed"].map((status) => (
+                  <FilterLink
+                    key={status}
+                    active={(params.status ?? "all") === status}
+                    href={buildCaseQuery(params, { status })}
+                  >
+                    {status === "all" ? "All statuses" : formatLabel(status)}
+                  </FilterLink>
+                ))}
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {["recency", "priority", "status", "account"].map((sort) => (
+                  <FilterLink
+                    key={sort}
+                    active={(params.sort ?? "recency") === sort}
+                    href={buildCaseQuery(params, { sort })}
+                  >
+                    Sort: {formatLabel(sort)}
+                  </FilterLink>
+                ))}
+              </div>
+              {accountOptions.length > 0 && (
+                <div className="flex flex-wrap gap-2">
+                  <FilterLink
+                    active={!params.account || params.account === "all"}
+                    href={buildCaseQuery(params, { account: "all" })}
+                  >
+                    All accounts
+                  </FilterLink>
+                  {accountOptions.map((account) => (
+                    <FilterLink
+                      key={account}
+                      active={params.account === account}
+                      href={buildCaseQuery(params, { account })}
+                    >
+                      {account}
+                    </FilterLink>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {filteredCases.length === 0 ? (
+              <EmptyState label="No recent cases match the current filters." />
             ) : (
               <div className="divide-y divide-white/10 overflow-hidden rounded-lg border border-white/10">
-                {data.recentCases.map((supportCase) => (
-                  <div key={supportCase.id} className="bg-black/25 p-4">
+                {visibleCases.map((supportCase) => (
+                  <div key={supportCase.id} className="bg-[var(--surface-2)] p-4">
                     <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                       <div>
-                        <p className="font-mono text-sm font-medium text-zinc-100">
+                        <p className="font-mono text-sm font-medium text-[var(--text-primary)]">
                           {supportCase.case_number}
                         </p>
-                        <p className="mt-1 text-sm text-zinc-500">
-                          {supportCase.customer_email}
+                        <p className="mt-1 text-sm text-[var(--text-muted)]">
+                          {supportCase.account ?? supportCase.customer_email}
                         </p>
                       </div>
                       <div className="flex flex-wrap gap-2 sm:justify-end">
@@ -215,22 +377,30 @@ export default async function DashboardPage() {
                           {formatLabel(supportCase.status)}
                         </StatusPill>
                         <StatusPill
-                          variant={
-                            supportCase.priority === "P1" ? "danger" : "info"
-                          }
+                          variant={priorityVariant(supportCase.priority)}
                         >
                           {supportCase.priority ?? "P2"}
                         </StatusPill>
                       </div>
                     </div>
-                    <p className="mt-4 text-sm text-zinc-200">
+                    <p className="mt-4 text-sm text-[var(--text-secondary)]">
                       {supportCase.subject ?? "No subject"}
                     </p>
-                    <p className="mt-3 text-xs text-zinc-500">
+                    <p className="mt-3 text-xs text-[var(--text-subtle)]">
                       Last activity: {formatDate(supportCase.last_activity_at)}
                     </p>
                   </div>
                 ))}
+              </div>
+            )}
+            {filteredCases.length > 5 && params.show !== "all" && (
+              <div className="mt-4">
+                <Link
+                  href={buildCaseQuery(params, { show: "all" })}
+                  className="text-sm font-medium text-[var(--text-primary)] underline decoration-[var(--border-strong)] underline-offset-4 hover:decoration-[var(--accent)]"
+                >
+                  View all {filteredCases.length} cases
+                </Link>
               </div>
             )}
           </Panel>

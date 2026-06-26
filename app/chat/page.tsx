@@ -4,6 +4,12 @@ import { useState } from "react";
 import { AppShell } from "../../components/AppShell";
 import { Panel } from "../../components/Panel";
 import { StatusPill } from "../../components/StatusPill";
+import {
+  healthVariant,
+  priorityVariant,
+  reviewVariant,
+  sentimentVariant,
+} from "../../lib/ui/status";
 
 type AgentDecision = {
   classification: string;
@@ -241,12 +247,15 @@ export default function ChatPage() {
   const completedActions = accountActionLabels.filter(
     (action) => actions[action.key]
   );
+  const confidence = agentDecision
+    ? Math.round(agentDecision.confidence * 100)
+    : 0;
 
   return (
     <AppShell active="chat">
       <div className="grid gap-6">
         <header>
-          <p className="text-xs font-medium uppercase tracking-[0.18em] text-cyan-300/80">
+          <p className="text-xs font-medium uppercase tracking-[0.18em] text-[var(--text-subtle)]">
             Chat intake
           </p>
           <h1 className="mt-2 text-3xl font-semibold text-zinc-50 sm:text-4xl">
@@ -343,7 +352,7 @@ export default function ChatPage() {
           <div className="grid gap-4">
             <Panel
               eyebrow="Result"
-              title={reply ? "Result Summary" : "Result Summary"}
+            title={reply ? "Result Summary" : "Result Summary"}
               action={
                 reply && (
                   <StatusPill variant="default">
@@ -374,7 +383,7 @@ export default function ChatPage() {
                       label="Priority"
                       value={
                         <StatusPill
-                          variant={reply.priority === "P1" ? "danger" : "info"}
+                          variant={priorityVariant(reply.priority)}
                         >
                           {reply.priority ?? "P2"}
                         </StatusPill>
@@ -385,9 +394,7 @@ export default function ChatPage() {
                       value={
                         <StatusPill
                           variant={
-                            reply.sentiment === "negative"
-                              ? "warning"
-                              : "muted"
+                            sentimentVariant(reply.sentiment)
                           }
                         >
                           {formatLabel(reply.sentiment)}
@@ -399,9 +406,9 @@ export default function ChatPage() {
                       value={
                         <StatusPill
                           variant={
-                            agentDecision?.requires_human_review
-                              ? "danger"
-                              : "success"
+                            reviewVariant(
+                              agentDecision?.requires_human_review ?? false
+                            )
                           }
                         >
                           {agentDecision?.requires_human_review
@@ -436,9 +443,19 @@ export default function ChatPage() {
                           />
                           <DetailRow
                             label="Confidence"
-                            value={`${Math.round(
-                              agentDecision.confidence * 100
-                            )}%`}
+                            value={
+                              <div className="grid gap-2">
+                                <span className="font-mono text-lg text-[var(--text-primary)]">
+                                  {confidence}%
+                                </span>
+                                <span className="h-2 overflow-hidden rounded-full bg-[var(--surface-3)]">
+                                  <span
+                                    className="block h-full rounded-full bg-[var(--accent)]"
+                                    style={{ width: `${confidence}%` }}
+                                  />
+                                </span>
+                              </div>
+                            }
                           />
                           <DetailRow
                             label="Explanation"
@@ -471,11 +488,7 @@ export default function ChatPage() {
                             label="Health"
                             value={
                               <StatusPill
-                                variant={
-                                  account.health_status === "at_risk"
-                                    ? "danger"
-                                    : "success"
-                                }
+                                variant={healthVariant(account.health_status)}
                               >
                                 {formatLabel(account.health_status)}
                               </StatusPill>
@@ -497,9 +510,14 @@ export default function ChatPage() {
                   </div>
 
                   <section className="rounded-lg border border-white/10 bg-black/25 p-4">
-                    <h2 className="text-sm font-semibold text-zinc-100">
-                      Actions completed
-                    </h2>
+                    <div className="border-l-2 border-[var(--accent)] pl-4">
+                      <h2 className="text-sm font-semibold text-[var(--text-primary)]">
+                        Actions completed
+                      </h2>
+                      <p className="mt-1 text-xs text-[var(--text-muted)]">
+                        What the agent actually executed on the account.
+                      </p>
+                    </div>
                     {completedActions.length > 0 ? (
                       <div className="mt-4 flex flex-wrap gap-2">
                         {completedActions.map((action) => (
@@ -515,6 +533,23 @@ export default function ChatPage() {
                     )}
                   </section>
 
+                  <div className="flex flex-col gap-3 rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-2)] p-4 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                      <p className="text-sm font-semibold text-[var(--text-primary)]">
+                        Human supervision
+                      </p>
+                      <p className="mt-1 text-sm text-[var(--text-muted)]">
+                        Operators can override or escalate any agent decision.
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      className="rounded-lg border border-[var(--border-strong)] px-3 py-2 text-sm font-medium text-[var(--text-primary)] transition hover:bg-[var(--surface-3)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/40"
+                    >
+                      Flag for human review / Override
+                    </button>
+                  </div>
+
                   <section className="rounded-lg border border-cyan-300/15 bg-cyan-300/5 p-4">
                     <h2 className="text-sm font-semibold text-zinc-100">
                       Linea reply
@@ -526,8 +561,8 @@ export default function ChatPage() {
 
                   {agentDecision && (
                     <details className="rounded-lg border border-white/10 bg-black/20">
-                      <summary className="cursor-pointer px-4 py-3 text-sm font-medium text-zinc-300">
-                        Technical agent decision
+                      <summary className="cursor-pointer px-4 py-3 text-sm font-medium text-zinc-300 marker:text-[var(--accent)]">
+                        Expand technical agent decision
                       </summary>
                       <div className="grid gap-4 border-t border-white/10 p-4 text-sm">
                         <DetailRow
@@ -563,8 +598,8 @@ export default function ChatPage() {
                   )}
 
                   <details className="rounded-lg border border-white/10 bg-black/20">
-                    <summary className="cursor-pointer px-4 py-3 text-sm font-medium text-zinc-300">
-                      Conversation timeline
+                    <summary className="cursor-pointer px-4 py-3 text-sm font-medium text-zinc-300 marker:text-[var(--accent)]">
+                      Expand conversation timeline
                     </summary>
                     <div className="border-t border-white/10 p-4">
                       {historyLoading && (
@@ -627,6 +662,18 @@ export default function ChatPage() {
                       )}
                     </div>
                   </details>
+                </div>
+              ) : loading ? (
+                <div className="grid gap-4 text-sm text-[var(--text-muted)]">
+                  <div className="rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-2)] p-4">
+                    <p className="font-medium text-[var(--text-primary)]">
+                      Running intake workflow...
+                    </p>
+                    <p className="mt-2">
+                      Linea is creating the case, checking account context, and
+                      evaluating post-sales actions.
+                    </p>
+                  </div>
                 </div>
               ) : (
                 <div className="grid gap-4 text-sm text-zinc-500">
