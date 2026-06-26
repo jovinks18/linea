@@ -1,6 +1,11 @@
 import { NextResponse } from "next/server";
 import type { PoolClient } from "pg";
 import { pool } from "../../../lib/db";
+import {
+  createEmptyPostSalesActions,
+  detectOnboardingBlocker,
+  type PostSalesActions,
+} from "../../../lib/post-sales/automation";
 import { runBasicTriage } from "../../../lib/triage/engine";
 
 export const runtime = "nodejs";
@@ -43,6 +48,114 @@ async function findCustomerAccount(
   );
 
   return accountResult.rows[0] ?? null;
+}
+
+async function runPostSalesAutomation({
+  client,
+  account,
+  supportCaseId,
+  customerMessageId,
+  message,
+}: {
+  client: PoolClient;
+  account: PostSalesAccount | null;
+  supportCaseId: number;
+  customerMessageId: number;
+  message: string;
+}): Promise<PostSalesActions> {
+  const actions = createEmptyPostSalesActions();
+
+  if (!account || !detectOnboardingBlocker(message)) {
+    return actions;
+  }
+
+  actions.onboarding_blocker_detected = true;
+
+  const taskResult = await client.query(
+    `INSERT INTO tasks
+      (account_id, case_id, title, description, status, priority, owner_role, due_date)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, CURRENT_DATE + 1)
+     ON CONFLICT (account_id, title) DO UPDATE SET
+      case_id = EXCLUDED.case_id,
+      description = EXCLUDED.description,
+      status = EXCLUDED.status,
+      priority = EXCLUDED.priority,
+      owner_role = EXCLUDED.owner_role,
+      due_date = EXCLUDED.due_date,
+      updated_at = NOW()`,
+    [
+      account.id,
+      supportCaseId,
+      "Follow up on onboarding blocker",
+      `Customer message: ${message}`,
+      "open",
+      "P1",
+      account.owner_name ?? "Unassigned",
+    ]
+  );
+
+  actions.task_created = taskResult.rowCount === 1;
+
+  const productSignalResult = await client.query(
+    `INSERT INTO product_signals
+      (account_id, case_id, source_message_id, signal_type, title, description, severity, status)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+     ON CONFLICT (account_id, signal_type, title) DO UPDATE SET
+      case_id = EXCLUDED.case_id,
+      source_message_id = EXCLUDED.source_message_id,
+      description = EXCLUDED.description,
+      severity = EXCLUDED.severity,
+      status = EXCLUDED.status,
+      updated_at = NOW()`,
+    [
+      account.id,
+      supportCaseId,
+      customerMessageId,
+      "integration_blocker",
+      "Onboarding blocker reported",
+      `Product area: Implementation\nCustomer message: ${message}`,
+      "high",
+      "new",
+    ]
+  );
+
+  actions.product_signal_created = productSignalResult.rowCount === 1;
+
+  const healthEventResult = await client.query(
+    `INSERT INTO account_health_events
+      (account_id, case_id, health_status, event_type, event_description, metadata)
+     VALUES ($1, $2, $3, $4, $5, $6)
+     ON CONFLICT (account_id, event_type, event_description) DO UPDATE SET
+      case_id = EXCLUDED.case_id,
+      health_status = EXCLUDED.health_status,
+      metadata = EXCLUDED.metadata`,
+    [
+      account.id,
+      supportCaseId,
+      "at_risk",
+      "risk_detected",
+      "Customer reported an onboarding or go-live blocker.",
+      JSON.stringify({
+        previous_status: account.health_status,
+        new_status: "at_risk",
+        reason: "Customer reported an onboarding or go-live blocker.",
+      }),
+    ]
+  );
+
+  actions.health_event_created = healthEventResult.rowCount === 1;
+
+  const accountUpdateResult = await client.query(
+    `UPDATE accounts
+     SET health_status = $1, updated_at = NOW()
+     WHERE id = $2`,
+    ["at_risk", account.id]
+  );
+
+  actions.account_health_updated = accountUpdateResult.rowCount === 1;
+  account.health_status = "at_risk";
+
+  return actions;
 }
 
 export async function POST(req: Request) {
@@ -137,10 +250,11 @@ export async function POST(req: Request) {
       );
     }
 
-    await client.query(
+    const customerMessageResult = await client.query(
       `INSERT INTO messages 
       (case_id, customer_id, channel, sender_type, message_text, internal_only, ai_generated)
-      VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+      VALUES ($1, $2, $3, $4, $5, $6, $7)
+      RETURNING id`,
       [
         supportCase.id,
         customer.id,
@@ -151,6 +265,16 @@ export async function POST(req: Request) {
         false,
       ]
     );
+
+    const customerMessage = customerMessageResult.rows[0];
+
+    const postSalesActions = await runPostSalesAutomation({
+      client,
+      account,
+      supportCaseId: supportCase.id,
+      customerMessageId: customerMessage.id,
+      message,
+    });
 
     const aiResponse =
       "Thanks for reaching out. I found this looks related to CasaIQ Smart Lock battery troubleshooting. Please replace all four AA batteries with new alkaline batteries, wait 30 seconds, then press the reset button once. Are you currently locked out, or is the lock just not responding?";
@@ -188,6 +312,7 @@ export async function POST(req: Request) {
       priority: supportCase.priority,
       post_sales: {
         account,
+        actions: postSalesActions,
       },
     });
   } catch (error) {
