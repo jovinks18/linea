@@ -164,9 +164,12 @@ export default function ChatPage() {
         <section className="rounded-2xl border border-neutral-800 bg-neutral-900 p-6 shadow-xl">
           <div className="mb-6">
             <p className="text-sm text-neutral-400">Linea Demo</p>
-            <h1 className="text-3xl font-semibold mt-1">AI Support Chat</h1>
+            <h1 className="text-3xl font-semibold mt-1">
+              Post-Sales Command Center
+            </h1>
             <p className="text-neutral-400 mt-2">
-              Create or continue a customer support case.
+              Turn customer messages into cases, tasks, product signals, and
+              account health updates.
             </p>
           </div>
 
@@ -309,7 +312,7 @@ export default function ChatPage() {
                               : "bg-neutral-900 text-neutral-500 border border-neutral-800"
                           }`}
                         >
-                          {triggered ? "Created" : "Not triggered"}
+                          {triggered ? "Triggered" : "Not triggered"}
                         </span>
                       </div>
                     );

@@ -26,6 +26,14 @@ function generateCaseNumber() {
   return `LIN-${today}-${random}`;
 }
 
+function createDemoResponse(message: string) {
+  if (detectOnboardingBlocker(message)) {
+    return "Thanks for flagging this. I've marked this as an onboarding blocker, created a CSM follow-up task, logged an implementation product signal, and updated the account health to at-risk. A team member should follow up before the go-live date.";
+  }
+
+  return "Thanks for reaching out. I found this looks related to CasaIQ Smart Lock battery troubleshooting. Please replace all four AA batteries with new alkaline batteries, wait 30 seconds, then press the reset button once. Are you currently locked out, or is the lock just not responding?";
+}
+
 async function findCustomerAccount(
   client: PoolClient,
   customerId: number
@@ -276,8 +284,7 @@ export async function POST(req: Request) {
       message,
     });
 
-    const aiResponse =
-      "Thanks for reaching out. I found this looks related to CasaIQ Smart Lock battery troubleshooting. Please replace all four AA batteries with new alkaline batteries, wait 30 seconds, then press the reset button once. Are you currently locked out, or is the lock just not responding?";
+    const aiResponse = createDemoResponse(message);
 
     await client.query(
       `INSERT INTO messages 

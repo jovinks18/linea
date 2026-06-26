@@ -11,20 +11,23 @@ Linea is currently a Next.js App Router application with a PostgreSQL-backed sup
 - PostgreSQL schema: `sql/schema.sql`
 - Demo knowledge base: `knowledge-base/smart-lock-battery.md`
 
-## Current Case Flow
+## Current Flow
 
 ```text
-Chat UI
+/chat
   -> POST /api/intake
-  -> PostgreSQL customer lookup/create
+  -> deterministic triage
+  -> account lookup
   -> case restore/create
   -> message persistence
+  -> post-sales automation
   -> demo AI response persistence
+  -> response UI with account context and action status
   -> GET /api/cases/[case_number]
   -> conversation history display
 ```
 
-## Future Post-Sales Data Flow
+## Post-Sales Data Flow
 
 ```text
 message
@@ -36,23 +39,38 @@ message
   -> health event
 ```
 
-In the future architecture, an inbound customer message should do more than create a ticket. Linea should preserve the support case, connect it to the right synthetic account, identify whether an implementation or onboarding step is blocked, create the right human follow-up task, log any product signal, and update account health when the conversation indicates risk.
+An inbound customer message can now do more than create a ticket. Linea preserves the support case, connects it to the right synthetic account when one exists, identifies whether an implementation or onboarding step is blocked, creates a human follow-up task, logs a product signal, and updates account health when the conversation indicates risk.
 
 ## Detailed Flow
 
 1. A user opens `/chat` and enters a synthetic customer email, an optional case number, and a support message.
 2. The chat page sends the message to `POST /api/intake`.
 3. The intake route validates that `customer_email` and `message` are present.
-4. PostgreSQL is queried for an existing customer by email.
-5. If no customer exists, a synthetic customer record is created.
-6. If a case number is provided, the route tries to restore a case owned by that customer.
-7. If no matching case is found, a new case is created.
-8. The route persists the customer message.
-9. The route persists a deterministic demo AI response.
-10. The route updates the case activity timestamp.
-11. The chat page requests `GET /api/cases/[case_number]`.
-12. The case history route returns case metadata and ordered messages.
-13. The chat page displays the conversation timeline.
+4. Deterministic triage classifies subject, intent, sentiment, and priority.
+5. PostgreSQL is queried for an existing customer by email.
+6. If no customer exists, a synthetic customer record is created.
+7. Account context is looked up through `account_contacts`.
+8. If a case number is provided, the route tries to restore a case owned by that customer.
+9. If no matching case is found, a new case is created.
+10. The route persists the customer message.
+11. Rule-based post-sales automation checks for onboarding or go-live blocker language.
+12. For a known account blocker, Linea creates or updates a task, product signal, and health event, then updates account health to `at_risk`.
+13. The route persists a deterministic demo AI response.
+14. The route updates the case activity timestamp.
+15. The chat page requests `GET /api/cases/[case_number]`.
+16. The case history route returns case metadata and ordered messages.
+17. The chat page displays the latest response, account context, post-sales actions, and conversation timeline.
+
+## Automation Notes
+
+Post-sales automation currently uses deterministic rule-based detection. Messages containing phrases such as `blocked`, `go live`, `go-live`, `implementation`, `setup not working`, `API setup`, or `cannot launch` are treated as onboarding blockers when the customer is linked to an account.
+
+The current schema is intentionally simple. Some product concepts are mapped into existing columns:
+
+- Task ownership is stored in `tasks.owner_role`, even when the value is an account owner name.
+- Task due timing is stored in `tasks.due_date`.
+- Product area is included in `product_signals.description`.
+- Health transition details such as previous status, new status, and reason are stored in `account_health_events.metadata`.
 
 ## Data Model
 
@@ -71,10 +89,10 @@ In the future architecture, an inbound customer message should do more than crea
 
 - Triage engine in `lib/triage`.
 - Agent dashboard in `app/dashboard`.
-- Post-sales account and onboarding context.
-- Implementation-step and task tracking.
-- Product signal capture.
-- Account health events.
+- Richer post-sales account and onboarding context.
+- Expanded implementation-step and task tracking.
+- Expanded product signal capture.
+- Expanded account health events.
 - Retrieval layer in `lib/rag`.
 - Qdrant knowledge-base indexing.
 - n8n workflow triggers and callbacks.

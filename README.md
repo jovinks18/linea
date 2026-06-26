@@ -11,6 +11,9 @@ The current repo is an early local demo. It uses only synthetic data and should 
 - `GET /api/cases/[case_number]` fetches case metadata and message history.
 - PostgreSQL stores customers, cases, messages, and case events.
 - PostgreSQL includes post-sales foundation tables for accounts, contacts, implementation steps, tasks, product signals, and account health events.
+- Intake looks up linked account context through `account_contacts`.
+- Rule-based automation detects onboarding blockers, creates a CSM task, logs a product signal, records a health event, and updates account health.
+- The `/chat` demo shows the latest case, account context, and post-sales action status.
 - Demo AI responses are persisted as messages.
 - Docker Compose includes PostgreSQL, Qdrant, and n8n services.
 - A sample knowledge-base article exists for smart lock battery troubleshooting.
@@ -76,15 +79,36 @@ http://localhost:3000/chat
 
 PostgreSQL is initialized from `sql/schema.sql` when the database volume is first created. The optional `sql/seed.sql` script adds synthetic post-sales accounts, contacts, onboarding steps, tasks, product signals, and account health events for demos.
 
-## Demo Flow
+> Database reset warning: existing Docker volumes do not automatically pick up schema changes. For a fresh local demo database, run `docker compose down -v` before starting Postgres again. This deletes local Docker volume data.
+
+## Current Demo Flow
 
 1. Open `/chat`.
-2. Use a synthetic customer email such as `maya.chen@example.com`.
-3. Send a smart lock support message.
-4. Linea creates or restores a case.
-5. Linea stores the customer message and a demo AI response.
-6. The chat page loads the case timeline from `GET /api/cases/[case_number]`.
-7. Send another message with the same case number to continue the case history.
+2. Send a customer message from a synthetic customer email.
+3. Linea creates or restores a support case.
+4. Linea runs deterministic triage.
+5. Linea looks up linked account context.
+6. Linea persists the customer message and demo AI response.
+7. If the message indicates an onboarding or go-live blocker for a known account, Linea creates post-sales actions.
+8. The chat page loads case history from `GET /api/cases/[case_number]`.
+9. The latest response card shows account context and post-sales action status.
+
+Golden demo:
+
+```text
+customer_email: maya.chen@example.com
+message: Our API setup is still blocked and we are supposed to go live Friday.
+```
+
+Expected result:
+
+- A case is created or restored.
+- Acme Clinics account context is shown.
+- Onboarding blocker is detected.
+- CSM task is created.
+- Product signal is logged.
+- Health event is created.
+- Account health is updated to `at_risk`.
 
 See `docs/DEMO-SCENARIOS.md` for suggested demo prompts.
 
@@ -100,7 +124,7 @@ Linea currently uses synthetic demo data only. Future real workspace mode will s
 - n8n is available in Docker but not integrated with the app.
 - There is no authentication or authorization yet.
 - There is no agent dashboard yet.
-- The account, onboarding, task, product signal, and health-event tables are present, but app behavior does not use them yet.
+- Post-sales automation is deterministic and currently limited to onboarding blocker detection.
 - There is no production migration system yet.
 - Database credentials are for local development only.
 

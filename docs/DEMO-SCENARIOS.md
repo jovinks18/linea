@@ -2,7 +2,7 @@
 
 Use only synthetic customers, messages, and account details when running demos.
 
-## Normal Smart Lock Issue
+## Golden Demo: Smart Lock Failure
 
 Customer email:
 
@@ -19,9 +19,63 @@ My smart lock is not responding after I changed the batteries.
 Expected current behavior:
 
 - Linea creates or restores a case.
-- The subject is related to smart lock support.
-- The response gives battery troubleshooting guidance.
+- Subject is `Smart lock support issue`.
+- Sentiment is `negative`.
+- Priority is `P1`.
+- Acme Clinics account context is shown.
+- The response gives smart lock battery troubleshooting guidance.
+- No onboarding blocker actions are triggered unless blocker terms are present.
 - The conversation history displays the customer message and demo AI response.
+
+## Golden Demo: API Go-Live Blocker
+
+Customer email:
+
+```text
+maya.chen@example.com
+```
+
+Message:
+
+```text
+Our API setup is still blocked and we are supposed to go live Friday.
+```
+
+Expected current behavior:
+
+- Linea creates or restores a case.
+- Sentiment is `negative`.
+- Priority is `P1`.
+- Acme Clinics account context is shown.
+- Onboarding blocker is detected.
+- CSM task is created or updated.
+- Product signal is logged.
+- Health event is created or updated.
+- Acme Clinics account health is updated to `at_risk`.
+- The latest response uses post-sales blocker language.
+
+## Unknown Account Blocker
+
+Customer email:
+
+```text
+unknown.blocker@example.com
+```
+
+Message:
+
+```text
+Our API setup is still blocked and we are supposed to go live Friday.
+```
+
+Expected current behavior:
+
+- Linea creates a synthetic customer and case.
+- Sentiment is `negative`.
+- Priority is `P1`.
+- `post_sales.account` is `null`.
+- No post-sales actions are created.
+- The UI shows `No linked account found.` and all actions as `Not triggered`.
 
 ## Same-Case Follow-Up
 
@@ -57,39 +111,13 @@ Message:
 I am locked out and the smart lock will not open even after replacing the batteries.
 ```
 
-Expected future behavior:
+Expected current behavior:
 
-- Triage should flag an escalation condition.
-- The case should move toward human handoff.
-- A workflow can notify an agent.
-
-Current behavior:
-
-- Linea stores the message and returns the demo smart lock response.
-
-## Overheating Safety Escalation
-
-Customer email:
-
-```text
-maya.chen@example.com
-```
-
-Message:
-
-```text
-The smart lock is overheating and smells strange near the battery compartment.
-```
-
-Expected future behavior:
-
-- Triage should flag a safety escalation.
-- The response should avoid routine troubleshooting and route to a human.
-- n8n can trigger an urgent workflow.
-
-Current behavior:
-
-- Linea stores the message and returns the demo smart lock response.
+- Linea creates or restores a case.
+- Sentiment is `negative`.
+- Priority is `P1`.
+- Bluebird Coworking account context is shown.
+- The response is still deterministic demo guidance.
 
 ## Camera Offline
 
@@ -105,14 +133,12 @@ Message:
 My camera has been offline since yesterday and I cannot reconnect it to Wi-Fi.
 ```
 
-Expected future behavior:
+Expected current behavior:
 
-- Triage should identify the camera product area.
-- RAG should retrieve camera troubleshooting content when available.
-
-Current behavior:
-
-- Linea may create a camera-related subject, but the response is still the smart lock demo response.
+- Linea creates or restores a case.
+- Subject is camera-related.
+- Northstar Apartments account context is shown.
+- The response is still deterministic demo guidance until product-specific retrieval is added.
 
 ## Human Handoff Request
 
@@ -128,61 +154,9 @@ Message:
 Please connect me with a human support agent.
 ```
 
-Expected future behavior:
+Expected current behavior:
 
-- Triage should flag a handoff request.
-- The case should show a human handoff state in the agent dashboard.
-
-Current behavior:
-
-- Linea stores the message and returns the demo AI response.
-
-## Post-Sales Onboarding Blocker
-
-Customer email:
-
-```text
-new.admin@example.com
-```
-
-Message:
-
-```text
-We cannot finish onboarding because our team invites are not being delivered.
-```
-
-Expected future behavior:
-
-- The post-sales account layer should connect the case to onboarding status.
-- Triage should identify an onboarding blocker.
-- The dashboard should surface account risk.
-
-Current behavior:
-
-- Linea creates a synthetic customer and case, then returns the demo AI response.
-
-## Go-Live API Setup Blocker
-
-Customer email:
-
-```text
-new.admin@example.com
-```
-
-Message:
-
-```text
-Our API setup is still blocked and we are supposed to go live Friday.
-```
-
-Expected future behavior:
-
-- Creates or updates a case.
-- Identifies an onboarding blocker.
-- Creates a CSM follow-up task.
-- Logs a product signal.
-- Marks the account at-risk.
-
-Current behavior:
-
-- Linea creates or restores a case, stores the message, and returns the demo AI response.
+- Linea creates or restores a case.
+- Intent is `request`.
+- Account context is shown.
+- No post-sales actions are triggered unless blocker terms are present.
