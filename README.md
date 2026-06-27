@@ -1,225 +1,166 @@
 # Linea
 
-Linea is an open-source AI post-sales command center. It turns customer conversations into support cases, onboarding tasks, product signals, account health updates, and human follow-ups.
+**A local-first, supervised AI workspace for post-sales operations.**
 
-The current repo is an early local demo. It uses only synthetic data and should never contain real customer data, secrets, tokens, or production credentials.
+Linea turns customer messages into structured cases, account context, post-sales actions, and an auditable agent activity trail. It is an early open-source project built to explore how support, customer success, implementation, and product teams can supervise agents that act on customer accounts.
 
-## Current Working Features
+## What Linea Does
 
-- Next.js App Router application with a working `/chat` demo page.
-- `POST /api/intake` creates or restores a support case.
-- `GET /api/cases/[case_number]` fetches case metadata and message history.
-- PostgreSQL stores customers, cases, messages, and case events.
-- PostgreSQL includes post-sales foundation tables for accounts, contacts, implementation steps, tasks, product signals, and account health events.
-- Intake looks up linked account context through `account_contacts`.
-- Rule-based automation detects onboarding blockers, creates a CSM task, logs a product signal, records a health event, and updates account health.
-- The `/chat` demo shows the latest case, account context, and post-sales action status.
-- Demo AI responses are persisted as messages.
-- Docker Compose includes PostgreSQL, Qdrant, and n8n services.
-- A sample knowledge-base article exists for smart lock battery troubleshooting.
+Linea currently:
 
-## Product Direction
+- Ingests customer messages and creates or restores support cases.
+- Links known customers to accounts and surfaces account metadata and KPIs.
+- Detects support issues, onboarding blockers, and account risk with deterministic rules.
+- Creates CSM tasks, product signals, and health events for eligible account-linked blockers.
+- Records executed, suggested, skipped, and failed actions in `agent_actions`.
+- Shows case context, agent decisions, post-sales actions, and recent activity in `/chat` and `/dashboard`.
+- Profiles, maps, validates, and idempotently imports CSV data into a canonical post-sales schema.
+- Defines a normalized, provenance-aware foundation for future CRM, support, and product connectors.
 
-Linea starts from customer conversations, but the goal is broader than ticket handling. The command center should help post-sales teams see what every conversation means for the customer account:
+## Why It Exists
 
-- Support cases for immediate customer issues.
-- Onboarding tasks for implementation blockers.
-- Product signals for recurring gaps, bugs, and requests.
-- Account health updates for risk, adoption, and lifecycle status.
-- Human follow-ups for CSMs, support agents, and implementation teams.
+Post-sales work is fragmented across conversations, tickets, CRM records, onboarding plans, product feedback, and health scores. Agents can help connect those signals, but only if operators can see what the agent understood, what it proposed, what actually executed, and where human review is required.
 
-## Tech Stack
+Linea treats supervision and auditability as core product behavior rather than an afterthought.
 
-- Next.js App Router
-- TypeScript
-- React
-- Tailwind CSS
-- PostgreSQL
-- `pg` for database access
-- Docker Compose
-- Qdrant and n8n containers for planned future milestones
+## Core Capabilities
 
-## Local Setup
+- **Support intake:** deterministic triage, case memory, message history, and account lookup.
+- **Post-sales automation:** onboarding-blocker detection with controlled task, signal, and health mutations.
+- **Agent supervision:** structured decisions with classification, confidence, reasoning summaries, recommendations, execution outcomes, and human-review state.
+- **Durable audit:** action records survive business-transaction failures and remain visible in the Agent Activity feed.
+- **Data onboarding:** CSV profiling, mapping recommendations, dry-run validation, metadata preservation, and idempotent imports.
+- **Connector foundation:** source-independent normalized records and provenance contracts, without live SaaS access or unsafe writes.
+- **Optional model planning:** local Ollama or hosted OpenAI-compatible providers can submit structured proposals; deterministic fallback requires no model.
 
-1. Install dependencies:
-
-```bash
-npm install
-```
-
-2. Copy the environment template:
-
-```bash
-cp .env.example .env.local
-```
-
-Both the Next.js application and CSV importer use `DATABASE_URL` from the
-environment. If it is omitted, both fall back to the local Docker PostgreSQL
-settings (`localhost:5432`, database `linea_db`, user `linea`).
-
-3. Start the local services:
-
-```bash
-docker compose up -d
-```
-
-4. Load synthetic post-sales demo seed data:
-
-```bash
-docker compose exec -T postgres psql -U linea -d linea_db < sql/seed.sql
-```
-
-5. Start the development server:
-
-```bash
-npm run dev
-```
-
-6. Open the app:
+## Architecture
 
 ```text
-http://localhost:3000/chat
+customer message
+  -> triage + account context + optional model proposal
+  -> deterministic policy/execution envelope
+  -> approved repository actions
+  -> PostgreSQL + agent_actions audit
+  -> supervised Chat and Command Center UI
+
+CSV or future connector
+  -> profile/normalize
+  -> map + validate
+  -> deterministic importer
+  -> canonical Linea schema
 ```
 
-PostgreSQL is initialized from `sql/schema.sql` when the database volume is first created. The optional `sql/seed.sql` script adds synthetic post-sales accounts, contacts, onboarding steps, tasks, product signals, and account health events for demos.
+The canonical schema covers customers, accounts, cases, messages, implementation steps, tasks, product signals, health events, and agent actions. Source-specific fields remain in JSON metadata instead of expanding the schema for every system.
 
-> Database reset warning: existing Docker volumes do not automatically pick up schema changes. For a fresh local demo database, run `docker compose down -v` before starting Postgres again. This deletes local Docker volume data.
+See [Architecture](docs/ARCHITECTURE.md) and [Connector Architecture](docs/CONNECTORS.md) for deeper design details.
 
-## Local-First Model Setup
+## Safety Model
 
-Linea works locally without any paid model API. Deterministic mode is the safest default and preserves the complete demo workflow without calling a model:
+- Models produce validated proposals only. They cannot call repositories or write to PostgreSQL.
+- Deterministic policy decides which actions are allowed.
+- Repository code performs approved mutations inside explicit transactions.
+- `agent_actions` records the authoritative executed, suggested, skipped, or failed outcome.
+- Account-level automation is blocked when no linked account exists.
+- Failed post-sales actions are audited through a separate connection after rollback.
+- Demo data is synthetic. Never add real customer data, secrets, tokens, or production exports.
+
+Deterministic mode is the default and requires no paid API:
 
 ```dotenv
 MODEL_PROVIDER=deterministic
-MODEL_BASE_URL=
-MODEL_API_KEY=
-MODEL_NAME=
-MODEL_TIMEOUT_MS=15000
 ```
 
-Ollama is the recommended open-source path for optional model-powered planning. Install Ollama, then download and run the local model service:
+Ollama is the recommended optional local-model path. Hosted OpenAI-compatible APIs are supported as adapters, not requirements.
 
-```bash
-ollama pull llama3.2
-ollama serve
-```
+## Data Onboarding
 
-Configure `.env.local`:
-
-```dotenv
-MODEL_PROVIDER=ollama
-MODEL_BASE_URL=http://localhost:11434
-MODEL_API_KEY=
-MODEL_NAME=llama3.2
-MODEL_TIMEOUT_MS=15000
-```
-
-Restart the Next.js development server after changing environment variables. If Ollama is unavailable, times out, or returns an invalid plan, Linea falls back to deterministic behavior.
-
-The `openai_compatible` provider is an optional adapter for users who choose a hosted API. It is not required for local development or the core Linea demo.
-
-Models only return validated structured plans. Linea's deterministic policy layer decides what may execute, repository functions perform approved writes, and `agent_actions` records executed, suggested, skipped, or failed outcomes in the same transaction. Models never write directly to PostgreSQL.
-
-## Data Onboarding Agent
-
-Linea can inspect CSV exports, recommend mappings into its canonical schema, and validate a complete preview before deterministic import code writes anything. Custom company fields such as ARR, renewal date, and usage score are stored in JSON metadata instead of changing the canonical schema.
-
-Profile the source files:
+The Data Onboarding Agent helps inspect CSV exports before any write occurs:
 
 ```bash
 npm run data:profile -- --dir docs/import-templates
-```
-
-Generate a deterministic mapping recommendation. When a model provider is configured, its suggestions appear as review-only notes and are never applied automatically:
-
-```bash
 npm run data:recommend-mapping -- --dir docs/import-templates
+npm run import:csv -- --dir docs/import-templates \
+  --mapping docs/import-templates/mapping.example.json --dry-run
+npm run import:csv -- --dir docs/import-templates \
+  --mapping docs/import-templates/mapping.example.json
 ```
 
-Review or edit `docs/import-templates/mapping.example.json`, then validate the import without database writes:
+Mapping recommendations are review-only. The deterministic importer validates and writes data; custom fields such as ARR, renewal date, and usage score are stored in metadata.
+
+## Quickstart
+
+Requirements: Node.js, npm, Docker, and Docker Compose.
 
 ```bash
-npm run import:csv -- --dir docs/import-templates --mapping docs/import-templates/mapping.example.json --dry-run
-```
-
-Run the reviewed import:
-
-```bash
-npm run import:csv -- --dir docs/import-templates --mapping docs/import-templates/mapping.example.json
-```
-
-The importer uses parameterized SQL inside one transaction. Models can suggest mappings, but only deterministic import functions can create or update records.
-
-## Current Demo Flow
-
-1. Open `/chat`.
-2. Send a customer message from a synthetic customer email.
-3. Linea creates or restores a support case.
-4. Linea runs deterministic triage.
-5. Linea looks up linked account context.
-6. Linea persists the customer message and demo AI response.
-7. If the message indicates an onboarding or go-live blocker for a known account, Linea creates post-sales actions.
-8. The chat page loads case history from `GET /api/cases/[case_number]`.
-9. The latest response card shows account context and post-sales action status.
-
-Golden demo:
-
-```text
-customer_email: maya.chen@example.com
-message: Our API setup is still blocked and we are supposed to go live Friday.
-```
-
-Expected result:
-
-- A case is created or restored.
-- Acme Clinics account context is shown.
-- Onboarding blocker is detected.
-- CSM task is created.
-- Product signal is logged.
-- Health event is created.
-- Account health is updated to `at_risk`.
-
-See `docs/DEMO-SCENARIOS.md` for suggested demo prompts.
-
-## Smoke Test
-
-With the app running, the local smoke test verifies the smart lock demo, API/go-live blocker demo, and unknown-account blocker demo.
-
-```bash
+npm ci
+cp .env.example .env.local
 docker compose up -d postgres
 docker compose exec -T postgres psql -U linea -d linea_db < sql/seed.sql
 npm run dev
 ```
 
-In another terminal:
+Open:
 
-```bash
-npm run smoke
+- Home: [http://localhost:3000](http://localhost:3000)
+- Chat Intake: [http://localhost:3000/chat](http://localhost:3000/chat)
+- Command Center: [http://localhost:3000/dashboard](http://localhost:3000/dashboard)
+
+`DATABASE_URL` is optional. Without it, the app and CSV importer use the local Docker PostgreSQL defaults.
+
+> PostgreSQL initialization runs only when its Docker volume is first created. After schema changes, `docker compose down -v` resets the local database and deletes all local volume data.
+
+## Useful Commands
+
+| Command | Purpose |
+| --- | --- |
+| `npm run dev` | Start the Next.js development server |
+| `npm run smoke` | Exercise the three core intake demo flows |
+| `npm run lint` | Run ESLint |
+| `npx tsc --noEmit --pretty false` | Type-check the application |
+| `npm run test:triage` | Test deterministic triage and case subjects |
+| `npm run test:agent-actions` | Test policy, execution, and audit behavior |
+| `npm run test:imports` | Test import validation and idempotency utilities |
+| `npm run test:connectors` | Test connector normalization and provenance |
+
+## Demo Flows
+
+The primary post-sales demo uses:
+
+```text
+Email: maya.chen@example.com
+Message: Our API setup is still blocked and we are supposed to go live Friday.
 ```
 
-## Using Your Own Data
+Linea links the message to Acme Clinics, classifies an implementation blocker, creates the permitted post-sales actions, updates account health to `at_risk`, and exposes the resulting audit trail.
 
-Linea currently uses synthetic demo data only. Future real workspace mode will support company data ingestion through CSV imports, API import endpoints, webhooks, native connectors, and direct database or warehouse sync. See `docs/INTEGRATIONS.md` for the planned integration model and source-system mappings.
+The smart-lock and unknown-account scenarios demonstrate support routing and safe action suppression. See [Demo Scenarios](docs/DEMO-SCENARIOS.md) for exact prompts and expected outcomes.
 
-## Current Limitations
+## Project Structure
 
-- Customer-facing response generation remains deterministic; model planning is optional and safely falls back to deterministic decisions.
-- The smart lock knowledge-base article is not connected to retrieval yet.
-- Qdrant is available in Docker but not integrated with the app.
-- n8n is available in Docker but not integrated with the app.
-- There is no authentication or authorization yet.
-- There is no agent dashboard yet.
-- Post-sales automation is deterministic and currently limited to onboarding blocker detection.
-- There is no production migration system yet.
-- Database credentials are for local development only.
+```text
+app/                  Next.js pages and API routes
+components/           Shared supervision UI components
+lib/agent/            Decisions, policy, execution, and audit
+lib/connectors/       Normalized connector contracts and mock source
+lib/intake/           Intake orchestration
+lib/post-sales/       Deterministic post-sales automation
+lib/*/repository.ts   PostgreSQL access boundaries
+scripts/              CSV onboarding and smoke-test tools
+sql/                  Schema and synthetic seed data
+docs/                 Architecture, demos, connectors, and roadmap
+```
 
-## Roadmap Summary
+## Roadmap
 
-- v0.1: Cleanup and open-source readiness.
-- v0.2: Triage engine.
-- v0.3: Agent dashboard.
-- v0.4: Post-sales account layer.
-- v0.5: Product signals and account health.
-- v0.6: Qdrant RAG and workflow integrations.
+Current priorities include deeper supervision controls, read-only connector ingestion, retrieval-backed responses, workflow integration, and production hardening. See the [Roadmap](docs/ROADMAP.md).
 
-See `docs/ROADMAP.md` for more detail.
+## Status And Limitations
+
+Linea is a local development project, not a production-ready customer-data platform.
+
+- No authentication, authorization, tenant isolation, or production secret management.
+- Post-sales automation currently focuses on deterministic onboarding-blocker workflows.
+- The connector layer is a contract and synthetic mock only; no live SaaS connectors or OAuth exist.
+- Qdrant and n8n are available in Docker but are not integrated with the application.
+- There is no production migration, retention, privacy, or compliance system yet.
+- All repository data and demos must remain synthetic.
