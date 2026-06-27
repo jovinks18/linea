@@ -311,11 +311,8 @@ async function importCase(client, { record, metadata }) {
 
 async function executeImport(plan) {
   loadLocalEnvironment();
-  const pool = new Pool({
-    connectionString:
-      process.env.DATABASE_URL ??
-      "postgresql://linea:linea_password@localhost:5432/linea_db",
-  });
+  const { getDatabaseConfig } = await import("../lib/db-config.ts");
+  const pool = new Pool(getDatabaseConfig());
   const client = await pool.connect();
   const summary = {};
 

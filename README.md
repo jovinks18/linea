@@ -53,6 +53,10 @@ npm install
 cp .env.example .env.local
 ```
 
+Both the Next.js application and CSV importer use `DATABASE_URL` from the
+environment. If it is omitted, both fall back to the local Docker PostgreSQL
+settings (`localhost:5432`, database `linea_db`, user `linea`).
+
 3. Start the local services:
 
 ```bash
