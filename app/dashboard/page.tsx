@@ -6,6 +6,7 @@ import { Panel } from "../../components/Panel";
 import { StatusPill } from "../../components/StatusPill";
 import { getDashboardData } from "../../lib/dashboard/repository";
 import {
+  agentActionStatusVariant,
   healthVariant,
   priorityVariant,
   severityVariant,
@@ -35,6 +36,19 @@ function formatLabel(value: string | null | undefined) {
     .split("_")
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
     .join(" ");
+}
+
+function formatConfidence(value: string | null) {
+  if (!value) return null;
+
+  const confidence = Number(value);
+  return Number.isFinite(confidence)
+    ? `${Math.round(confidence * 100)}% confidence`
+    : null;
+}
+
+function getActionReason(metadata: Record<string, unknown>) {
+  return typeof metadata.reason === "string" ? metadata.reason : null;
 }
 
 type DashboardSearchParams = {
@@ -184,6 +198,83 @@ export default async function DashboardPage({
             detail="from recent activity"
           />
         </section>
+
+        <Panel eyebrow="Audit trail" title="Agent Activity">
+          <p className="mb-5 text-sm leading-6 text-[var(--text-muted)]">
+            Auditable record of actions Linea executed, suggested, skipped, or
+            failed.
+          </p>
+
+          {data.agentActions.length === 0 ? (
+            <EmptyState label="No agent actions recorded yet. Run a demo message from Chat Intake." />
+          ) : (
+            <div className="divide-y divide-[var(--border-subtle)] overflow-hidden rounded-lg border border-[var(--border-subtle)]">
+              {data.agentActions.map((action) => {
+                const confidence = formatConfidence(action.confidence);
+                const reason = getActionReason(action.metadata);
+
+                return (
+                  <article
+                    key={action.id}
+                    className="grid gap-3 bg-[var(--surface-2)] px-4 py-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-start"
+                  >
+                    <div className="min-w-0">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <p className="text-sm font-medium text-[var(--text-primary)]">
+                          {formatLabel(action.action_type)}
+                        </p>
+                        <StatusPill
+                          variant={agentActionStatusVariant(action.status)}
+                        >
+                          {formatLabel(action.status)}
+                        </StatusPill>
+                      </div>
+
+                      <p className="mt-1 text-xs text-[var(--text-muted)]">
+                        {action.account_name ?? "No linked account"}
+                        {action.case_number && (
+                          <>
+                            {" "}
+                            /{" "}
+                            <span className="font-mono">
+                              {action.case_number}
+                            </span>
+                          </>
+                        )}
+                      </p>
+
+                      {reason && (
+                        <p className="mt-2 text-xs font-medium text-[var(--status-amber-text)]">
+                          Reason: {reason}
+                        </p>
+                      )}
+
+                      {action.reasoning_summary && (
+                        <p
+                          className="mt-2 line-clamp-2 text-xs leading-5 text-[var(--text-subtle)]"
+                          title={action.reasoning_summary}
+                        >
+                          {action.reasoning_summary}
+                        </p>
+                      )}
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-[var(--text-subtle)] sm:max-w-52 sm:justify-end sm:text-right">
+                      <span>{formatLabel(action.source)}</span>
+                      {confidence && <span>{confidence}</span>}
+                      <time
+                        dateTime={action.executed_at ?? action.created_at}
+                        className="basis-full"
+                      >
+                        {formatDate(action.executed_at ?? action.created_at)}
+                      </time>
+                    </div>
+                  </article>
+                );
+              })}
+            </div>
+          )}
+        </Panel>
 
         {data.importedAccounts.length > 0 && (
           <Panel eyebrow="Imported data" title="Account context">

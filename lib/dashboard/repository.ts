@@ -40,7 +40,22 @@ export type DashboardCase = {
   last_activity_at: string | null;
 };
 
+export type DashboardAgentAction = {
+  id: string;
+  case_number: string | null;
+  account_name: string | null;
+  action_type: string;
+  status: string;
+  source: string;
+  confidence: string | null;
+  reasoning_summary: string | null;
+  metadata: Record<string, unknown>;
+  executed_at: string | null;
+  created_at: string;
+};
+
 export type DashboardData = {
+  agentActions: DashboardAgentAction[];
   importedAccounts: DashboardAccount[];
   atRiskAccounts: DashboardAccount[];
   openTasks: DashboardTask[];
@@ -50,12 +65,32 @@ export type DashboardData = {
 
 export async function getDashboardData(): Promise<DashboardData> {
   const [
+    agentActionsResult,
     importedAccountsResult,
     atRiskAccountsResult,
     openTasksResult,
     recentProductSignalsResult,
     recentCasesResult,
   ] = await Promise.all([
+    pool.query<DashboardAgentAction>(
+      `SELECT
+        aa.id::text AS id,
+        c.case_number,
+        a.name AS account_name,
+        aa.action_type,
+        aa.status,
+        aa.source,
+        aa.confidence::text AS confidence,
+        aa.reasoning_summary,
+        aa.metadata,
+        aa.executed_at::text AS executed_at,
+        aa.created_at::text AS created_at
+       FROM agent_actions aa
+       LEFT JOIN cases c ON c.id = aa.case_id
+       LEFT JOIN accounts a ON a.id = aa.account_id
+       ORDER BY aa.created_at DESC, aa.id DESC
+       LIMIT 20`
+    ),
     pool.query<DashboardAccount>(
       `SELECT id, name, plan, stage, health_status, owner_name, metadata
        FROM accounts
@@ -119,6 +154,7 @@ export async function getDashboardData(): Promise<DashboardData> {
   ]);
 
   return {
+    agentActions: agentActionsResult.rows,
     importedAccounts: importedAccountsResult.rows,
     atRiskAccounts: atRiskAccountsResult.rows,
     openTasks: openTasksResult.rows,

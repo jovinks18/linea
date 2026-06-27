@@ -34,3 +34,13 @@ export function severityVariant(severity: string | null | undefined): StatusPill
 export function reviewVariant(required: boolean): StatusPillVariant {
   return required ? "danger" : "success";
 }
+
+export function agentActionStatusVariant(
+  status: string | null | undefined
+): StatusPillVariant {
+  if (status === "executed") return "success";
+  if (status === "suggested") return "warning";
+  if (status === "failed") return "danger";
+
+  return "muted";
+}
