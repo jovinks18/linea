@@ -164,3 +164,7 @@ Linea is a local development project, not a production-ready customer-data platf
 - Qdrant and n8n are available in Docker but are not integrated with the application.
 - There is no production migration, retention, privacy, or compliance system yet.
 - All repository data and demos must remain synthetic.
+
+## License
+
+MIT License. See [LICENSE](LICENSE).
