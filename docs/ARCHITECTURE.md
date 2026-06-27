@@ -101,6 +101,28 @@ CSV onboarding has three explicit phases:
 
 Accounts are upserted by name, customers by email, and contacts are linked through `account_contacts`. Implementation steps are upserted by account and step name. Imported cases receive a first customer message. This separation keeps the model advisory while preserving an auditable, deterministic mutation boundary.
 
+## Connector Foundation
+
+Future SaaS and product-data connectors use a source-independent ingestion boundary:
+
+```text
+external source
+  -> raw external record
+  -> normalized record with provenance
+  -> reviewed mapping and validation
+  -> canonical Linea tables
+  -> policy and execution envelope
+  -> agent_actions audit
+```
+
+`lib/connectors/types.ts` defines connector sources, raw records, normalized records, supported record types, provenance, and sync results. The local mock connector emits synthetic normalized account, contact, case, message, and usage records without network access or database writes.
+
+Connectors reuse the CSV onboarding model: source fields are mapped into Linea's stable canonical schema, while provider-specific attributes remain in metadata. Every normalized record retains its provider, connector source, external ID, original record type, source timestamp, and observation timestamp so later imports can be idempotent and explain where data came from.
+
+A connector must not mutate `accounts`, `cases`, `tasks`, `product_signals`, health tables, or external systems directly. Deterministic import services own canonical writes after validation. Derived agent actions then pass through the policy and execution envelope and are recorded in `agent_actions`. This prevents a connector or model suggestion from bypassing Linea's authorization and audit boundaries.
+
+See `docs/CONNECTORS.md` for the phased connector delivery plan.
+
 ## Automation Notes
 
 Post-sales automation currently uses deterministic rule-based detection. Messages containing phrases such as `blocked`, `go live`, `go-live`, `implementation`, `setup not working`, `API setup`, or `cannot launch` are treated as onboarding blockers when the customer is linked to an account.

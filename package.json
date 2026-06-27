@@ -12,6 +12,7 @@
     "lint": "eslint",
     "smoke": "bash scripts/smoke-test.sh",
     "test:agent-actions": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON tests/agent-actions.test.mjs",
+    "test:connectors": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON tests/connectors.test.mjs",
     "test:imports": "node tests/import-utils.test.mjs",
     "test:triage": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON tests/triage-subjects.test.mjs"
   },
