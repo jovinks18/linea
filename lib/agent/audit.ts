@@ -11,6 +11,45 @@ type BuildAgentActionAuditInput = {
   now?: Date;
 };
 
+type BuildFailedAgentActionAuditInput = {
+  actionType: AgentActionType;
+  caseId: number | null;
+  accountId: number | null;
+  policyDecision: PolicyDecision;
+  error: unknown;
+};
+
+function getErrorMessage(error: unknown) {
+  if (error instanceof Error && error.message.trim()) {
+    return error.message;
+  }
+
+  return "Unknown post-sales action error";
+}
+
+export function buildFailedAgentActionAudit({
+  actionType,
+  caseId,
+  accountId,
+  policyDecision,
+  error,
+}: BuildFailedAgentActionAuditInput): AgentActionInput {
+  return {
+    case_id: caseId,
+    account_id: accountId,
+    action_type: actionType,
+    status: "failed",
+    source: policyDecision.source,
+    confidence: policyDecision.confidence,
+    reasoning_summary: policyDecision.reasoning_summary,
+    metadata: {
+      reason: "Post-sales action failed",
+      error: getErrorMessage(error),
+    },
+    executed_at: null,
+  };
+}
+
 export function buildAgentActionAudit({
   executionResult,
   policyDecision,

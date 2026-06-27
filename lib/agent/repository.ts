@@ -1,4 +1,4 @@
-import type { PoolClient } from "pg";
+import type { Pool, PoolClient } from "pg";
 import type { AgentActionName, AgentDecisionSource } from "./types";
 
 export type AgentActionStatus =
@@ -81,4 +81,17 @@ export async function insertAgentActions(
   );
 
   return result.rows;
+}
+
+export async function insertAgentActionDurably(
+  database: Pick<Pool, "connect">,
+  input: AgentActionInput
+): Promise<AgentActionRecord> {
+  const auditClient = await database.connect();
+
+  try {
+    return await insertAgentAction(auditClient, input);
+  } finally {
+    auditClient.release();
+  }
 }

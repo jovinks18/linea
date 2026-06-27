@@ -6,6 +6,7 @@ import {
   detectOnboardingBlocker,
   type PostSalesActions,
 } from "./automation";
+import { executePostSalesAction } from "./execution-error";
 
 export async function runPostSalesAutomation({
   client,
@@ -28,8 +29,9 @@ export async function runPostSalesAutomation({
 
   actions.onboarding_blocker_detected = true;
 
-  const taskResult = await client.query(
-    `INSERT INTO tasks
+  const taskResult = await executePostSalesAction("create_csm_task", () =>
+    client.query(
+      `INSERT INTO tasks
       (account_id, case_id, title, description, status, priority, owner_role, due_date)
      VALUES ($1, $2, $3, $4, $5, $6, $7, CURRENT_DATE + 1)
      ON CONFLICT (account_id, title) DO UPDATE SET
@@ -49,12 +51,16 @@ export async function runPostSalesAutomation({
       "P1",
       account.owner_name ?? "Unassigned",
     ]
+    )
   );
 
   actions.task_created = taskResult.rowCount === 1;
 
-  const productSignalResult = await client.query(
-    `INSERT INTO product_signals
+  const productSignalResult = await executePostSalesAction(
+    "log_product_signal",
+    () =>
+      client.query(
+        `INSERT INTO product_signals
       (account_id, case_id, source_message_id, signal_type, title, description, severity, status)
      VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
      ON CONFLICT (account_id, signal_type, title) DO UPDATE SET
@@ -74,12 +80,16 @@ export async function runPostSalesAutomation({
       "high",
       "new",
     ]
+      )
   );
 
   actions.product_signal_created = productSignalResult.rowCount === 1;
 
-  const healthEventResult = await client.query(
-    `INSERT INTO account_health_events
+  const healthEventResult = await executePostSalesAction(
+    "create_account_health_event",
+    () =>
+      client.query(
+        `INSERT INTO account_health_events
       (account_id, case_id, health_status, event_type, event_description, metadata)
      VALUES ($1, $2, $3, $4, $5, $6)
      ON CONFLICT (account_id, event_type, event_description) DO UPDATE SET
@@ -98,15 +108,20 @@ export async function runPostSalesAutomation({
         reason: "Customer reported an onboarding or go-live blocker.",
       }),
     ]
+      )
   );
 
   actions.health_event_created = healthEventResult.rowCount === 1;
 
-  const accountUpdateResult = await updateAccountHealthStatus({
-    client,
-    accountId: account.id,
-    healthStatus: "at_risk",
-  });
+  const accountUpdateResult = await executePostSalesAction(
+    "update_account_health",
+    () =>
+      updateAccountHealthStatus({
+        client,
+        accountId: account.id,
+        healthStatus: "at_risk",
+      })
+  );
 
   actions.account_health_updated = accountUpdateResult.rowCount === 1;
   account.health_status = "at_risk";

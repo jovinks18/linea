@@ -1,5 +1,8 @@
 import assert from "node:assert/strict";
-import { buildAgentActionAudit } from "../lib/agent/audit.ts";
+import {
+  buildAgentActionAudit,
+  buildFailedAgentActionAudit,
+} from "../lib/agent/audit.ts";
 import {
   buildAgentDecision,
   buildAgentEnvelope,
@@ -7,6 +10,11 @@ import {
   createModelProposal,
 } from "../lib/agent/decision.ts";
 import { buildExecutionResult } from "../lib/agent/execution.ts";
+import { insertAgentActionDurably } from "../lib/agent/repository.ts";
+import {
+  executePostSalesAction,
+  PostSalesActionExecutionError,
+} from "../lib/post-sales/execution-error.ts";
 
 const now = new Date("2026-01-15T12:00:00.000Z");
 
@@ -197,5 +205,73 @@ assert.equal(deterministicFallback.envelope.model_proposal, null);
 assert.equal(deterministicFallback.agentDecision.source, "deterministic");
 assert.equal(deterministicFallback.agentDecision.classification, "support_question");
 assert.deepEqual(deterministicFallback.agentDecision.executed_actions, []);
+
+let simulatedPostSalesFailure;
+
+try {
+  await executePostSalesAction("create_csm_task", async () => {
+    throw new Error("Simulated task insert failure");
+  });
+} catch (error) {
+  simulatedPostSalesFailure = error;
+}
+
+assert.ok(
+  simulatedPostSalesFailure instanceof PostSalesActionExecutionError
+);
+assert.equal(simulatedPostSalesFailure.actionType, "create_csm_task");
+
+const failedAction = buildFailedAgentActionAudit({
+  actionType: "create_csm_task",
+  caseId: null,
+  accountId: 10,
+  policyDecision: knownBlocker.envelope.policy_decision,
+  error: simulatedPostSalesFailure.originalError,
+});
+const transactionWrites = [failedAction];
+const durableWrites = [];
+const transactionClient = {
+  async query(sql) {
+    if (sql === "ROLLBACK") transactionWrites.length = 0;
+    return { rows: [] };
+  },
+};
+const durableDatabase = {
+  async connect() {
+    return {
+      async query(_sql, values) {
+        durableWrites.push({
+          action_type: values[2],
+          status: values[3],
+          source: values[4],
+          confidence: values[5],
+          reasoning_summary: values[6],
+          metadata: JSON.parse(values[7]),
+        });
+        return { rows: [{ id: "1" }] };
+      },
+      release() {},
+    };
+  },
+};
+
+await transactionClient.query("ROLLBACK");
+await insertAgentActionDurably(durableDatabase, failedAction);
+
+assert.equal(transactionWrites.length, 0);
+assert.deepEqual(durableWrites, [
+  {
+    action_type: "create_csm_task",
+    status: "failed",
+    source: "hybrid",
+    confidence: 0.9,
+    reasoning_summary:
+      knownBlocker.envelope.policy_decision.reasoning_summary,
+    metadata: {
+      reason: "Post-sales action failed",
+      error: "Simulated task insert failure",
+    },
+  },
+]);
 
 console.log("PASS agent policy and execution envelope");

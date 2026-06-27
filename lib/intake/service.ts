@@ -2,7 +2,10 @@ import {
   findCustomerAccount,
   type PostSalesAccount,
 } from "../accounts/repository";
-import { buildAgentActionAudit } from "../agent/audit";
+import {
+  buildAgentActionAudit,
+  buildFailedAgentActionAudit,
+} from "../agent/audit";
 import {
   buildAgentDecision,
   buildAgentEnvelope,
@@ -12,7 +15,11 @@ import {
 } from "../agent/decision";
 import { buildExecutionResult } from "../agent/execution";
 import { planWithModel } from "../agent/planner";
-import { insertAgentActions } from "../agent/repository";
+import {
+  insertAgentActionDurably,
+  insertAgentActions,
+} from "../agent/repository";
+import type { PolicyDecision } from "../agent/types";
 import {
   createCaseCreatedEvent,
   createSupportCase,
@@ -23,9 +30,11 @@ import { findOrCreateCustomer } from "../customers/repository";
 import { pool } from "../db";
 import { createMessage } from "../messages/repository";
 import {
+  createEmptyPostSalesActions,
   detectOnboardingBlocker,
   type PostSalesActions,
 } from "../post-sales/automation";
+import { PostSalesActionExecutionError } from "../post-sales/execution-error";
 import { runPostSalesAutomation } from "../post-sales/repository";
 import { generateIntakeResponse } from "../responses/router";
 import { runBasicTriage } from "../triage/engine";
@@ -64,6 +73,11 @@ export async function processIntakeMessage({
   message,
 }: IntakeRequest): Promise<IntakeResponse> {
   const client = await pool.connect();
+  let failureAuditContext: {
+    caseId: number | null;
+    accountId: number | null;
+    policyDecision: PolicyDecision;
+  } | null = null;
 
   try {
     await client.query("BEGIN");
@@ -126,6 +140,28 @@ export async function processIntakeMessage({
       aiGenerated: false,
     });
 
+    const modelProposal = createModelProposal(modelPlan);
+    const policyDecision = buildPolicyDecision({
+      message,
+      intent: supportCase.intent ?? "question",
+      priority: supportCase.priority,
+      onboardingBlockerDetected: messageLevelOnboardingBlocker,
+      executionResult: buildExecutionResult({
+        caseId: supportCase.id,
+        accountId: account?.id ?? null,
+        caseWasCreated,
+        onboardingBlockerDetected: messageLevelOnboardingBlocker,
+        actions: createEmptyPostSalesActions(),
+      }),
+      modelProposal,
+    });
+
+    failureAuditContext = {
+      caseId: caseWasCreated ? null : supportCase.id,
+      accountId: account?.id ?? null,
+      policyDecision,
+    };
+
     const postSalesActions = await runPostSalesAutomation({
       client,
       account,
@@ -140,7 +176,6 @@ export async function processIntakeMessage({
       onboardingBlockerDetected: messageLevelOnboardingBlocker,
       actions: postSalesActions,
     });
-    const modelProposal = createModelProposal(modelPlan);
 
     const aiResponse = generateIntakeResponse({
       message,
@@ -148,14 +183,6 @@ export async function processIntakeMessage({
       hasLinkedAccount: account !== null,
     });
 
-    const policyDecision = buildPolicyDecision({
-      message,
-      intent: supportCase.intent ?? "question",
-      priority: supportCase.priority,
-      onboardingBlockerDetected: messageLevelOnboardingBlocker,
-      executionResult,
-      modelProposal,
-    });
     const agentEnvelope = buildAgentEnvelope({
       modelProposal,
       policyDecision,
@@ -202,7 +229,37 @@ export async function processIntakeMessage({
       agent_decision: agentDecision,
     };
   } catch (error) {
-    await client.query("ROLLBACK");
+    try {
+      await client.query("ROLLBACK");
+    } catch (rollbackError) {
+      console.warn(
+        "Failed to roll back intake transaction",
+        rollbackError instanceof Error ? rollbackError.message : "Unknown error"
+      );
+    }
+
+    if (
+      error instanceof PostSalesActionExecutionError &&
+      failureAuditContext
+    ) {
+      const failedAudit = buildFailedAgentActionAudit({
+        actionType: error.actionType,
+        caseId: failureAuditContext.caseId,
+        accountId: failureAuditContext.accountId,
+        policyDecision: failureAuditContext.policyDecision,
+        error: error.originalError,
+      });
+
+      try {
+        await insertAgentActionDurably(pool, failedAudit);
+      } catch (auditError) {
+        console.warn(
+          "Failed to persist post-sales failure audit",
+          auditError instanceof Error ? auditError.message : "Unknown error"
+        );
+      }
+    }
+
     throw error;
   } finally {
     client.release();
