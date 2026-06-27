@@ -1,54 +1,22 @@
-import type { PostSalesActions } from "../post-sales/automation";
-import type { AgentDecisionSource } from "./decision";
 import type {
   AgentActionInput,
   AgentActionStatus,
   AgentActionType,
 } from "./repository";
-
-type AuditDecisionContext = {
-  confidence?: unknown;
-  reasoning_summary?: string | null;
-  source?: unknown;
-};
+import type { ExecutionResult, PolicyDecision } from "./types";
 
 type BuildAgentActionAuditInput = {
-  caseId: number;
-  accountId: number | null;
-  caseWasCreated: boolean;
-  onboardingBlockerDetected: boolean;
-  actions: PostSalesActions;
-  decision: AuditDecisionContext;
+  executionResult: ExecutionResult;
+  policyDecision: PolicyDecision;
   now?: Date;
 };
 
-function normalizeConfidence(confidence: unknown): number | null {
-  return typeof confidence === "number" &&
-    Number.isFinite(confidence) &&
-    confidence >= 0 &&
-    confidence <= 1
-    ? confidence
-    : null;
-}
-
-function normalizeSource(source: unknown): AgentDecisionSource {
-  return source === "model" || source === "hybrid"
-    ? source
-    : "deterministic";
-}
-
 export function buildAgentActionAudit({
-  caseId,
-  accountId,
-  caseWasCreated,
-  onboardingBlockerDetected,
-  actions,
-  decision,
+  executionResult,
+  policyDecision,
   now = new Date(),
 }: BuildAgentActionAuditInput): AgentActionInput[] {
   const auditRows: AgentActionInput[] = [];
-  const confidence = normalizeConfidence(decision.confidence);
-  const source = normalizeSource(decision.source);
 
   const addAction = ({
     actionType,
@@ -60,92 +28,62 @@ export function buildAgentActionAudit({
     metadata?: Record<string, unknown>;
   }) => {
     auditRows.push({
-      case_id: caseId,
-      account_id: accountId,
+      case_id: executionResult.case_id,
+      account_id: executionResult.account_id,
       action_type: actionType,
       status,
-      source,
-      confidence,
-      reasoning_summary:
-        typeof decision.reasoning_summary === "string"
-          ? decision.reasoning_summary
-          : null,
+      source: policyDecision.source,
+      confidence: policyDecision.confidence,
+      reasoning_summary: policyDecision.reasoning_summary,
       metadata,
       executed_at: status === "executed" ? now : null,
     });
   };
 
-  const hasExecutedPostSalesAction =
-    actions.onboarding_blocker_detected ||
-    actions.task_created ||
-    actions.product_signal_created ||
-    actions.health_event_created ||
-    actions.account_health_updated;
-
-  if (hasExecutedPostSalesAction) {
-    if (actions.onboarding_blocker_detected) {
-      addAction({
-        actionType: "detect_onboarding_blocker",
-        status: "executed",
-      });
-    }
-
-    if (actions.task_created) {
-      addAction({
-        actionType: "create_csm_task",
-        status: "executed",
-      });
-    }
-
-    if (actions.product_signal_created) {
-      addAction({
-        actionType: "log_product_signal",
-        status: "executed",
-      });
-    }
-
-    if (actions.health_event_created) {
-      addAction({
-        actionType: "create_account_health_event",
-        status: "executed",
-      });
-    }
-
-    if (actions.account_health_updated) {
-      addAction({
-        actionType: "update_account_health",
-        status: "executed",
-      });
-    }
-  } else {
+  if (executionResult.executed_actions.length === 0) {
     addAction({
       actionType: "create_support_case",
       status: "executed",
       metadata: {
-        case_resolution: caseWasCreated ? "created" : "restored",
+        case_resolution: executionResult.support_case_resolution,
       },
     });
-
-    if (onboardingBlockerDetected) {
-      // Review is suggested because Linea raises the need but does not assign or approve human work.
+  } else {
+    for (const action of executionResult.executed_actions) {
       addAction({
-        actionType: "require_human_review",
-        status: "suggested",
-        metadata: { reason: "No linked account" },
+        actionType: action,
+        status: "executed",
       });
-
-      for (const actionType of [
-        "create_csm_task",
-        "log_product_signal",
-        "update_account_health",
-      ] as const) {
-        addAction({
-          actionType,
-          status: "skipped",
-          metadata: { reason: "No linked account" },
-        });
-      }
     }
+  }
+
+  if (policyDecision.requires_human_review) {
+    addAction({
+      actionType: "require_human_review",
+      status: "suggested",
+      metadata: {
+        reason:
+          executionResult.account_id === null
+            ? "No linked account"
+            : "Policy requires human review",
+      },
+    });
+  }
+
+  for (const outcome of executionResult.skipped_actions) {
+    addAction({
+      actionType: outcome.action,
+      status: "skipped",
+      metadata: { reason: outcome.reason },
+    });
+  }
+
+  for (const outcome of executionResult.failed_actions) {
+    addAction({
+      actionType: outcome.action,
+      status: "failed",
+      metadata: { reason: outcome.reason },
+    });
   }
 
   return auditRows;

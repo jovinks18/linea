@@ -3,7 +3,14 @@ import {
   type PostSalesAccount,
 } from "../accounts/repository";
 import { buildAgentActionAudit } from "../agent/audit";
-import { buildAgentDecision, type AgentDecision } from "../agent/decision";
+import {
+  buildAgentDecision,
+  buildAgentEnvelope,
+  buildPolicyDecision,
+  createModelProposal,
+  type AgentDecision,
+} from "../agent/decision";
+import { buildExecutionResult } from "../agent/execution";
 import { planWithModel } from "../agent/planner";
 import { insertAgentActions } from "../agent/repository";
 import {
@@ -126,6 +133,14 @@ export async function processIntakeMessage({
       customerMessageId: customerMessage.id,
       message,
     });
+    const executionResult = buildExecutionResult({
+      caseId: supportCase.id,
+      accountId: account?.id ?? null,
+      caseWasCreated,
+      onboardingBlockerDetected: messageLevelOnboardingBlocker,
+      actions: postSalesActions,
+    });
+    const modelProposal = createModelProposal(modelPlan);
 
     const aiResponse = generateIntakeResponse({
       message,
@@ -133,25 +148,27 @@ export async function processIntakeMessage({
       hasLinkedAccount: account !== null,
     });
 
-    const agentDecision = buildAgentDecision({
+    const policyDecision = buildPolicyDecision({
       message,
-      hasLinkedAccount: account !== null,
-      accountName: account?.name,
       intent: supportCase.intent ?? "question",
-      sentiment: supportCase.sentiment ?? "neutral",
       priority: supportCase.priority,
       onboardingBlockerDetected: messageLevelOnboardingBlocker,
-      actions: postSalesActions,
-      modelPlan,
+      executionResult,
+      modelProposal,
+    });
+    const agentEnvelope = buildAgentEnvelope({
+      modelProposal,
+      policyDecision,
+      executionResult,
+    });
+    const agentDecision = buildAgentDecision({
+      policyDecision: agentEnvelope.policy_decision,
+      executionResult: agentEnvelope.execution_result,
     });
 
     const agentActionAudit = buildAgentActionAudit({
-      caseId: supportCase.id,
-      accountId: account?.id ?? null,
-      caseWasCreated,
-      onboardingBlockerDetected: messageLevelOnboardingBlocker,
-      actions: postSalesActions,
-      decision: agentDecision,
+      executionResult: agentEnvelope.execution_result,
+      policyDecision: agentEnvelope.policy_decision,
     });
 
     await insertAgentActions(client, agentActionAudit);

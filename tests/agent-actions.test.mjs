@@ -1,20 +1,14 @@
 import assert from "node:assert/strict";
 import { buildAgentActionAudit } from "../lib/agent/audit.ts";
+import {
+  buildAgentDecision,
+  buildAgentEnvelope,
+  buildPolicyDecision,
+  createModelProposal,
+} from "../lib/agent/decision.ts";
+import { buildExecutionResult } from "../lib/agent/execution.ts";
 
 const now = new Date("2026-01-15T12:00:00.000Z");
-
-function createDecision(overrides = {}) {
-  return {
-    classification: "support_question",
-    confidence: 0.75,
-    reasoning_summary: "Customer reported a device support issue.",
-    recommended_actions: ["create_support_case"],
-    executed_actions: [],
-    requires_human_review: false,
-    source: "deterministic",
-    ...overrides,
-  };
-}
 
 function createActions(overrides = {}) {
   return {
@@ -27,63 +21,125 @@ function createActions(overrides = {}) {
   };
 }
 
-const knownBlocker = buildAgentActionAudit({
+function createModelPlan(classification) {
+  return {
+    classification,
+    confidence: 0.62,
+    urgency: classification === "implementation_blocker" ? "high" : "low",
+    product_area:
+      classification === "implementation_blocker"
+        ? "Implementation"
+        : "Support",
+    reasoning_summary: `Model proposed ${classification}.`,
+    recommended_actions:
+      classification === "implementation_blocker"
+        ? ["create_csm_task", "log_product_signal", "update_account_health"]
+        : ["create_support_case"],
+    requires_human_review: false,
+  };
+}
+
+function buildScenario({
+  message,
+  accountId,
+  onboardingBlockerDetected,
+  actions,
+  modelPlan,
+  caseId,
+  priority = "P1",
+}) {
+  const executionResult = buildExecutionResult({
+    caseId,
+    accountId,
+    caseWasCreated: true,
+    onboardingBlockerDetected,
+    actions,
+  });
+  const modelProposal = createModelProposal(modelPlan);
+  const policyDecision = buildPolicyDecision({
+    message,
+    intent: "question",
+    priority,
+    onboardingBlockerDetected,
+    executionResult,
+    modelProposal,
+  });
+  const envelope = buildAgentEnvelope({
+    modelProposal,
+    policyDecision,
+    executionResult,
+  });
+  const agentDecision = buildAgentDecision({
+    policyDecision: envelope.policy_decision,
+    executionResult: envelope.execution_result,
+  });
+  const audit = buildAgentActionAudit({
+    policyDecision: envelope.policy_decision,
+    executionResult: envelope.execution_result,
+    now,
+  });
+
+  return { envelope, agentDecision, audit };
+}
+
+const knownBlockerActions = createActions({
+  onboarding_blocker_detected: true,
+  task_created: true,
+  product_signal_created: true,
+  health_event_created: true,
+  account_health_updated: true,
+});
+const knownBlocker = buildScenario({
   caseId: 101,
   accountId: 10,
-  caseWasCreated: true,
   onboardingBlockerDetected: true,
-  actions: createActions({
-    onboarding_blocker_detected: true,
-    task_created: true,
-    product_signal_created: true,
-    health_event_created: true,
-    account_health_updated: true,
-  }),
-  decision: createDecision({
-    classification: "implementation_blocker",
-    confidence: 0.9,
-    reasoning_summary:
-      "Customer reported an onboarding or go-live blocker for a linked account.",
-    recommended_actions: [
-      "create_csm_task",
-      "log_product_signal",
-      "update_account_health",
-    ],
-  }),
-  now,
+  actions: knownBlockerActions,
+  message:
+    "Our API setup is still blocked and we are supposed to go live Friday.",
+  modelPlan: createModelPlan("support_question"),
 });
+const expectedBlockerExecutions = [
+  "detect_onboarding_blocker",
+  "create_csm_task",
+  "log_product_signal",
+  "create_account_health_event",
+  "update_account_health",
+];
 
-assert.deepEqual(
-  knownBlocker.map(({ action_type, status }) => [action_type, status]),
-  [
-    ["detect_onboarding_blocker", "executed"],
-    ["create_csm_task", "executed"],
-    ["log_product_signal", "executed"],
-    ["create_account_health_event", "executed"],
-    ["update_account_health", "executed"],
-  ]
+assert.equal(
+  knownBlocker.envelope.model_proposal.classification,
+  "support_question"
 );
-assert.ok(knownBlocker.every((action) => action.executed_at === now));
+assert.equal(
+  knownBlocker.envelope.policy_decision.classification,
+  "implementation_blocker"
+);
+assert.equal(knownBlocker.agentDecision.classification, "implementation_blocker");
+assert.deepEqual(
+  knownBlocker.agentDecision.executed_actions,
+  expectedBlockerExecutions
+);
+assert.match(knownBlocker.agentDecision.reasoning_summary, /ignored/i);
+assert.deepEqual(
+  knownBlocker.audit.map(({ action_type, status }) => [action_type, status]),
+  expectedBlockerExecutions.map((action) => [action, "executed"])
+);
 
-const unknownBlocker = buildAgentActionAudit({
+const unknownBlocker = buildScenario({
   caseId: 102,
   accountId: null,
-  caseWasCreated: true,
   onboardingBlockerDetected: true,
   actions: createActions(),
-  decision: createDecision({
-    classification: "implementation_blocker",
-    confidence: 0.85,
-    reasoning_summary:
-      "Customer reported an onboarding or go-live blocker, but no linked account was found.",
-    recommended_actions: ["create_support_case", "require_human_review"],
-    requires_human_review: true,
-  }),
-  now,
+  message:
+    "Our API setup is still blocked and we are supposed to go live Friday.",
+  modelPlan: createModelPlan("support_question"),
 });
 
+assert.equal(unknownBlocker.agentDecision.classification, "implementation_blocker");
+assert.equal(unknownBlocker.agentDecision.requires_human_review, true);
+assert.deepEqual(unknownBlocker.agentDecision.executed_actions, []);
 assert.deepEqual(
-  unknownBlocker.map(({ action_type, status }) => [action_type, status]),
+  unknownBlocker.audit.map(({ action_type, status }) => [action_type, status]),
   [
     ["create_support_case", "executed"],
     ["require_human_review", "suggested"],
@@ -92,40 +148,54 @@ assert.deepEqual(
     ["update_account_health", "skipped"],
   ]
 );
-assert.equal(unknownBlocker[2].metadata.reason, "No linked account");
+assert.equal(unknownBlocker.audit[2].metadata.reason, "No linked account");
 
-const smartLock = buildAgentActionAudit({
+const smartLock = buildScenario({
   caseId: 103,
   accountId: 10,
-  caseWasCreated: true,
   onboardingBlockerDetected: false,
   actions: createActions(),
-  decision: createDecision({
-    confidence: Number.NaN,
-    source: "untrusted",
-    recommended_actions: ["create_support_case", "log_product_signal"],
-  }),
-  now,
+  message: "My smart lock is not responding after I changed the batteries.",
+  modelPlan: createModelPlan("implementation_blocker"),
 });
 
+assert.equal(smartLock.agentDecision.classification, "support_question");
+assert.deepEqual(smartLock.agentDecision.executed_actions, []);
+assert.deepEqual(smartLock.agentDecision.recommended_actions, [
+  "create_support_case",
+]);
 assert.deepEqual(
-  smartLock.map(({ action_type, status }) => [action_type, status]),
+  smartLock.audit.map(({ action_type, status }) => [action_type, status]),
   [["create_support_case", "executed"]]
 );
-assert.equal(smartLock[0].confidence, null);
-assert.equal(smartLock[0].source, "deterministic");
+assert.match(smartLock.agentDecision.reasoning_summary, /ignored/i);
 
-const missingDecisionContext = buildAgentActionAudit({
+const agreeingModel = buildScenario({
   caseId: 104,
   accountId: 10,
-  caseWasCreated: true,
   onboardingBlockerDetected: false,
   actions: createActions(),
-  decision: {},
-  now,
+  message: "My smart lock needs help after a battery change.",
+  modelPlan: createModelPlan("support_question"),
 });
 
-assert.equal(missingDecisionContext[0].confidence, null);
-assert.equal(missingDecisionContext[0].source, "deterministic");
+assert.equal(agreeingModel.agentDecision.source, "hybrid");
+assert.equal(agreeingModel.agentDecision.confidence, 0.75);
+assert.match(agreeingModel.agentDecision.reasoning_summary, /Model assessment:/);
 
-console.log("PASS agent action audit policy");
+const deterministicFallback = buildScenario({
+  caseId: 105,
+  accountId: 10,
+  onboardingBlockerDetected: false,
+  actions: createActions(),
+  message: "Can you help me with setup?",
+  modelPlan: null,
+  priority: "P2",
+});
+
+assert.equal(deterministicFallback.envelope.model_proposal, null);
+assert.equal(deterministicFallback.agentDecision.source, "deterministic");
+assert.equal(deterministicFallback.agentDecision.classification, "support_question");
+assert.deepEqual(deterministicFallback.agentDecision.executed_actions, []);
+
+console.log("PASS agent policy and execution envelope");
