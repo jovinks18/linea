@@ -176,6 +176,7 @@ export async function processIntakeMessage({
       supportCaseId: supportCase.id,
       customerMessageId: customerMessage.id,
       message,
+      actionDirectives,
     });
     const executionResult = buildExecutionResult({
       caseId: supportCase.id,
@@ -183,6 +184,7 @@ export async function processIntakeMessage({
       caseWasCreated,
       onboardingBlockerDetected: messageLevelOnboardingBlocker,
       actions: postSalesActions,
+      actionDirectives,
     });
 
     const aiResponse = generateIntakeResponse({

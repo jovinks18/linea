@@ -3,6 +3,7 @@ import type {
   AgentActionStatus,
   AgentActionType,
 } from "./repository";
+import type { ActionDirective } from "./action-directives";
 import type { ExecutionResult, PolicyDecision } from "./types";
 
 type BuildAgentActionAuditInput = {
@@ -25,6 +26,21 @@ function getErrorMessage(error: unknown) {
   }
 
   return "Unknown post-sales action error";
+}
+
+function getDirectiveMetadata(
+  directive: ActionDirective,
+  reason = directive.reason
+) {
+  return {
+    reason,
+    tier: directive.tier,
+    counterfactual: directive.counterfactual ?? false,
+    enqueue_review: directive.enqueue_review ?? false,
+    confidence_floor: directive.confidence_floor,
+    max_blast_radius: directive.max_blast_radius,
+    requires_reversible: directive.requires_reversible,
+  };
 }
 
 export function buildFailedAgentActionAudit({
@@ -92,16 +108,11 @@ export function buildAgentActionAudit({
     });
   }
 
-  if (policyDecision.requires_human_review) {
+  for (const directive of executionResult.suggested_actions) {
     addAction({
-      actionType: "require_human_review",
+      actionType: directive.action_type,
       status: "suggested",
-      metadata: {
-        reason:
-          executionResult.account_id === null
-            ? "No linked account"
-            : "Policy requires human review",
-      },
+      metadata: getDirectiveMetadata(directive),
     });
   }
 
@@ -109,7 +120,9 @@ export function buildAgentActionAudit({
     addAction({
       actionType: outcome.action,
       status: "skipped",
-      metadata: { reason: outcome.reason },
+      metadata: outcome.directive
+        ? getDirectiveMetadata(outcome.directive, outcome.reason)
+        : { reason: outcome.reason },
     });
   }
 

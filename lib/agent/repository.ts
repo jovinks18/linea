@@ -1,5 +1,5 @@
 import type { Pool, PoolClient } from "pg";
-import type { AgentActionName, AgentDecisionSource } from "./types";
+import type { AgentDecisionSource } from "./types";
 
 export type AgentActionStatus =
   | "executed"
@@ -7,7 +7,7 @@ export type AgentActionStatus =
   | "skipped"
   | "failed";
 
-export type AgentActionType = AgentActionName;
+export type AgentActionType = string;
 
 export type AgentActionInput = {
   case_id: number | null;

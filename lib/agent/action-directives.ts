@@ -23,7 +23,10 @@ export type ActionDirective = {
 };
 
 function getBlastRadius(actionType: string) {
-  return actionType === "require_human_review" ? 0 : 1;
+  return actionType === "require_human_review" ||
+    actionType === "detect_onboarding_blocker"
+    ? 0
+    : 1;
 }
 
 function isReversible(actionType: string) {

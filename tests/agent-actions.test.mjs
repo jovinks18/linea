@@ -47,6 +47,42 @@ function createModelPlan(classification) {
   };
 }
 
+function createDirective(actionType, execute, overrides = {}) {
+  return {
+    action_type: actionType,
+    execute,
+    status: execute ? "executed" : "suggested",
+    tier: "bounded",
+    confidence_floor: 0.8,
+    max_blast_radius: 1,
+    requires_reversible: actionType !== "update_account_health",
+    ...overrides,
+  };
+}
+
+function createScenarioDirectives(policyDecision, accountId) {
+  return policyDecision.recommended_actions.map((actionType) => {
+    if (accountId !== null || actionType === "create_support_case") {
+      return createDirective(actionType, true);
+    }
+
+    if (actionType === "require_human_review") {
+      return createDirective(actionType, false, {
+        confidence_floor: 0.9,
+        enqueue_review: true,
+        reason: "out_of_bounds",
+      });
+    }
+
+    return createDirective(actionType, false, {
+      tier: "supervised",
+      confidence_floor: 0.9,
+      enqueue_review: true,
+      reason: "supervised",
+    });
+  });
+}
+
 function buildScenario({
   message,
   accountId,
@@ -56,7 +92,7 @@ function buildScenario({
   caseId,
   priority = "P1",
 }) {
-  const executionResult = buildExecutionResult({
+  const preliminaryExecutionResult = buildExecutionResult({
     caseId,
     accountId,
     caseWasCreated: true,
@@ -69,12 +105,25 @@ function buildScenario({
     intent: "question",
     priority,
     onboardingBlockerDetected,
-    executionResult,
+    executionResult: preliminaryExecutionResult,
     modelProposal,
+  });
+  const actionDirectives = createScenarioDirectives(
+    policyDecision,
+    accountId
+  );
+  const executionResult = buildExecutionResult({
+    caseId,
+    accountId,
+    caseWasCreated: true,
+    onboardingBlockerDetected,
+    actions,
+    actionDirectives,
   });
   const envelope = buildAgentEnvelope({
     modelProposal,
     policyDecision,
+    actionDirectives,
     executionResult,
   });
   const agentDecision = buildAgentDecision({
@@ -133,6 +182,10 @@ assert.deepEqual(
   knownBlocker.audit.map(({ action_type, status }) => [action_type, status]),
   expectedBlockerExecutions.map((action) => [action, "executed"])
 );
+assert.equal(
+  new Set(knownBlocker.audit.map(({ action_type }) => action_type)).size,
+  knownBlocker.audit.length
+);
 
 const unknownBlocker = buildScenario({
   caseId: 102,
@@ -153,13 +206,25 @@ assert.deepEqual(
   unknownBlocker.audit.map(({ action_type, status }) => [action_type, status]),
   [
     ["create_support_case", "executed"],
+    ["detect_onboarding_blocker", "suggested"],
+    ["create_csm_task", "suggested"],
+    ["log_product_signal", "suggested"],
+    ["create_account_health_event", "suggested"],
+    ["update_account_health", "suggested"],
     ["require_human_review", "suggested"],
-    ["create_csm_task", "skipped"],
-    ["log_product_signal", "skipped"],
-    ["update_account_health", "skipped"],
   ]
 );
-assert.equal(unknownBlocker.audit[2].metadata.reason, "No linked account");
+assert.equal(unknownBlocker.audit[1].metadata.reason, "supervised");
+assert.equal(unknownBlocker.audit[1].metadata.tier, "supervised");
+assert.equal(unknownBlocker.audit[1].metadata.enqueue_review, true);
+assert.equal(
+  new Set(unknownBlocker.audit.map(({ action_type }) => action_type)).size,
+  unknownBlocker.audit.length
+);
+assert.equal(
+  unknownBlocker.audit.length,
+  unknownBlocker.agentDecision.recommended_actions.length
+);
 
 const smartLock = buildScenario({
   caseId: 103,

@@ -11,15 +11,15 @@ export type AgentUrgency = "low" | "medium" | "high";
 
 export type AgentRecommendedAction =
   | "create_support_case"
+  | "detect_onboarding_blocker"
   | "create_csm_task"
   | "log_product_signal"
+  | "create_account_health_event"
   | "update_account_health"
   | "require_human_review";
 
 export type AgentActionName =
   | AgentRecommendedAction
-  | "detect_onboarding_blocker"
-  | "create_account_health_event"
   | "flag_human_review";
 
 export type AgentDecisionSource =
@@ -51,12 +51,14 @@ export type PolicyDecision = {
 };
 
 export type AgentActionOutcome = {
-  action: AgentActionName;
+  action: string;
   reason: string;
+  directive?: ActionDirective;
 };
 
 export type ExecutionResult = {
   executed_actions: AgentActionName[];
+  suggested_actions: ActionDirective[];
   skipped_actions: AgentActionOutcome[];
   failed_actions: AgentActionOutcome[];
   post_sales_actions: PostSalesActions;

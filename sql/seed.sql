@@ -140,9 +140,27 @@ VALUES
   ('create_support_case', NULL, 'bounded', 0.90, 1, TRUE, 'seed'),
   ('create_csm_task', NULL, 'bounded', 0.90, 1, TRUE, 'seed'),
   ('log_product_signal', NULL, 'bounded', 0.90, 1, TRUE, 'seed'),
-  -- Health mutations remain review-gated when this policy is wired later.
+  -- Default health policies stay review-gated; linked-account overrides below
+  -- preserve the current deterministic blocker workflow.
   ('create_account_health_event', NULL, 'supervised', 0.90, 1, TRUE, 'seed'),
-  ('update_account_health', NULL, 'supervised', 0.90, 1, TRUE, 'seed')
+  ('update_account_health', NULL, 'supervised', 0.90, 1, TRUE, 'seed'),
+  -- Support cases already exist before directive planning, so the segment
+  -- policy permits the existing deterministic support confidence.
+  ('create_support_case', 'linked_account', 'bounded', 0.70, 1, TRUE, 'seed'),
+  ('detect_onboarding_blocker', 'linked_account', 'bounded', 0.80, 1, TRUE, 'seed'),
+  ('create_csm_task', 'linked_account', 'bounded', 0.80, 1, TRUE, 'seed'),
+  ('log_product_signal', 'linked_account', 'bounded', 0.80, 1, TRUE, 'seed'),
+  ('create_account_health_event', 'linked_account', 'bounded', 0.80, 1, TRUE, 'seed'),
+  ('update_account_health', 'linked_account', 'bounded', 0.80, 1, FALSE, 'seed'),
+  ('require_human_review', 'linked_account', 'bounded', 0.80, 1, TRUE, 'seed'),
+  ('create_support_case', 'unknown_account', 'bounded', 0.80, 1, TRUE, 'seed'),
+  ('detect_onboarding_blocker', 'unknown_account', 'supervised', 0.90, 1, TRUE, 'seed'),
+  ('create_csm_task', 'unknown_account', 'supervised', 0.90, 1, TRUE, 'seed'),
+  ('log_product_signal', 'unknown_account', 'supervised', 0.90, 1, TRUE, 'seed'),
+  ('create_account_health_event', 'unknown_account', 'supervised', 0.90, 1, TRUE, 'seed'),
+  ('update_account_health', 'unknown_account', 'supervised', 0.90, 1, TRUE, 'seed'),
+  -- Keep unknown-account review as a suggestion at current confidence 0.85.
+  ('require_human_review', 'unknown_account', 'bounded', 0.90, 1, TRUE, 'seed')
 ON CONFLICT (action_type, segment) DO UPDATE SET
   tier = EXCLUDED.tier,
   confidence_floor = EXCLUDED.confidence_floor,

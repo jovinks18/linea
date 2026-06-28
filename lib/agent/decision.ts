@@ -137,7 +137,15 @@ export function buildPolicyDecision(input: {
         product_area: "Implementation",
         reasoning_summary:
           "Customer reported an onboarding or go-live blocker, but no linked account was found.",
-        recommended_actions: ["create_support_case", "require_human_review"],
+        recommended_actions: [
+          "create_support_case",
+          "detect_onboarding_blocker",
+          "create_csm_task",
+          "log_product_signal",
+          "create_account_health_event",
+          "update_account_health",
+          "require_human_review",
+        ],
         requires_human_review: true,
         source: "deterministic",
       };
@@ -151,8 +159,10 @@ export function buildPolicyDecision(input: {
           "Customer reported an onboarding or go-live blocker for a linked account.",
         recommended_actions: [
           "create_support_case",
+          "detect_onboarding_blocker",
           "create_csm_task",
           "log_product_signal",
+          "create_account_health_event",
           "update_account_health",
         ],
         requires_human_review: false,
