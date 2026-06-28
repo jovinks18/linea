@@ -1,9 +1,18 @@
 import "server-only";
 
+import fs from "node:fs/promises";
 import { createRequire } from "node:module";
+import os from "node:os";
 import path from "node:path";
 import type { PoolClient } from "pg";
 import { pool } from "../db";
+
+export type DataSourceMode = "sample" | "upload";
+export type UploadEntity =
+  | "accounts"
+  | "contacts"
+  | "implementation_steps"
+  | "cases";
 
 export type DataProfile = {
   file: string;
@@ -82,6 +91,10 @@ export type DataImportSummary = {
 const require = createRequire(import.meta.url);
 const csvTools = require("../../scripts/csv-tools.js") as {
   profileCsvDirectory(directory: string): DataProfile[];
+  parseCsv(text: string): {
+    columns: string[];
+    rows: Record<string, string>[];
+  };
 };
 const importUtils = require("../../scripts/import-utils.js") as {
   normalizeAccountName(value: unknown): string;
@@ -100,6 +113,9 @@ const csvImporter = require("../../scripts/import-csv.js") as {
 const mappingRecommender = require(
   "../../scripts/recommend-mapping.js"
 ) as {
+  buildDeterministicMapping(
+    profiles: DataProfile[]
+  ): MappingRecommendation;
   recommendMappings(
     profiles: DataProfile[]
   ): Promise<MappingRecommendation>;
@@ -114,10 +130,87 @@ const sampleMappingPath = path.join(
   sampleDirectory,
   "mapping.example.json"
 );
+const uploadRoot = path.join(os.tmpdir(), "linea-data-onboarding");
+const uploadLifetimeMs = 24 * 60 * 60 * 1000;
+const maxFileBytes = 2 * 1024 * 1024;
+const sessionIdPattern =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const uploadFileNames: Record<UploadEntity, string> = {
+  accounts: "accounts.csv",
+  contacts: "contacts.csv",
+  implementation_steps: "implementation_steps.csv",
+  cases: "cases.csv",
+};
 
-function buildSamplePlan() {
-  const mapping = csvImporter.readMapping(sampleMappingPath);
-  return csvImporter.buildImportPlan(sampleDirectory, mapping);
+function assertSessionId(sessionId: string) {
+  if (!sessionIdPattern.test(sessionId)) {
+    throw new Error("The upload session is invalid.");
+  }
+}
+
+function getUploadDirectory(sessionId: string) {
+  assertSessionId(sessionId);
+  return path.join(uploadRoot, sessionId);
+}
+
+async function cleanupExpiredUploads() {
+  await fs.mkdir(uploadRoot, { recursive: true });
+  const entries = await fs.readdir(uploadRoot, { withFileTypes: true });
+  const expiration = Date.now() - uploadLifetimeMs;
+
+  await Promise.all(
+    entries
+      .filter((entry) => entry.isDirectory())
+      .map(async (entry) => {
+        const directory = path.join(uploadRoot, entry.name);
+        const stats = await fs.stat(directory);
+
+        if (stats.mtimeMs < expiration) {
+          await fs.rm(directory, { force: true, recursive: true });
+        }
+      })
+  );
+}
+
+function getDatasetDirectory(
+  mode: DataSourceMode,
+  sessionId?: string | null
+) {
+  if (mode === "sample") return sampleDirectory;
+  if (!sessionId) throw new Error("An upload session is required.");
+
+  return getUploadDirectory(sessionId);
+}
+
+function buildDatasetPlan(
+  mode: DataSourceMode,
+  directory: string
+): ImportPlan {
+  const mapping =
+    mode === "sample"
+      ? csvImporter.readMapping(sampleMappingPath)
+      : mappingRecommender.buildDeterministicMapping(
+          csvTools.profileCsvDirectory(directory)
+        );
+
+  return csvImporter.buildImportPlan(directory, mapping);
+}
+
+function profileDataset(
+  mode: DataSourceMode,
+  directory: string,
+  source: string
+) {
+  const profiles = csvTools.profileCsvDirectory(directory);
+  const plan = buildDatasetPlan(mode, directory);
+
+  return {
+    mode,
+    source,
+    profiles,
+    warnings: plan.warnings,
+    validation_errors: plan.errors,
+  };
 }
 
 function getSuggestedEmail(plan: ImportPlan) {
@@ -284,29 +377,117 @@ async function buildDryRunSummary(
   return summary;
 }
 
-export function profileSampleData() {
-  return {
-    mode: "sample",
-    source: "docs/import-templates",
-    profiles: csvTools.profileCsvDirectory(sampleDirectory),
-  };
+export async function storeUploadedDataset({
+  sessionId,
+  files,
+}: {
+  sessionId: string;
+  files: Partial<Record<UploadEntity, File>>;
+}) {
+  assertSessionId(sessionId);
+  await cleanupExpiredUploads();
+
+  for (const requiredEntity of ["accounts", "contacts"] as const) {
+    if (!files[requiredEntity]) {
+      throw new Error(
+        `${uploadFileNames[requiredEntity]} is required.`
+      );
+    }
+  }
+
+  const validatedFiles: {
+    entity: UploadEntity;
+    contents: Uint8Array;
+  }[] = [];
+
+  for (const entity of Object.keys(uploadFileNames) as UploadEntity[]) {
+    const file = files[entity];
+    if (!file) continue;
+
+    if (!file.name.toLowerCase().endsWith(".csv")) {
+      throw new Error(`${file.name} must be a CSV file.`);
+    }
+    if (file.size === 0) {
+      throw new Error(`${file.name} is empty.`);
+    }
+    if (file.size > maxFileBytes) {
+      throw new Error(`${file.name} exceeds the 2 MB local limit.`);
+    }
+
+    const contents = new Uint8Array(await file.arrayBuffer());
+    const text = new TextDecoder().decode(contents);
+    const parsed = csvTools.parseCsv(text);
+
+    if (parsed.columns.length === 0 || parsed.rows.length === 0) {
+      throw new Error(
+        `${file.name} must contain a header and at least one data row.`
+      );
+    }
+
+    validatedFiles.push({ entity, contents });
+  }
+
+  const directory = getUploadDirectory(sessionId);
+  await fs.rm(directory, { force: true, recursive: true });
+  await fs.mkdir(directory, { recursive: true, mode: 0o700 });
+
+  await Promise.all(
+    validatedFiles.map(({ entity, contents }) =>
+      fs.writeFile(
+        path.join(directory, uploadFileNames[entity]),
+        contents,
+        { mode: 0o600 }
+      )
+    )
+  );
+
+  return profileDataset("upload", directory, "Local upload session");
 }
 
-export async function recommendSampleMapping() {
-  const profile = profileSampleData();
+export function profileSampleData() {
+  return profileDataset(
+    "sample",
+    sampleDirectory,
+    "docs/import-templates"
+  );
+}
+
+export function profileUploadedData(sessionId: string) {
+  const directory = getUploadDirectory(sessionId);
+  return profileDataset("upload", directory, "Local upload session");
+}
+
+export async function recommendDatasetMapping({
+  mode,
+  sessionId,
+}: {
+  mode: DataSourceMode;
+  sessionId?: string | null;
+}) {
+  const profile =
+    mode === "sample"
+      ? profileSampleData()
+      : profileUploadedData(sessionId ?? "");
   const recommendation = await mappingRecommender.recommendMappings(
     profile.profiles
   );
 
   return {
-    mode: "sample",
+    mode,
     source: profile.source,
     recommendation,
   };
 }
 
-export async function dryRunSampleImport() {
-  const plan = buildSamplePlan();
+export async function dryRunDatasetImport({
+  mode,
+  sessionId,
+}: {
+  mode: DataSourceMode;
+  sessionId?: string | null;
+}) {
+  const directory = getDatasetDirectory(mode, sessionId);
+  const plan = buildDatasetPlan(mode, directory);
   const client = await pool.connect();
 
   try {
@@ -315,7 +496,7 @@ export async function dryRunSampleImport() {
     await client.query("ROLLBACK");
 
     return {
-      mode: "sample",
+      mode,
       dry_run: true,
       database_writes: 0,
       summary,
@@ -329,17 +510,24 @@ export async function dryRunSampleImport() {
   }
 }
 
-export async function importSampleData() {
-  const plan = buildSamplePlan();
+export async function importDataset({
+  mode,
+  sessionId,
+}: {
+  mode: DataSourceMode;
+  sessionId?: string | null;
+}) {
+  const directory = getDatasetDirectory(mode, sessionId);
+  const plan = buildDatasetPlan(mode, directory);
   if (plan.errors.length > 0) {
     throw new Error(
-      "Sample import validation failed. Run the dry-run preview for details."
+      "Import validation failed. Run the dry-run preview for details."
     );
   }
   const summary = await csvImporter.executeImport(plan);
 
   return {
-    mode: "sample",
+    mode,
     dry_run: false,
     summary,
     suggested_test_email: getSuggestedEmail(plan),

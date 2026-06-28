@@ -150,6 +150,7 @@ export function buildPolicyDecision(input: {
         reasoning_summary:
           "Customer reported an onboarding or go-live blocker for a linked account.",
         recommended_actions: [
+          "create_support_case",
           "create_csm_task",
           "log_product_signal",
           "update_account_health",

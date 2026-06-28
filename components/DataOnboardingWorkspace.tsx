@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Panel } from "./Panel";
 import { StatusPill } from "./StatusPill";
 
@@ -15,9 +15,11 @@ type Profile = {
 };
 
 type ProfileResponse = {
-  mode: "sample";
+  mode: "sample" | "upload";
   source: string;
   profiles: Profile[];
+  warnings: Record<string, unknown>[];
+  validation_errors: Record<string, unknown>[];
 };
 
 type MappingEntity = {
@@ -29,7 +31,7 @@ type MappingEntity = {
 };
 
 type MappingResponse = {
-  mode: "sample";
+  mode: "sample" | "upload";
   source: string;
   recommendation: {
     generated_by: string;
@@ -66,14 +68,26 @@ type ImportSummary = {
 };
 
 type ImportResponse = {
-  mode: "sample";
+  mode: "sample" | "upload";
   dry_run: boolean;
   database_writes?: number;
   summary: ImportSummary;
   suggested_test_email: string | null;
 };
 
-type PendingAction = "profile" | "mapping" | "dry-run" | "import" | null;
+type PendingAction =
+  | "profile"
+  | "upload"
+  | "mapping"
+  | "dry-run"
+  | "import"
+  | null;
+type SourceMode = "sample" | "upload";
+type UploadEntity =
+  | "accounts"
+  | "contacts"
+  | "implementation_steps"
+  | "cases";
 
 const steps = [
   { number: 1, label: "Source" },
@@ -89,6 +103,45 @@ const sampleFiles = [
   { file: "implementation_steps.csv", entity: "Implementation steps" },
   { file: "cases.csv", entity: "Cases" },
 ];
+
+const uploadFields: {
+  entity: UploadEntity;
+  label: string;
+  description: string;
+  required: boolean;
+}[] = [
+  {
+    entity: "accounts",
+    label: "Accounts CSV",
+    description: "Companies, plans, lifecycle, health, and custom KPIs",
+    required: true,
+  },
+  {
+    entity: "contacts",
+    label: "Contacts CSV",
+    description: "Customer identities and account relationships",
+    required: true,
+  },
+  {
+    entity: "implementation_steps",
+    label: "Implementation steps CSV",
+    description: "Optional onboarding milestones and owners",
+    required: false,
+  },
+  {
+    entity: "cases",
+    label: "Cases CSV",
+    description: "Optional support cases and first messages",
+    required: false,
+  },
+];
+
+const emptyUploads: Record<UploadEntity, File | null> = {
+  accounts: null,
+  contacts: null,
+  implementation_steps: null,
+  cases: null,
+};
 
 const summaryFields: {
   key: keyof ImportSummary;
@@ -225,8 +278,13 @@ function IssueList({
 }
 
 export function DataOnboardingWorkspace() {
+  const uploadSessionId = useRef<string | null>(null);
   const [step, setStep] = useState(1);
   const [maxStep, setMaxStep] = useState(1);
+  const [sourceMode, setSourceMode] =
+    useState<SourceMode>("sample");
+  const [uploadedFiles, setUploadedFiles] =
+    useState<Record<UploadEntity, File | null>>(emptyUploads);
   const [pending, setPending] = useState<PendingAction>(null);
   const [error, setError] = useState("");
   const [profile, setProfile] = useState<ProfileResponse | null>(null);
@@ -269,19 +327,112 @@ export function DataOnboardingWorkspace() {
     setMaxStep((current) => Math.max(current, nextStep));
   }
 
-  async function profileData() {
-    const result = await requestJson<ProfileResponse>(
-      "/api/data/profile",
-      "profile"
+  function resetWorkflow(mode: SourceMode) {
+    setSourceMode(mode);
+    setStep(1);
+    setMaxStep(1);
+    setProfile(null);
+    setMapping(null);
+    setDryRun(null);
+    setImportResult(null);
+    setError("");
+  }
+
+  function getUploadSessionId() {
+    if (uploadSessionId.current) return uploadSessionId.current;
+
+    const stored = window.sessionStorage.getItem(
+      "linea-data-upload-session"
     );
+    uploadSessionId.current = stored || window.crypto.randomUUID();
+    window.sessionStorage.setItem(
+      "linea-data-upload-session",
+      uploadSessionId.current
+    );
+
+    return uploadSessionId.current;
+  }
+
+  function beginUploadSession() {
+    const sessionId = window.crypto.randomUUID();
+    uploadSessionId.current = sessionId;
+    window.sessionStorage.setItem(
+      "linea-data-upload-session",
+      sessionId
+    );
+    return sessionId;
+  }
+
+  function getDatasetRequestBody() {
+    return {
+      mode: sourceMode,
+      session_id:
+        sourceMode === "upload" ? getUploadSessionId() : null,
+    };
+  }
+
+  function selectUploadFile(
+    entity: UploadEntity,
+    file: File | null
+  ) {
+    setError("");
+
+    if (file && !file.name.toLowerCase().endsWith(".csv")) {
+      setError(`${file.name} must be a CSV file.`);
+      setUploadedFiles((current) => ({
+        ...current,
+        [entity]: null,
+      }));
+      return;
+    }
+
+    setUploadedFiles((current) => ({ ...current, [entity]: file }));
+  }
+
+  async function profileData() {
+    let result: ProfileResponse | null;
+
+    if (sourceMode === "upload") {
+      if (!uploadedFiles.accounts || !uploadedFiles.contacts) {
+        setError(
+          "Accounts CSV and Contacts CSV are required before profiling."
+        );
+        return;
+      }
+
+      const formData = new FormData();
+      formData.append("session_id", beginUploadSession());
+      for (const field of uploadFields) {
+        const file = uploadedFiles[field.entity];
+        if (file) formData.append(field.entity, file);
+      }
+
+      result = await requestJson<ProfileResponse>(
+        "/api/data/upload",
+        "upload",
+        { method: "POST", body: formData }
+      );
+    } else {
+      result = await requestJson<ProfileResponse>(
+        "/api/data/profile",
+        "profile"
+      );
+    }
+
     if (!result) return;
     setProfile(result);
     advance(2);
   }
 
   async function recommendMapping() {
+    const query =
+      sourceMode === "upload"
+        ? `?mode=upload&session_id=${encodeURIComponent(
+            getUploadSessionId()
+          )}`
+        : "";
     const result = await requestJson<MappingResponse>(
-      "/api/data/recommend-mapping",
+      `/api/data/recommend-mapping${query}`,
       "mapping"
     );
     if (!result) return;
@@ -293,7 +444,11 @@ export function DataOnboardingWorkspace() {
     const result = await requestJson<ImportResponse>(
       "/api/data/dry-run",
       "dry-run",
-      { method: "POST" }
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(getDatasetRequestBody()),
+      }
     );
     if (!result) return;
     setDryRun(result);
@@ -307,7 +462,10 @@ export function DataOnboardingWorkspace() {
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ confirm: true, mode: "sample" }),
+        body: JSON.stringify({
+          confirm: true,
+          ...getDatasetRequestBody(),
+        }),
       }
     );
     if (!result) return;
@@ -322,15 +480,19 @@ export function DataOnboardingWorkspace() {
           <p className="text-xs font-medium uppercase tracking-[0.18em] text-[var(--text-subtle)]">
             Data onboarding
           </p>
-          <StatusPill variant="info">Sample dataset mode</StatusPill>
+          <StatusPill variant="info">
+            {sourceMode === "sample"
+              ? "Sample dataset mode"
+              : "Uploaded CSV mode"}
+          </StatusPill>
         </div>
         <h1 className="mt-3 text-3xl font-semibold text-[var(--text-primary)] sm:text-4xl">
           Prepare customer context for Linea
         </h1>
         <p className="mt-3 max-w-3xl text-sm leading-6 text-[var(--text-muted)] sm:text-base">
-          Profile, map, validate, and import the local CSV templates through a
-          supervised workflow. Nothing writes to PostgreSQL until the final
-          confirmed import.
+          Profile, map, validate, and import customer data through a supervised
+          workflow. Nothing writes to PostgreSQL until the final confirmed
+          import.
         </p>
       </header>
 
@@ -393,47 +555,136 @@ export function DataOnboardingWorkspace() {
       {step === 1 && (
         <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_22rem]">
           <Panel eyebrow="Step 1" title="Select a data source">
-            <div className="rounded-lg border border-dashed border-[var(--border-strong)] bg-[var(--surface-2)] p-6 text-center sm:p-8">
-              <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-lg border border-[var(--border-strong)] bg-[var(--surface-1)] font-mono text-xs font-semibold text-[var(--text-secondary)]">
-                CSV
-              </span>
-              <h2 className="mt-4 text-lg font-semibold text-[var(--text-primary)]">
-                Local template bundle selected
-              </h2>
-              <p className="mx-auto mt-2 max-w-xl text-sm leading-6 text-[var(--text-muted)]">
-                This first browser workflow uses the checked-in synthetic
-                templates. Arbitrary file upload persistence is intentionally
-                not enabled yet.
-              </p>
-            </div>
-
-            <div className="mt-5 grid gap-3 sm:grid-cols-2">
-              {sampleFiles.map((item) => (
-                <div
-                  key={item.file}
-                  className="flex items-center justify-between gap-3 rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-2)] p-3"
+            <div className="grid grid-cols-2 rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-2)] p-1">
+              {[
+                { mode: "sample" as const, label: "Use sample templates" },
+                { mode: "upload" as const, label: "Upload my own CSVs" },
+              ].map((option) => (
+                <button
+                  key={option.mode}
+                  type="button"
+                  aria-pressed={sourceMode === option.mode}
+                  onClick={() => resetWorkflow(option.mode)}
+                  className={`rounded-md px-3 py-2.5 text-sm font-medium transition focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/40 ${
+                    sourceMode === option.mode
+                      ? "bg-[var(--surface-1)] text-[var(--text-primary)] shadow-sm"
+                      : "text-[var(--text-muted)] hover:text-[var(--text-primary)]"
+                  }`}
                 >
-                  <div className="min-w-0">
-                    <p className="truncate font-mono text-xs text-[var(--text-secondary)]">
-                      {item.file}
-                    </p>
-                    <p className="mt-1 text-xs text-[var(--text-subtle)]">
-                      {item.entity}
-                    </p>
-                  </div>
-                  <StatusPill variant="success">Ready</StatusPill>
-                </div>
+                  {option.label}
+                </button>
               ))}
             </div>
+
+            {sourceMode === "sample" ? (
+              <>
+                <div className="mt-5 rounded-lg border border-dashed border-[var(--border-strong)] bg-[var(--surface-2)] p-6 text-center sm:p-8">
+                  <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-lg border border-[var(--border-strong)] bg-[var(--surface-1)] font-mono text-xs font-semibold text-[var(--text-secondary)]">
+                    CSV
+                  </span>
+                  <h2 className="mt-4 text-lg font-semibold text-[var(--text-primary)]">
+                    Local template bundle selected
+                  </h2>
+                  <p className="mx-auto mt-2 max-w-xl text-sm leading-6 text-[var(--text-muted)]">
+                    Use the checked-in synthetic templates to explore the full
+                    workflow without providing your own files.
+                  </p>
+                </div>
+
+                <div className="mt-5 grid gap-3 sm:grid-cols-2">
+                  {sampleFiles.map((item) => (
+                    <div
+                      key={item.file}
+                      className="flex items-center justify-between gap-3 rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-2)] p-3"
+                    >
+                      <div className="min-w-0">
+                        <p className="truncate font-mono text-xs text-[var(--text-secondary)]">
+                          {item.file}
+                        </p>
+                        <p className="mt-1 text-xs text-[var(--text-subtle)]">
+                          {item.entity}
+                        </p>
+                      </div>
+                      <StatusPill variant="success">Ready</StatusPill>
+                    </div>
+                  ))}
+                </div>
+              </>
+            ) : (
+              <div className="mt-5 rounded-lg border border-dashed border-[var(--border-strong)] bg-[var(--surface-2)] p-4 sm:p-6">
+                <div className="text-center">
+                  <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-lg border border-[var(--border-strong)] bg-[var(--surface-1)] font-mono text-xs font-semibold text-[var(--text-secondary)]">
+                    CSV
+                  </span>
+                  <h2 className="mt-4 text-lg font-semibold text-[var(--text-primary)]">
+                    Choose local CSV files
+                  </h2>
+                  <p className="mx-auto mt-2 max-w-xl text-sm leading-6 text-[var(--text-muted)]">
+                    Accounts and contacts are required. Files are isolated in
+                    temporary local storage and expire automatically. Use
+                    synthetic data only in this local workspace.
+                  </p>
+                </div>
+
+                <div className="mt-6 grid gap-3">
+                  {uploadFields.map((field) => {
+                    const file = uploadedFiles[field.entity];
+
+                    return (
+                      <label
+                        key={field.entity}
+                        className="grid gap-3 rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-1)] p-4 sm:grid-cols-[minmax(0,1fr)_minmax(12rem,0.8fr)] sm:items-center"
+                      >
+                        <span>
+                          <span className="flex items-center gap-2 text-sm font-medium text-[var(--text-primary)]">
+                            {field.label}
+                            <StatusPill
+                              variant={field.required ? "warning" : "muted"}
+                            >
+                              {field.required ? "Required" : "Optional"}
+                            </StatusPill>
+                          </span>
+                          <span className="mt-1 block text-xs leading-5 text-[var(--text-subtle)]">
+                            {field.description}
+                          </span>
+                        </span>
+                        <span>
+                          <input
+                            type="file"
+                            accept=".csv,text/csv"
+                            onChange={(event) =>
+                              selectUploadFile(
+                                field.entity,
+                                event.target.files?.[0] ?? null
+                              )
+                            }
+                            className="block w-full text-xs text-[var(--text-muted)] file:mr-3 file:rounded-md file:border file:border-[var(--border-strong)] file:bg-[var(--surface-2)] file:px-3 file:py-2 file:text-xs file:font-medium file:text-[var(--text-secondary)] hover:file:border-[var(--accent)]"
+                          />
+                          {file && (
+                            <span className="mt-2 block truncate font-mono text-xs text-[var(--status-green-text)]">
+                              {file.name}
+                            </span>
+                          )}
+                        </span>
+                      </label>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
 
             <div className="mt-6 flex justify-end">
               <ActionButton
                 disabled={pending !== null}
                 onClick={profileData}
               >
-                {pending === "profile"
-                  ? "Profiling templates..."
-                  : "Profile sample data"}
+                {pending === "profile" || pending === "upload"
+                  ? sourceMode === "sample"
+                    ? "Profiling templates..."
+                    : "Uploading and profiling..."
+                  : sourceMode === "sample"
+                    ? "Profile sample data"
+                    : "Upload and profile data"}
               </ActionButton>
             </div>
           </Panel>
@@ -446,6 +697,7 @@ export function DataOnboardingWorkspace() {
                 "Unknown fields are preserved as metadata",
                 "No external connector writeback",
                 "Imports are idempotent",
+                "This workspace accepts synthetic data only",
               ].map((item) => (
                 <div key={item} className="flex items-start gap-3">
                   <span className="mt-1 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-[var(--status-green-border)] bg-[var(--status-green-bg)] text-xs text-[var(--status-green-text)]">
@@ -465,8 +717,37 @@ export function DataOnboardingWorkspace() {
         <Panel
           eyebrow="Step 2"
           title="Profile detected data"
-          action={<StatusPill variant="success">4 files detected</StatusPill>}
+          action={
+            <StatusPill variant="success">
+              {profile.profiles.length} files detected
+            </StatusPill>
+          }
         >
+          {(profile.warnings.length > 0 ||
+            profile.validation_errors.length > 0) && (
+            <div className="mb-5 grid gap-4 lg:grid-cols-2">
+              <div>
+                <p className="mb-2 text-xs font-medium uppercase tracking-[0.14em] text-[var(--text-subtle)]">
+                  Profile warnings
+                </p>
+                <IssueList
+                  issues={profile.warnings}
+                  emptyLabel="No profile warnings detected."
+                  variant="warning"
+                />
+              </div>
+              <div>
+                <p className="mb-2 text-xs font-medium uppercase tracking-[0.14em] text-[var(--text-subtle)]">
+                  Validation
+                </p>
+                <IssueList
+                  issues={profile.validation_errors}
+                  emptyLabel="Profile validation passed."
+                  variant="danger"
+                />
+              </div>
+            </div>
+          )}
           <div className="grid gap-4 lg:grid-cols-2">
             {profile.profiles.map((item) => (
               <article
@@ -573,8 +854,9 @@ export function DataOnboardingWorkspace() {
           }
         >
           <div className="mb-5 rounded-lg border border-[var(--status-blue-border)] bg-[var(--status-blue-bg)] p-4 text-sm leading-6 text-[var(--status-blue-text)]">
-            Model suggestions, when configured, are advisory only. The sample
-            import uses the reviewed mapping checked into the repository.
+            Model suggestions, when configured, are advisory only. The
+            deterministic field mapping below remains authoritative for this
+            import.
           </div>
 
           <div className="grid gap-4 xl:grid-cols-2">

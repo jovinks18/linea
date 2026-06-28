@@ -54,8 +54,20 @@ export type DashboardAgentAction = {
   created_at: string;
 };
 
+export type DashboardReviewCase = {
+  id: number;
+  case_number: string;
+  subject: string | null;
+  priority: string | null;
+  account: string | null;
+  customer_email: string;
+  review_status: string;
+  last_activity_at: string | null;
+};
+
 export type DashboardData = {
   agentActions: DashboardAgentAction[];
+  reviewCases: DashboardReviewCase[];
   importedAccounts: DashboardAccount[];
   atRiskAccounts: DashboardAccount[];
   openTasks: DashboardTask[];
@@ -66,6 +78,7 @@ export type DashboardData = {
 export async function getDashboardData(): Promise<DashboardData> {
   const [
     agentActionsResult,
+    reviewCasesResult,
     importedAccountsResult,
     atRiskAccountsResult,
     openTasksResult,
@@ -90,6 +103,31 @@ export async function getDashboardData(): Promise<DashboardData> {
        LEFT JOIN accounts a ON a.id = aa.account_id
        ORDER BY aa.created_at DESC, aa.id DESC
        LIMIT 20`
+    ),
+    pool.query<DashboardReviewCase>(
+      `SELECT
+        c.id,
+        c.case_number,
+        c.subject,
+        c.priority,
+        a.name AS account,
+        cu.email AS customer_email,
+        c.review_status,
+        c.last_activity_at::text AS last_activity_at
+       FROM cases c
+       JOIN customers cu ON cu.id = c.customer_id
+       LEFT JOIN LATERAL (
+         SELECT linked_account.name
+         FROM account_contacts ac
+         JOIN accounts linked_account ON linked_account.id = ac.account_id
+         WHERE ac.customer_id = cu.id
+         ORDER BY ac.is_primary DESC, ac.created_at ASC
+         LIMIT 1
+       ) a ON TRUE
+       WHERE c.requires_human_review = TRUE
+         AND c.review_status = 'flagged'
+       ORDER BY c.last_activity_at DESC
+       LIMIT 10`
     ),
     pool.query<DashboardAccount>(
       `SELECT id, name, plan, stage, health_status, owner_name, metadata
@@ -155,6 +193,7 @@ export async function getDashboardData(): Promise<DashboardData> {
 
   return {
     agentActions: agentActionsResult.rows,
+    reviewCases: reviewCasesResult.rows,
     importedAccounts: importedAccountsResult.rows,
     atRiskAccounts: atRiskAccountsResult.rows,
     openTasks: openTasksResult.rows,

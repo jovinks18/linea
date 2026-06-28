@@ -79,21 +79,17 @@ export function buildAgentActionAudit({
     });
   };
 
-  if (executionResult.executed_actions.length === 0) {
+  for (const action of executionResult.executed_actions) {
     addAction({
-      actionType: "create_support_case",
+      actionType: action,
       status: "executed",
-      metadata: {
-        case_resolution: executionResult.support_case_resolution,
-      },
+      metadata:
+        action === "create_support_case"
+          ? {
+              case_resolution: executionResult.support_case_resolution,
+            }
+          : {},
     });
-  } else {
-    for (const action of executionResult.executed_actions) {
-      addAction({
-        actionType: action,
-        status: "executed",
-      });
-    }
   }
 
   if (policyDecision.requires_human_review) {

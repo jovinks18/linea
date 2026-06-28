@@ -6,7 +6,7 @@ import type {
 } from "./types";
 
 function getExecutedActions(actions: PostSalesActions): AgentActionName[] {
-  const executedActions: AgentActionName[] = [];
+  const executedActions: AgentActionName[] = ["create_support_case"];
 
   if (actions.onboarding_blocker_detected) {
     executedActions.push("detect_onboarding_blocker");

@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { AccountMetadata } from "../../components/AccountMetadata";
 import { AppShell } from "../../components/AppShell";
+import { FlagReviewButton } from "../../components/FlagReviewButton";
 import { Panel } from "../../components/Panel";
 import { StatusPill } from "../../components/StatusPill";
 import {
@@ -63,6 +64,8 @@ type CaseDetails = {
     customer_name: string | null;
     customer_email: string;
     last_activity_at: string;
+    requires_human_review: boolean;
+    review_status: string;
   };
   messages: {
     id: number;
@@ -76,6 +79,7 @@ type CaseDetails = {
 
 type DemoScenario = {
   label: string;
+  purpose: string;
   email: string;
   message: string;
 };
@@ -83,52 +87,34 @@ type DemoScenario = {
 const demoScenarios: DemoScenario[] = [
   {
     label: "API go-live blocker",
+    purpose: "Proves linked-account automation and health-risk updates.",
     email: "maya.chen@example.com",
     message:
       "Our API setup is still blocked and we are supposed to go live Friday.",
   },
   {
     label: "Smart lock issue",
+    purpose: "Proves P1 support triage without account-level automation.",
     email: "maya.chen@example.com",
     message: "My smart lock is not responding after I changed the batteries.",
   },
   {
     label: "Unknown account blocker",
-    email: "unknown.blocker@example.com",
+    purpose: "Proves safe skips and required human review without an account.",
+    email: "unlinked.blocker@synthetic.invalid",
     message:
       "Our API setup is still blocked and we are supposed to go live Friday.",
   },
 ];
 
-const emptyPostSalesActions: PostSalesActions = {
-  onboarding_blocker_detected: false,
-  task_created: false,
-  product_signal_created: false,
-  health_event_created: false,
-  account_health_updated: false,
-};
-
-const accountActionLabels: {
-  key: keyof PostSalesActions;
-  label: string;
-}[] = [
-  {
-    key: "task_created",
-    label: "CSM task created",
-  },
-  {
-    key: "product_signal_created",
-    label: "Product signal logged",
-  },
-  {
-    key: "health_event_created",
-    label: "Health event created",
-  },
-  {
-    key: "account_health_updated",
-    label: "Account health updated",
-  },
-];
+const workflowSteps = [
+  "Save message",
+  "Lookup account",
+  "Triage",
+  "Decide policy",
+  "Execute actions",
+  "Audit result",
+] as const;
 
 function formatLabel(value: string | null | undefined) {
   if (!value) return "Not set";
@@ -167,14 +153,35 @@ export default function ChatPage() {
     "My smart lock is not responding after I changed the batteries."
   );
   const [latestSubmittedMessage, setLatestSubmittedMessage] = useState("");
+  const [activeScenario, setActiveScenario] = useState(
+    demoScenarios[1].label
+  );
 
   const [loading, setLoading] = useState(false);
+  const [workflowStep, setWorkflowStep] = useState(0);
   const [historyLoading, setHistoryLoading] = useState(false);
   const [reply, setReply] = useState<ChatResponse | null>(null);
   const [caseDetails, setCaseDetails] = useState<CaseDetails | null>(null);
   const [error, setError] = useState("");
+  const intakeRequestId = useRef(0);
+  const historyRequestId = useRef(0);
+
+  useEffect(() => {
+    if (!loading) return;
+
+    const interval = window.setInterval(() => {
+      setWorkflowStep((current) =>
+        Math.min(current + 1, workflowSteps.length - 1)
+      );
+    }, 140);
+
+    return () => window.clearInterval(interval);
+  }, [loading]);
 
   function applyDemoScenario(scenario: DemoScenario) {
+    intakeRequestId.current += 1;
+    historyRequestId.current += 1;
+    setActiveScenario(scenario.label);
     setEmail(scenario.email);
     setMessage(scenario.message);
     setCaseNumber("");
@@ -182,11 +189,15 @@ export default function ChatPage() {
     setCaseDetails(null);
     setLatestSubmittedMessage("");
     setError("");
+    setLoading(false);
+    setHistoryLoading(false);
+    setWorkflowStep(0);
   }
 
   async function fetchCaseHistory(targetCaseNumber: string) {
     if (!targetCaseNumber) return;
 
+    const requestId = ++historyRequestId.current;
     setHistoryLoading(true);
     setError("");
 
@@ -198,57 +209,71 @@ export default function ChatPage() {
       }
 
       const data = await res.json();
-      setCaseDetails(data);
+      if (requestId === historyRequestId.current) {
+        setCaseDetails(data);
+      }
     } catch {
-      setError("Could not load case history.");
-      setCaseDetails(null);
+      if (requestId === historyRequestId.current) {
+        setError("Could not load case history.");
+        setCaseDetails(null);
+      }
     } finally {
-      setHistoryLoading(false);
+      if (requestId === historyRequestId.current) {
+        setHistoryLoading(false);
+      }
     }
   }
 
   async function sendMessage() {
+    const requestId = ++intakeRequestId.current;
     setLoading(true);
+    setWorkflowStep(0);
     setError("");
     setReply(null);
 
     try {
-      const res = await fetch("/api/intake", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          channel: "web_chat",
-          customer_email: email,
-          case_number: caseNumber || null,
-          message,
+      const [res] = await Promise.all([
+        fetch("/api/intake", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            channel: "web_chat",
+            customer_email: email,
+            case_number: caseNumber || null,
+            message,
+          }),
         }),
-      });
+        new Promise((resolve) => window.setTimeout(resolve, 850)),
+      ]);
 
       if (!res.ok) {
         throw new Error("Request failed");
       }
 
       const data = await res.json();
+      if (requestId !== intakeRequestId.current) return;
+
       setReply(data);
       setCaseNumber(data.case_number);
       setLatestSubmittedMessage(message);
 
       await fetchCaseHistory(data.case_number);
     } catch {
-      setError("Something went wrong. Check your API route.");
+      if (requestId === intakeRequestId.current) {
+        setError("Something went wrong. Check your API route.");
+      }
     } finally {
-      setLoading(false);
+      if (requestId === intakeRequestId.current) {
+        setLoading(false);
+      }
     }
   }
 
-  const actions = reply?.post_sales?.actions ?? emptyPostSalesActions;
   const account = reply?.post_sales?.account ?? null;
   const agentDecision = reply?.agent_decision;
-  const completedActions = accountActionLabels.filter(
-    (action) => actions[action.key]
-  );
+  const completedActions = agentDecision?.executed_actions ?? [];
   const confidence = agentDecision
     ? Math.round(agentDecision.confidence * 100)
     : 0;
@@ -278,9 +303,16 @@ export default function ChatPage() {
                     key={scenario.label}
                     type="button"
                     onClick={() => applyDemoScenario(scenario)}
-                    className="rounded-lg border border-white/10 bg-black/25 px-3 py-2.5 text-left text-sm text-zinc-200 transition hover:border-cyan-300/30 hover:bg-cyan-300/10 focus:outline-none focus:ring-2 focus:ring-cyan-300/30"
+                    className={`rounded-lg border px-3 py-2.5 text-left text-sm transition focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/30 ${
+                      activeScenario === scenario.label
+                        ? "border-[var(--border-strong)] bg-[var(--accent-muted)] text-[var(--text-primary)]"
+                        : "border-[var(--border-subtle)] bg-[var(--surface-2)] text-[var(--text-secondary)] hover:bg-[var(--surface-3)]"
+                    }`}
                   >
-                    {scenario.label}
+                    <span className="block font-medium">{scenario.label}</span>
+                    <span className="mt-1 block text-xs leading-5 text-[var(--text-muted)]">
+                      {scenario.purpose}
+                    </span>
                   </button>
                 ))}
               </div>
@@ -520,14 +552,14 @@ export default function ChatPage() {
                         Actions completed
                       </h2>
                       <p className="mt-1 text-xs text-[var(--text-muted)]">
-                        What the agent actually executed on the account.
+                        What Linea actually executed for this intake.
                       </p>
                     </div>
                     {completedActions.length > 0 ? (
                       <div className="mt-4 flex flex-wrap gap-2">
                         {completedActions.map((action) => (
-                          <StatusPill key={action.key} variant="success">
-                            {action.label}
+                          <StatusPill key={action} variant="success">
+                            {formatLabel(action)}
                           </StatusPill>
                         ))}
                       </div>
@@ -547,12 +579,40 @@ export default function ChatPage() {
                         Operators can override or escalate any agent decision.
                       </p>
                     </div>
-                    <button
-                      type="button"
-                      className="rounded-lg border border-[var(--border-strong)] px-3 py-2 text-sm font-medium text-[var(--text-primary)] transition hover:bg-[var(--surface-3)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/40"
-                    >
-                      Flag for human review / Override
-                    </button>
+                    <FlagReviewButton
+                      key={reply.case_number}
+                      caseNumber={reply.case_number}
+                      initialRequiresReview={
+                        caseDetails?.case.requires_human_review ??
+                        agentDecision?.requires_human_review ??
+                        false
+                      }
+                      onFlagged={() => {
+                        setReply((current) =>
+                          current?.agent_decision
+                            ? {
+                                ...current,
+                                agent_decision: {
+                                  ...current.agent_decision,
+                                  requires_human_review: true,
+                                },
+                              }
+                            : current
+                        );
+                        setCaseDetails((current) =>
+                          current
+                            ? {
+                                ...current,
+                                case: {
+                                  ...current.case,
+                                  requires_human_review: true,
+                                  review_status: "flagged",
+                                },
+                              }
+                            : current
+                        );
+                      }}
+                    />
                   </div>
 
                   <section className="rounded-lg border border-cyan-300/15 bg-cyan-300/5 p-4">
@@ -675,10 +735,48 @@ export default function ChatPage() {
                       Running intake workflow...
                     </p>
                     <p className="mt-2">
-                      Linea is creating the case, checking account context, and
-                      evaluating post-sales actions.
+                      Linea is applying the deterministic workflow and recording
+                      each outcome.
                     </p>
                   </div>
+                  <ol
+                    className="grid gap-2 rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-2)] p-4"
+                    aria-label="Intake workflow progress"
+                    aria-live="polite"
+                  >
+                    {workflowSteps.map((step, index) => {
+                      const complete = index < workflowStep;
+                      const active = index === workflowStep;
+
+                      return (
+                        <li
+                          key={step}
+                          className="flex items-center gap-3 text-sm"
+                        >
+                          <span
+                            aria-hidden="true"
+                            className={`h-2 w-2 rounded-full ${
+                              complete
+                                ? "bg-[var(--status-green-text)]"
+                                : active
+                                  ? "bg-[var(--accent)]"
+                                  : "bg-[var(--border-strong)]"
+                            }`}
+                          />
+                          <span
+                            className={
+                              active
+                                ? "font-medium text-[var(--text-primary)]"
+                                : "text-[var(--text-muted)]"
+                            }
+                          >
+                            {step}
+                            {complete ? " completed" : active ? " in progress" : ""}
+                          </span>
+                        </li>
+                      );
+                    })}
+                  </ol>
                 </div>
               ) : (
                 <div className="grid gap-4 text-sm text-zinc-500">

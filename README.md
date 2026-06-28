@@ -74,7 +74,11 @@ Ollama is the recommended optional local-model path. Hosted OpenAI-compatible AP
 
 ## Data Onboarding
 
-The Data Onboarding Agent helps inspect CSV exports before any write occurs:
+The Data Onboarding Agent helps inspect CSV exports before any write occurs.
+The `/data` workspace supports either the synthetic sample templates or
+session-scoped CSV uploads. Uploaded files stay in operating-system temporary
+storage, are never committed, and expire automatically. This local project
+must still use synthetic data only.
 
 ```bash
 npm run data:profile -- --dir docs/import-templates
@@ -104,6 +108,7 @@ Open:
 - Home: [http://localhost:3000](http://localhost:3000)
 - Chat Intake: [http://localhost:3000/chat](http://localhost:3000/chat)
 - Command Center: [http://localhost:3000/dashboard](http://localhost:3000/dashboard)
+- Data Onboarding: [http://localhost:3000/data](http://localhost:3000/data)
 
 `DATABASE_URL` is optional. Without it, the app and CSV importer use the local Docker PostgreSQL defaults.
 

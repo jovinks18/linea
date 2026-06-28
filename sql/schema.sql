@@ -21,6 +21,10 @@ CREATE TABLE cases (
   priority TEXT DEFAULT 'P2',
   channel_origin TEXT,
   metadata JSONB NOT NULL DEFAULT '{}'::jsonb,
+  requires_human_review BOOLEAN NOT NULL DEFAULT FALSE,
+  review_status TEXT NOT NULL DEFAULT 'none' CHECK (
+    review_status IN ('none', 'flagged', 'resolved')
+  ),
   last_activity_at TIMESTAMP DEFAULT NOW(),
   created_at TIMESTAMP DEFAULT NOW(),
   updated_at TIMESTAMP DEFAULT NOW(),
@@ -162,6 +166,8 @@ CREATE INDEX idx_agent_actions_action_type ON agent_actions(action_type);
 CREATE INDEX idx_agent_actions_status ON agent_actions(status);
 CREATE INDEX idx_agent_actions_source ON agent_actions(source);
 CREATE INDEX idx_agent_actions_created_at ON agent_actions(created_at);
+CREATE INDEX idx_cases_human_review ON cases(last_activity_at DESC)
+  WHERE requires_human_review = TRUE;
 
 INSERT INTO customers 
 (name, email, phone, telegram_id, preferred_channel)

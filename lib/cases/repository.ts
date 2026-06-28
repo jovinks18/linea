@@ -1,4 +1,5 @@
 import type { PoolClient } from "pg";
+import type { AgentDecision } from "../agent/types";
 import type { BasicTriageResult } from "../triage/types";
 
 export type SupportCaseRecord = {
@@ -11,6 +12,9 @@ export type SupportCaseRecord = {
   sentiment: string | null;
   priority: string;
   channel_origin: string | null;
+  metadata: Record<string, unknown>;
+  requires_human_review: boolean;
+  review_status: "none" | "flagged" | "resolved";
   last_activity_at: Date;
   created_at: Date;
   updated_at: Date;
@@ -99,5 +103,34 @@ export async function updateCaseActivity(
      SET last_activity_at = NOW(), updated_at = NOW()
      WHERE id = $1`,
     [caseId]
+  );
+}
+
+export async function saveCaseAgentDecision(
+  client: PoolClient,
+  caseId: number,
+  agentDecision: AgentDecision
+) {
+  return client.query(
+    `UPDATE cases
+     SET
+       metadata = jsonb_set(
+         metadata,
+         '{agent_decision}',
+         $2::jsonb,
+         TRUE
+       ),
+       requires_human_review = requires_human_review OR $3,
+       review_status = CASE
+         WHEN $3 THEN 'flagged'
+         ELSE review_status
+       END,
+       updated_at = NOW()
+     WHERE id = $1`,
+    [
+      caseId,
+      JSON.stringify(agentDecision),
+      agentDecision.requires_human_review,
+    ]
   );
 }

@@ -199,6 +199,54 @@ export default async function DashboardPage({
           />
         </section>
 
+        <Panel
+          eyebrow="Supervision"
+          title="Human Review"
+          action={
+            data.reviewCases.length > 0 ? (
+              <StatusPill variant="danger">
+                {data.reviewCases.length} waiting
+              </StatusPill>
+            ) : undefined
+          }
+        >
+          {data.reviewCases.length === 0 ? (
+            <EmptyState label="No cases require human review." />
+          ) : (
+            <div className="divide-y divide-[var(--border-subtle)] overflow-hidden rounded-lg border border-[var(--border-subtle)]">
+              {data.reviewCases.map((supportCase) => (
+                <Link
+                  key={supportCase.id}
+                  href={`/cases/${supportCase.case_number}`}
+                  className="grid gap-3 bg-[var(--surface-2)] p-4 transition hover:bg-[var(--surface-3)] focus:outline-none focus:ring-2 focus:ring-inset focus:ring-[var(--accent)]/40 sm:grid-cols-[1fr_auto] sm:items-center"
+                >
+                  <div>
+                    <p className="font-mono text-sm font-medium text-[var(--text-primary)]">
+                      {supportCase.case_number}
+                    </p>
+                    <p className="mt-1 text-sm text-[var(--text-secondary)]">
+                      {supportCase.subject ?? "No subject"}
+                    </p>
+                    <p className="mt-1 text-xs text-[var(--text-muted)]">
+                      {supportCase.account ?? supportCase.customer_email}
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap gap-2 sm:justify-end">
+                    <StatusPill
+                      variant={priorityVariant(supportCase.priority)}
+                    >
+                      {supportCase.priority ?? "P2"}
+                    </StatusPill>
+                    <StatusPill variant="danger">
+                      {formatLabel(supportCase.review_status)}
+                    </StatusPill>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          )}
+        </Panel>
+
         <Panel eyebrow="Audit trail" title="Agent Activity">
           <p className="mb-5 text-sm leading-6 text-[var(--text-muted)]">
             Auditable record of actions Linea executed, suggested, skipped, or
@@ -502,7 +550,11 @@ export default async function DashboardPage({
             ) : (
               <div className="divide-y divide-white/10 overflow-hidden rounded-lg border border-white/10">
                 {visibleCases.map((supportCase) => (
-                  <div key={supportCase.id} className="bg-[var(--surface-2)] p-4">
+                  <Link
+                    key={supportCase.id}
+                    href={`/cases/${supportCase.case_number}`}
+                    className="block bg-[var(--surface-2)] p-4 transition hover:bg-[var(--surface-3)] focus:outline-none focus:ring-2 focus:ring-inset focus:ring-[var(--accent)]/40"
+                  >
                     <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                       <div>
                         <p className="font-mono text-sm font-medium text-[var(--text-primary)]">
@@ -529,7 +581,7 @@ export default async function DashboardPage({
                     <p className="mt-3 text-xs text-[var(--text-subtle)]">
                       Last activity: {formatDate(supportCase.last_activity_at)}
                     </p>
-                  </div>
+                  </Link>
                 ))}
               </div>
             )}

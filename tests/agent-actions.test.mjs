@@ -107,6 +107,7 @@ const knownBlocker = buildScenario({
   modelPlan: createModelPlan("support_question"),
 });
 const expectedBlockerExecutions = [
+  "create_support_case",
   "detect_onboarding_blocker",
   "create_csm_task",
   "log_product_signal",
@@ -145,7 +146,9 @@ const unknownBlocker = buildScenario({
 
 assert.equal(unknownBlocker.agentDecision.classification, "implementation_blocker");
 assert.equal(unknownBlocker.agentDecision.requires_human_review, true);
-assert.deepEqual(unknownBlocker.agentDecision.executed_actions, []);
+assert.deepEqual(unknownBlocker.agentDecision.executed_actions, [
+  "create_support_case",
+]);
 assert.deepEqual(
   unknownBlocker.audit.map(({ action_type, status }) => [action_type, status]),
   [
@@ -168,7 +171,9 @@ const smartLock = buildScenario({
 });
 
 assert.equal(smartLock.agentDecision.classification, "support_question");
-assert.deepEqual(smartLock.agentDecision.executed_actions, []);
+assert.deepEqual(smartLock.agentDecision.executed_actions, [
+  "create_support_case",
+]);
 assert.deepEqual(smartLock.agentDecision.recommended_actions, [
   "create_support_case",
 ]);
@@ -177,6 +182,27 @@ assert.deepEqual(
   [["create_support_case", "executed"]]
 );
 assert.match(smartLock.agentDecision.reasoning_summary, /ignored/i);
+
+const restoredSmartLockExecution = buildExecutionResult({
+  caseId: 103,
+  accountId: 10,
+  caseWasCreated: false,
+  onboardingBlockerDetected: false,
+  actions: createActions(),
+});
+const restoredSmartLockAudit = buildAgentActionAudit({
+  executionResult: restoredSmartLockExecution,
+  policyDecision: smartLock.envelope.policy_decision,
+  now,
+});
+
+assert.deepEqual(restoredSmartLockExecution.executed_actions, [
+  "create_support_case",
+]);
+assert.equal(
+  restoredSmartLockAudit[0].metadata.case_resolution,
+  "restored"
+);
 
 const agreeingModel = buildScenario({
   caseId: 104,
@@ -204,7 +230,9 @@ const deterministicFallback = buildScenario({
 assert.equal(deterministicFallback.envelope.model_proposal, null);
 assert.equal(deterministicFallback.agentDecision.source, "deterministic");
 assert.equal(deterministicFallback.agentDecision.classification, "support_question");
-assert.deepEqual(deterministicFallback.agentDecision.executed_actions, []);
+assert.deepEqual(deterministicFallback.agentDecision.executed_actions, [
+  "create_support_case",
+]);
 
 let simulatedPostSalesFailure;
 

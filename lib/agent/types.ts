@@ -18,9 +18,14 @@ export type AgentRecommendedAction =
 export type AgentActionName =
   | AgentRecommendedAction
   | "detect_onboarding_blocker"
-  | "create_account_health_event";
+  | "create_account_health_event"
+  | "flag_human_review";
 
-export type AgentDecisionSource = "deterministic" | "model" | "hybrid";
+export type AgentDecisionSource =
+  | "deterministic"
+  | "model"
+  | "hybrid"
+  | "operator";
 
 export type ModelProposal = {
   classification: AgentClassification;

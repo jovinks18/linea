@@ -24,6 +24,7 @@ import {
   createCaseCreatedEvent,
   createSupportCase,
   findCaseForCustomer,
+  saveCaseAgentDecision,
   updateCaseActivity,
 } from "../cases/repository";
 import { findOrCreateCustomer } from "../customers/repository";
@@ -198,6 +199,7 @@ export async function processIntakeMessage({
       policyDecision: agentEnvelope.policy_decision,
     });
 
+    await saveCaseAgentDecision(client, supportCase.id, agentDecision);
     await insertAgentActions(client, agentActionAudit);
 
     await createMessage({
