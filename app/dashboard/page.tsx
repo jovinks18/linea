@@ -277,7 +277,18 @@ export default async function DashboardPage({
         </Panel>
 
         {data.importedAccounts.length > 0 && (
-          <Panel eyebrow="Imported data" title="Account context">
+          <Panel
+            eyebrow="Imported data"
+            title="Account context"
+            action={
+              <Link
+                href="/data"
+                className="rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-2)] px-3 py-2 text-xs font-medium text-[var(--text-secondary)] transition hover:border-[var(--border-strong)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/40"
+              >
+                Manage data
+              </Link>
+            }
+          >
             <div className="divide-y divide-[var(--border-subtle)] overflow-hidden rounded-lg border border-[var(--border-subtle)]">
               {data.importedAccounts.map((account) => (
                 <div

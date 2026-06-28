@@ -647,21 +647,31 @@ async function main() {
   );
 }
 
-main().catch((error) => {
-  const details =
-    error && typeof error === "object"
-      ? {
-          name: error.name,
-          message: error.message,
-          code: error.code,
-          detail: error.detail,
-          constraint: error.constraint,
-        }
-      : { message: String(error) };
+if (require.main === module) {
+  main().catch((error) => {
+    const details =
+      error && typeof error === "object"
+        ? {
+            name: error.name,
+            message: error.message,
+            code: error.code,
+            detail: error.detail,
+            constraint: error.constraint,
+          }
+        : { message: String(error) };
 
-  console.error(
-    "CSV import failed:",
-    JSON.stringify(details)
-  );
-  process.exitCode = 1;
-});
+    console.error(
+      "CSV import failed:",
+      JSON.stringify(details)
+    );
+    process.exitCode = 1;
+  });
+}
+
+module.exports = {
+  buildImportPlan,
+  createImportSummary,
+  executeImport,
+  previewPlan,
+  readMapping,
+};

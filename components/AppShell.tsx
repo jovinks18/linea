@@ -1,19 +1,40 @@
 import Link from "next/link";
 import { ThemeToggle } from "./ThemeToggle";
 
-type NavKey = "home" | "chat" | "dashboard";
+type NavKey = "home" | "chat" | "dashboard" | "data";
 
-const navItems: { key: NavKey; label: string; href: string }[] = [
-  { key: "home", label: "Home", href: "/" },
-  { key: "chat", label: "Chat Intake", href: "/chat" },
-  { key: "dashboard", label: "Command Center", href: "/dashboard" },
+const navItems: {
+  key: NavKey;
+  label: string;
+  description: string;
+  href: string;
+}[] = [
+  { key: "home", label: "Home", description: "Workspace overview", href: "/" },
+  {
+    key: "chat",
+    label: "Chat Intake",
+    description: "Run an agent workflow",
+    href: "/chat",
+  },
+  {
+    key: "dashboard",
+    label: "Command Center",
+    description: "Supervise post-sales activity",
+    href: "/dashboard",
+  },
+  {
+    key: "data",
+    label: "Data Onboarding",
+    description: "Profile, map, and import",
+    href: "/data",
+  },
 ];
 
 function Sidebar({ active }: { active: NavKey }) {
   return (
     <aside className="border-[var(--border-subtle)] bg-[var(--surface-1)]/90 backdrop-blur-xl lg:fixed lg:inset-y-0 lg:left-0 lg:w-72 lg:border-r">
-      <div className="flex h-full flex-col gap-6 px-5 py-5">
-        <div>
+      <div className="flex h-full flex-col gap-5 px-4 py-4 sm:px-5 sm:py-5 lg:gap-6">
+        <div className="flex items-center justify-between gap-4">
           <Link href="/" className="group flex items-center gap-3">
             <span className="flex h-9 w-9 items-center justify-center rounded-lg border border-[var(--border-strong)] bg-[var(--accent-muted)] font-mono text-sm font-semibold text-[var(--text-primary)]">
               Li
@@ -27,9 +48,12 @@ function Sidebar({ active }: { active: NavKey }) {
               </span>
             </span>
           </Link>
+          <div className="lg:hidden">
+            <ThemeToggle />
+          </div>
         </div>
 
-        <nav className="grid gap-1">
+        <nav className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-1 lg:gap-1">
           {navItems.map((item) => {
             const isActive = item.key === active;
 
@@ -37,20 +61,23 @@ function Sidebar({ active }: { active: NavKey }) {
               <Link
                 key={item.key}
                 href={item.href}
-                className={`rounded-lg border px-3 py-2.5 text-sm transition focus:outline-none focus:ring-2 focus:ring-cyan-300/40 ${
+                className={`min-h-16 rounded-lg border px-3 py-2.5 text-sm transition focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/40 lg:min-h-0 ${
                   isActive
                     ? "border-[var(--border-strong)] bg-[var(--accent-muted)] text-[var(--text-primary)]"
                     : "border-transparent text-[var(--text-muted)] hover:border-[var(--border-subtle)] hover:bg-[var(--surface-2)] hover:text-[var(--text-primary)]"
                 }`}
                 aria-current={isActive ? "page" : undefined}
               >
-                {item.label}
+                <span className="block font-medium">{item.label}</span>
+                <span className="mt-1 hidden text-xs text-[var(--text-subtle)] lg:block">
+                  {item.description}
+                </span>
               </Link>
             );
           })}
         </nav>
 
-        <div className="mt-auto rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-2)] p-4">
+        <div className="mt-auto hidden rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-2)] p-4 lg:block">
           <p className="text-xs font-medium uppercase tracking-[0.18em] text-[var(--text-subtle)]">
             Local status
           </p>
@@ -88,7 +115,7 @@ export function AppShell({
 }) {
   return (
     <div className="min-h-screen bg-[var(--background)] text-[var(--text-primary)]">
-      <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(circle_at_top_left,var(--accent-muted),transparent_34%),linear-gradient(var(--border-subtle)_1px,transparent_1px),linear-gradient(90deg,var(--border-subtle)_1px,transparent_1px)] bg-[size:auto,44px_44px,44px_44px]" />
+      <div className="pointer-events-none fixed inset-0 bg-[linear-gradient(var(--border-subtle)_1px,transparent_1px),linear-gradient(90deg,var(--border-subtle)_1px,transparent_1px)] bg-[size:44px_44px]" />
       <div className="relative lg:pl-72">
         <Sidebar active={active} />
         <main className="mx-auto min-h-screen w-full max-w-7xl px-4 py-5 sm:px-6 lg:px-8 lg:py-8">

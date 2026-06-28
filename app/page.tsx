@@ -16,6 +16,10 @@ const features = [
     title: "Command Center",
     body: "Track account health, open tasks, product signals, and recent cases.",
   },
+  {
+    title: "Data Onboarding",
+    body: "Profile, map, validate, and import customer context safely.",
+  },
 ];
 
 const workflow = [
@@ -92,7 +96,7 @@ export default function Home() {
           </div>
         </section>
 
-        <section className="grid gap-4 md:grid-cols-3">
+        <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
           {features.map((feature) => (
             <Panel key={feature.title} title={feature.title}>
               <p className="text-sm leading-6 text-zinc-400">

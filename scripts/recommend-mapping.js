@@ -144,11 +144,7 @@ async function getModelReview(profiles, deterministicMapping) {
   return validateModelReview(payload);
 }
 
-async function main() {
-  const directory = path.resolve(
-    getArgument("--dir", "docs/import-templates")
-  );
-  const profiles = profileCsvDirectory(directory);
+async function recommendMappings(profiles) {
   const recommendation = buildDeterministicMapping(profiles);
   const modelReview = await getModelReview(profiles, recommendation);
 
@@ -160,13 +156,31 @@ async function main() {
     );
   }
 
+  return recommendation;
+}
+
+async function main() {
+  const directory = path.resolve(
+    getArgument("--dir", "docs/import-templates")
+  );
+  const profiles = profileCsvDirectory(directory);
+  const recommendation = await recommendMappings(profiles);
+
   console.log(JSON.stringify(recommendation, null, 2));
 }
 
-main().catch((error) => {
-  console.error(
-    "Unable to recommend CSV mappings:",
-    error instanceof Error ? error.message : error
-  );
-  process.exitCode = 1;
-});
+if (require.main === module) {
+  main().catch((error) => {
+    console.error(
+      "Unable to recommend CSV mappings:",
+      error instanceof Error ? error.message : error
+    );
+    process.exitCode = 1;
+  });
+}
+
+module.exports = {
+  buildDeterministicMapping,
+  getModelReview,
+  recommendMappings,
+};
