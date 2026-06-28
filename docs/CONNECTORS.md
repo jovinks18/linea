@@ -53,6 +53,39 @@ Add cursor-based incremental sync, retries, rate-limit handling, and durable syn
 
 Only after read paths and audit controls are mature should Linea write back to an external system. Every writeback must show the proposed change, require policy approval or explicit human approval, use idempotency keys, and record execution in `agent_actions`.
 
+## HubSpot-Style Fixture Importer
+
+The HubSpot-style fixture importer is the first proof of the one-way connector contract. It reads synthetic company and contact JSON shaped like HubSpot responses, normalizes each record through `lib/connectors/hubspot.ts`, validates required fields, and then uses deterministic reconciliation code to write canonical `accounts`, `customers`, and `account_contacts`.
+
+It is deliberately not a real HubSpot integration:
+
+- It reads local synthetic fixture files only.
+- It has no network client, OAuth flow, API key, token, webhook, or writeback path.
+- The connector normalizer does not receive a database client.
+- Only the import script performs reviewed, parameterized database writes.
+- Invalid contacts are reported and skipped; missing company associations produce warnings.
+
+Company reconciliation uses the HubSpot-style external ID first, domain second, and normalized account name last. Contacts reconcile by normalized email, and account links rely on the canonical uniqueness constraint. Provenance, raw fixture payloads, and unmapped properties are retained in metadata. This prepares the contract for future pagination, cursors, external-ID idempotency, and API reads without granting a connector direct mutation authority.
+
+Preview the fixture without database writes:
+
+```bash
+npm run import:hubspot-fixture -- \
+  --companies docs/connector-fixtures/hubspot-companies.json \
+  --contacts docs/connector-fixtures/hubspot-contacts.json \
+  --dry-run
+```
+
+Import the valid fixture records:
+
+```bash
+npm run import:hubspot-fixture -- \
+  --companies docs/connector-fixtures/hubspot-companies.json \
+  --contacts docs/connector-fixtures/hubspot-contacts.json
+```
+
+The included fixtures contain synthetic data only. A real HubSpot API adapter remains a future phase and must retain the same normalization, validation, policy, and audit boundaries.
+
 ## Connector Rules
 
 - Never let connectors bypass mapping, validation, policy, or audit.

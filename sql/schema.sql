@@ -5,6 +5,7 @@ CREATE TABLE customers (
   phone TEXT,
   telegram_id TEXT,
   preferred_channel TEXT,
+  metadata JSONB NOT NULL DEFAULT '{}'::jsonb,
   created_at TIMESTAMP DEFAULT NOW(),
   updated_at TIMESTAMP DEFAULT NOW()
 );

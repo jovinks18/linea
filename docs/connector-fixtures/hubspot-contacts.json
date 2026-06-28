@@ -1,0 +1,52 @@
+{
+  "results": [
+    {
+      "id": "hs_contact_2001",
+      "properties": {
+        "email": "anna.wu@example.com",
+        "firstname": "Anna",
+        "lastname": "Wu",
+        "jobtitle": "Director of Implementation",
+        "preferred_language": "English"
+      },
+      "associations": {
+        "company_id": "hs_company_1001"
+      },
+      "createdAt": "2026-05-11T10:00:00.000Z",
+      "updatedAt": "2026-06-24T16:35:00.000Z",
+      "archived": false
+    },
+    {
+      "id": "hs_contact_2002",
+      "properties": {
+        "email": "",
+        "firstname": "Devon",
+        "lastname": "Shah",
+        "jobtitle": "IT Program Manager",
+        "customer_role": "Technical champion"
+      },
+      "associations": {
+        "company_id": "hs_company_1002"
+      },
+      "createdAt": "2026-05-19T12:20:00.000Z",
+      "updatedAt": "2026-06-25T11:50:00.000Z",
+      "archived": false
+    },
+    {
+      "id": "hs_contact_2003",
+      "properties": {
+        "email": "rafael.soto@example.com",
+        "firstname": "Rafael",
+        "lastname": "Soto",
+        "jobtitle": "Customer Operations Lead",
+        "territory": "North"
+      },
+      "associations": {
+        "company_id": "hs_company_missing"
+      },
+      "createdAt": "2026-05-22T08:45:00.000Z",
+      "updatedAt": "2026-06-26T09:10:00.000Z",
+      "archived": false
+    }
+  ]
+}

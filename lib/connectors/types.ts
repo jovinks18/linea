@@ -37,6 +37,7 @@ export type ConnectorProvenance = {
 
 export type NormalizedExternalRecord = {
   record_type: ConnectorRecordType;
+  raw_payload: Record<string, unknown>;
   canonical_fields: Record<string, unknown>;
   metadata: Record<string, unknown>;
   provenance: ConnectorProvenance;

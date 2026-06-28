@@ -1,0 +1,38 @@
+{
+  "results": [
+    {
+      "id": "hs_company_1001",
+      "properties": {
+        "name": "Pinecrest Medical Group",
+        "domain": "pinecrest-medical.example",
+        "industry": "Healthcare",
+        "lifecyclestage": "customer",
+        "health_status": "healthy",
+        "owner_name": "Morgan Ellis",
+        "annualrevenue": "2400000",
+        "renewal_date": "2027-02-15",
+        "implementation_region": "West"
+      },
+      "createdAt": "2026-05-10T14:00:00.000Z",
+      "updatedAt": "2026-06-24T16:30:00.000Z",
+      "archived": false
+    },
+    {
+      "id": "hs_company_1002",
+      "properties": {
+        "name": "Atlas Learning Network",
+        "domain": "atlas-learning.example",
+        "industry": "Education",
+        "lifecyclestage": "onboarding",
+        "hs_health_score": "68",
+        "owner_name": "Casey Brooks",
+        "annualrevenue": "980000",
+        "renewal_date": "2027-04-01",
+        "implementation_wave": "Wave 2"
+      },
+      "createdAt": "2026-05-18T09:15:00.000Z",
+      "updatedAt": "2026-06-25T11:45:00.000Z",
+      "archived": false
+    }
+  ]
+}

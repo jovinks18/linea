@@ -41,6 +41,7 @@ export function normalizeMockRecord(
 
   return {
     record_type: recordType,
+    raw_payload: { ...record.payload },
     canonical_fields: { ...record.payload },
     metadata:
       recordType === "unknown"
