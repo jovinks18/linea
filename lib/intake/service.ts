@@ -6,6 +6,7 @@ import {
   buildAgentActionAudit,
   buildFailedAgentActionAudit,
 } from "../agent/audit";
+import { buildActionDirectives } from "../agent/action-directives";
 import {
   buildAgentDecision,
   buildAgentEnvelope,
@@ -156,6 +157,12 @@ export async function processIntakeMessage({
       }),
       modelProposal,
     });
+    const actionDirectives = await buildActionDirectives({
+      client,
+      policyDecision,
+      accountId: account?.id ?? null,
+      breakerTripped: false,
+    });
 
     failureAuditContext = {
       caseId: caseWasCreated ? null : supportCase.id,
@@ -187,6 +194,7 @@ export async function processIntakeMessage({
     const agentEnvelope = buildAgentEnvelope({
       modelProposal,
       policyDecision,
+      actionDirectives,
       executionResult,
     });
     const agentDecision = buildAgentDecision({

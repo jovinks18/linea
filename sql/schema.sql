@@ -151,6 +151,20 @@ CREATE TABLE agent_actions (
   executed_at TIMESTAMPTZ
 );
 
+CREATE TABLE action_autonomy_policy (
+  action_type TEXT NOT NULL,
+  segment TEXT,
+  tier TEXT NOT NULL DEFAULT 'shadow' CHECK (
+    tier IN ('shadow', 'supervised', 'bounded', 'autonomous')
+  ),
+  confidence_floor NUMERIC NOT NULL DEFAULT 0.90,
+  max_blast_radius INT NOT NULL DEFAULT 1,
+  requires_reversible BOOLEAN NOT NULL DEFAULT TRUE,
+  updated_by TEXT,
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  UNIQUE NULLS NOT DISTINCT (action_type, segment)
+);
+
 CREATE INDEX idx_accounts_health_status ON accounts(health_status);
 CREATE INDEX idx_accounts_stage ON accounts(stage);
 CREATE INDEX idx_account_contacts_customer_id ON account_contacts(customer_id);

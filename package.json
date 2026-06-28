@@ -12,7 +12,10 @@
     "import:hubspot-fixture": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/import-hubspot-fixture.js",
     "lint": "eslint",
     "smoke": "bash scripts/smoke-test.sh",
+    "test:action-directives": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON tests/action-directives.test.mjs",
     "test:agent-actions": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON tests/agent-actions.test.mjs",
+    "test:autonomy-policy": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON tests/autonomy-policy.test.mjs",
+    "test:autonomy-policy-resolution": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON tests/autonomy-policy-resolution.test.mjs",
     "test:connectors": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON tests/connectors.test.mjs",
     "test:imports": "node tests/import-utils.test.mjs",
     "test:triage": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON tests/triage-subjects.test.mjs"

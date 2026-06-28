@@ -222,15 +222,18 @@ export function buildAgentDecision({
 export function buildAgentEnvelope({
   modelProposal,
   policyDecision,
+  actionDirectives = [],
   executionResult,
 }: {
   modelProposal: ModelProposal | null;
   policyDecision: PolicyDecision;
+  actionDirectives?: AgentEnvelope["action_directives"];
   executionResult: ExecutionResult;
 }): AgentEnvelope {
   return {
     model_proposal: modelProposal,
     policy_decision: policyDecision,
+    action_directives: actionDirectives,
     execution_result: executionResult,
   };
 }

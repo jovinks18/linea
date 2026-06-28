@@ -1,4 +1,5 @@
 import type { PostSalesActions } from "../post-sales/automation";
+import type { ActionDirective } from "./action-directives";
 
 export type AgentClassification =
   | "support_question"
@@ -71,5 +72,6 @@ export type AgentDecision = PolicyDecision & {
 export type AgentEnvelope = {
   model_proposal: ModelProposal | null;
   policy_decision: PolicyDecision;
+  action_directives: ActionDirective[];
   execution_result: ExecutionResult;
 };

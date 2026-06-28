@@ -124,3 +124,29 @@ WHERE name = 'Acme Clinics'
 ON CONFLICT (account_id, event_type, event_description) DO UPDATE SET
   health_status = EXCLUDED.health_status,
   metadata = EXCLUDED.metadata;
+
+INSERT INTO action_autonomy_policy
+(
+  action_type,
+  segment,
+  tier,
+  confidence_floor,
+  max_blast_radius,
+  requires_reversible,
+  updated_by
+)
+VALUES
+  ('require_human_review', NULL, 'bounded', 0.90, 1, TRUE, 'seed'),
+  ('create_support_case', NULL, 'bounded', 0.90, 1, TRUE, 'seed'),
+  ('create_csm_task', NULL, 'bounded', 0.90, 1, TRUE, 'seed'),
+  ('log_product_signal', NULL, 'bounded', 0.90, 1, TRUE, 'seed'),
+  -- Health mutations remain review-gated when this policy is wired later.
+  ('create_account_health_event', NULL, 'supervised', 0.90, 1, TRUE, 'seed'),
+  ('update_account_health', NULL, 'supervised', 0.90, 1, TRUE, 'seed')
+ON CONFLICT (action_type, segment) DO UPDATE SET
+  tier = EXCLUDED.tier,
+  confidence_floor = EXCLUDED.confidence_floor,
+  max_blast_radius = EXCLUDED.max_blast_radius,
+  requires_reversible = EXCLUDED.requires_reversible,
+  updated_by = EXCLUDED.updated_by,
+  updated_at = NOW();
