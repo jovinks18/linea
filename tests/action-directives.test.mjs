@@ -157,6 +157,10 @@ const seedLikePolicies = [
     ]
   );
   assert.equal(directives[5].requires_reversible, false);
+  assert.equal(directives[5].reversible, false);
+  assert.equal(directives[5].blast_radius, 1);
+  assert.equal(directives[5].segment, "linked_account");
+  assert.equal(directives[1].blast_radius, 0);
 }
 
 {

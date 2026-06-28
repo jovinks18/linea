@@ -20,6 +20,9 @@ export type ActionDirective = {
   confidence_floor: number;
   max_blast_radius: number;
   requires_reversible: boolean;
+  blast_radius: number;
+  reversible: boolean;
+  segment: string;
 };
 
 function getBlastRadius(actionType: string) {
@@ -89,6 +92,9 @@ export async function buildActionDirectives({
       confidence_floor: policy.confidence_floor,
       max_blast_radius: policy.max_blast_radius,
       requires_reversible: policy.requires_reversible,
+      blast_radius: proposedAction.blast_radius,
+      reversible: proposedAction.reversible,
+      segment,
     });
   }
 

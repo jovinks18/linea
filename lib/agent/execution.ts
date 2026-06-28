@@ -50,11 +50,15 @@ export function buildExecutionResult({
   actionDirectives?: ActionDirective[];
 }): ExecutionResult {
   const executedActions: AgentActionName[] = ["create_support_case"];
+  const executedDirectives: ActionDirective[] = [];
   const suggestedActions: ActionDirective[] = [];
   const skippedActions: AgentActionOutcome[] = [];
 
   for (const directive of actionDirectives) {
-    if (directive.action_type === "create_support_case") continue;
+    if (directive.action_type === "create_support_case") {
+      executedDirectives.push(directive);
+      continue;
+    }
 
     if (!directive.execute) {
       suggestedActions.push(directive);
@@ -75,6 +79,7 @@ export function buildExecutionResult({
 
     if (didActionExecute(directive.action_type, actions)) {
       executedActions.push(directive.action_type as AgentActionName);
+      executedDirectives.push(directive);
       continue;
     }
 
@@ -89,6 +94,7 @@ export function buildExecutionResult({
 
   return {
     executed_actions: executedActions,
+    executed_directives: executedDirectives,
     suggested_actions: suggestedActions,
     skipped_actions: skippedActions,
     failed_actions: [],

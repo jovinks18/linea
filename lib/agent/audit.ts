@@ -40,6 +40,9 @@ function getDirectiveMetadata(
     confidence_floor: directive.confidence_floor,
     max_blast_radius: directive.max_blast_radius,
     requires_reversible: directive.requires_reversible,
+    blast_radius: directive.blast_radius,
+    reversible: directive.reversible,
+    segment: directive.segment,
   };
 }
 
@@ -96,15 +99,20 @@ export function buildAgentActionAudit({
   };
 
   for (const action of executionResult.executed_actions) {
+    const directive = executionResult.executed_directives.find(
+      (candidate) => candidate.action_type === action
+    );
     addAction({
       actionType: action,
       status: "executed",
-      metadata:
-        action === "create_support_case"
+      metadata: {
+        ...(directive ? getDirectiveMetadata(directive) : {}),
+        ...(action === "create_support_case"
           ? {
               case_resolution: executionResult.support_case_resolution,
             }
-          : {},
+          : {}),
+      },
     });
   }
 

@@ -7,6 +7,11 @@ import { Panel } from "../../../components/Panel";
 import { StatusPill } from "../../../components/StatusPill";
 import { getCaseDetail } from "../../../lib/cases/detail-repository";
 import {
+  getAutonomyBadges,
+  getAutonomyDetails,
+  getAutonomySummary,
+} from "../../../lib/ui/autonomy";
+import {
   agentActionStatusVariant,
   healthVariant,
   priorityVariant,
@@ -262,10 +267,13 @@ export default async function CaseDetailPage({
           ) : (
             <div className="divide-y divide-[var(--border-subtle)] overflow-hidden rounded-lg border border-[var(--border-subtle)]">
               {detail.agent_actions.map((action) => {
-                const reason =
-                  typeof action.metadata.reason === "string"
-                    ? action.metadata.reason
-                    : null;
+                const autonomyDetails = getAutonomyDetails(action.metadata);
+                const autonomyBadges = getAutonomyBadges(action.metadata);
+                const autonomySummary =
+                  getAutonomySummary(action) ??
+                  "No autonomy policy metadata was recorded for this action.";
+                const hasMetadata =
+                  Object.keys(action.metadata).length > 0;
 
                 return (
                   <article
@@ -282,6 +290,25 @@ export default async function CaseDetailPage({
                         >
                           {formatLabel(action.status)}
                         </StatusPill>
+                        {autonomyBadges.map((badge) => (
+                          <StatusPill
+                            key={badge.kind}
+                            variant={
+                              badge.kind === "review"
+                                ? "warning"
+                                : badge.kind === "counterfactual"
+                                  ? "muted"
+                                  : "info"
+                            }
+                          >
+                            {badge.label}
+                          </StatusPill>
+                        ))}
+                        {autonomyDetails.segment ? (
+                          <StatusPill variant="default">
+                            {formatLabel(autonomyDetails.segment)}
+                          </StatusPill>
+                        ) : null}
                       </div>
                       <p className="mt-2 text-xs text-[var(--text-muted)]">
                         Source: {formatLabel(action.source)}
@@ -289,10 +316,64 @@ export default async function CaseDetailPage({
                           ? ` / ${Math.round(Number(action.confidence) * 100)}% confidence`
                           : ""}
                       </p>
-                      {reason ? (
-                        <p className="mt-2 text-xs text-[var(--status-amber-text)]">
-                          {reason}
+                      <div className="mt-3 border-l-2 border-[var(--border-strong)] pl-3">
+                        <p className="text-xs font-medium uppercase tracking-[0.14em] text-[var(--text-subtle)]">
+                          Autonomy decision
                         </p>
+                        <p className="mt-1 text-sm leading-5 text-[var(--text-secondary)]">
+                          {autonomySummary}
+                        </p>
+                      </div>
+
+                      {hasMetadata ? (
+                        <details className="mt-3 border-t border-[var(--border-subtle)] pt-3">
+                          <summary className="cursor-pointer text-xs font-medium text-[var(--text-muted)] marker:text-[var(--accent)]">
+                            View policy guard details
+                          </summary>
+                          <dl className="mt-3 grid gap-3 text-xs sm:grid-cols-2 lg:grid-cols-3">
+                            {autonomyDetails.reason ? (
+                              <Detail label="Reason">
+                                {formatLabel(autonomyDetails.reason)}
+                              </Detail>
+                            ) : null}
+                            {autonomyDetails.confidenceFloor !== null ? (
+                              <Detail label="Confidence floor">
+                                {Math.round(
+                                  autonomyDetails.confidenceFloor * 100
+                                )}
+                                %
+                              </Detail>
+                            ) : null}
+                            {autonomyDetails.blastRadius !== null ? (
+                              <Detail label="Blast radius">
+                                {autonomyDetails.blastRadius}
+                              </Detail>
+                            ) : null}
+                            {autonomyDetails.maxBlastRadius !== null ? (
+                              <Detail label="Maximum blast radius">
+                                {autonomyDetails.maxBlastRadius}
+                              </Detail>
+                            ) : null}
+                            {autonomyDetails.reversible !== null ? (
+                              <Detail label="Reversible">
+                                {autonomyDetails.reversible ? "Yes" : "No"}
+                              </Detail>
+                            ) : null}
+                            {autonomyDetails.requiresReversible !== null ? (
+                              <Detail label="Requires reversible">
+                                {autonomyDetails.requiresReversible
+                                  ? "Yes"
+                                  : "No"}
+                              </Detail>
+                            ) : null}
+                          </dl>
+                          <p className="mt-4 text-xs font-medium uppercase tracking-[0.14em] text-[var(--text-subtle)]">
+                            Raw metadata
+                          </p>
+                          <pre className="mt-2 max-h-64 overflow-auto rounded-lg bg-[var(--surface-1)] p-3 text-xs leading-5 text-[var(--text-muted)]">
+                            {JSON.stringify(action.metadata, null, 2)}
+                          </pre>
+                        </details>
                       ) : null}
                     </div>
                     <time

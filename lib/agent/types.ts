@@ -58,6 +58,7 @@ export type AgentActionOutcome = {
 
 export type ExecutionResult = {
   executed_actions: AgentActionName[];
+  executed_directives: ActionDirective[];
   suggested_actions: ActionDirective[];
   skipped_actions: AgentActionOutcome[];
   failed_actions: AgentActionOutcome[];

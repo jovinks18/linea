@@ -56,14 +56,24 @@ function createDirective(actionType, execute, overrides = {}) {
     confidence_floor: 0.8,
     max_blast_radius: 1,
     requires_reversible: actionType !== "update_account_health",
+    blast_radius:
+      actionType === "require_human_review" ||
+      actionType === "detect_onboarding_blocker"
+        ? 0
+        : 1,
+    reversible: actionType !== "update_account_health",
+    segment: "linked_account",
     ...overrides,
   };
 }
 
 function createScenarioDirectives(policyDecision, accountId) {
+  const segment =
+    accountId === null ? "unknown_account" : "linked_account";
+
   return policyDecision.recommended_actions.map((actionType) => {
     if (accountId !== null || actionType === "create_support_case") {
-      return createDirective(actionType, true);
+      return createDirective(actionType, true, { segment });
     }
 
     if (actionType === "require_human_review") {
@@ -71,6 +81,7 @@ function createScenarioDirectives(policyDecision, accountId) {
         confidence_floor: 0.9,
         enqueue_review: true,
         reason: "out_of_bounds",
+        segment,
       });
     }
 
@@ -79,6 +90,7 @@ function createScenarioDirectives(policyDecision, accountId) {
       confidence_floor: 0.9,
       enqueue_review: true,
       reason: "supervised",
+      segment,
     });
   });
 }
@@ -185,6 +197,14 @@ assert.deepEqual(
 assert.equal(
   new Set(knownBlocker.audit.map(({ action_type }) => action_type)).size,
   knownBlocker.audit.length
+);
+assert.equal(knownBlocker.audit[0].metadata.tier, "bounded");
+assert.equal(knownBlocker.audit[0].metadata.segment, "linked_account");
+assert.equal(knownBlocker.audit[0].metadata.blast_radius, 1);
+assert.equal(knownBlocker.audit[5].metadata.reversible, false);
+assert.equal(
+  knownBlocker.audit[5].metadata.requires_reversible,
+  false
 );
 
 const unknownBlocker = buildScenario({

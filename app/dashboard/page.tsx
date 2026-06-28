@@ -6,6 +6,10 @@ import { Panel } from "../../components/Panel";
 import { StatusPill } from "../../components/StatusPill";
 import { getDashboardData } from "../../lib/dashboard/repository";
 import {
+  getAutonomyBadges,
+  getAutonomySummary,
+} from "../../lib/ui/autonomy";
+import {
   agentActionStatusVariant,
   healthVariant,
   priorityVariant,
@@ -45,10 +49,6 @@ function formatConfidence(value: string | null) {
   return Number.isFinite(confidence)
     ? `${Math.round(confidence * 100)}% confidence`
     : null;
-}
-
-function getActionReason(metadata: Record<string, unknown>) {
-  return typeof metadata.reason === "string" ? metadata.reason : null;
 }
 
 type DashboardSearchParams = {
@@ -259,7 +259,8 @@ export default async function DashboardPage({
             <div className="divide-y divide-[var(--border-subtle)] overflow-hidden rounded-lg border border-[var(--border-subtle)]">
               {data.agentActions.map((action) => {
                 const confidence = formatConfidence(action.confidence);
-                const reason = getActionReason(action.metadata);
+                const autonomyBadges = getAutonomyBadges(action.metadata);
+                const autonomySummary = getAutonomySummary(action);
 
                 return (
                   <article
@@ -276,6 +277,20 @@ export default async function DashboardPage({
                         >
                           {formatLabel(action.status)}
                         </StatusPill>
+                        {autonomyBadges.map((badge) => (
+                          <StatusPill
+                            key={badge.kind}
+                            variant={
+                              badge.kind === "review"
+                                ? "warning"
+                                : badge.kind === "counterfactual"
+                                  ? "muted"
+                                  : "info"
+                            }
+                          >
+                            {badge.label}
+                          </StatusPill>
+                        ))}
                       </div>
 
                       <p className="mt-1 text-xs text-[var(--text-muted)]">
@@ -291,9 +306,9 @@ export default async function DashboardPage({
                         )}
                       </p>
 
-                      {reason && (
-                        <p className="mt-2 text-xs font-medium text-[var(--status-amber-text)]">
-                          Reason: {reason}
+                      {autonomySummary && (
+                        <p className="mt-2 text-xs font-medium leading-5 text-[var(--text-secondary)]">
+                          {autonomySummary}
                         </p>
                       )}
 
