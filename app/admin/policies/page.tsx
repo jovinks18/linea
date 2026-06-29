@@ -8,6 +8,11 @@ import {
 import {
   listActionAutonomyPolicies,
 } from "../../../lib/agent/autonomy-policy.repository";
+import {
+  listActionAutonomyPolicyAudits,
+  type ActionAutonomyPolicyAuditRecord,
+  type ActionAutonomyPolicyChangeType,
+} from "../../../lib/agent/autonomy-policy-audit.repository";
 import type {
   ActionAutonomyPolicy,
   AutonomyTier,
@@ -64,28 +69,77 @@ function tierVariant(tier: AutonomyTier): StatusPillVariant {
   return "success";
 }
 
-async function loadPolicies(): Promise<
-  | { policies: ActionAutonomyPolicy[]; error: null }
-  | { policies: []; error: string }
-> {
+function changeTypeVariant(
+  changeType: ActionAutonomyPolicyChangeType
+): StatusPillVariant {
+  if (changeType === "deleted") return "danger";
+  if (changeType === "updated") return "warning";
+  if (changeType === "created") return "info";
+  return "muted";
+}
+
+type PolicyAdminData = {
+  policies: ActionAutonomyPolicy[];
+  audits: ActionAutonomyPolicyAuditRecord[];
+  policyError: string | null;
+  auditError: string | null;
+};
+
+async function loadPolicyAdminData(): Promise<PolicyAdminData> {
   let client: PoolClient | null = null;
 
   try {
     client = await pool.connect();
+
+    const [policiesResult, auditsResult] = await Promise.allSettled([
+      listActionAutonomyPolicies(client),
+      listActionAutonomyPolicyAudits(client),
+    ]);
+
+    if (policiesResult.status === "rejected") {
+      console.error(
+        "Unable to load autonomy policies:",
+        policiesResult.reason instanceof Error
+          ? policiesResult.reason.message
+          : "Unknown database error"
+      );
+    }
+
+    if (auditsResult.status === "rejected") {
+      console.error(
+        "Unable to load autonomy policy audit:",
+        auditsResult.reason instanceof Error
+          ? auditsResult.reason.message
+          : "Unknown database error"
+      );
+    }
+
     return {
-      policies: await listActionAutonomyPolicies(client),
-      error: null,
+      policies:
+        policiesResult.status === "fulfilled" ? policiesResult.value : [],
+      audits: auditsResult.status === "fulfilled" ? auditsResult.value : [],
+      policyError:
+        policiesResult.status === "rejected"
+          ? "Autonomy policies could not be loaded. Check the local database connection and try again."
+          : null,
+      auditError:
+        auditsResult.status === "rejected"
+          ? "Policy change history could not be loaded. Apply the audit migration and try again."
+          : null,
     };
   } catch (error) {
     console.error(
-      "Unable to load autonomy policies:",
+      "Unable to load policy admin data:",
       error instanceof Error ? error.message : "Unknown database error"
     );
 
     return {
       policies: [],
-      error:
+      audits: [],
+      policyError:
         "Autonomy policies could not be loaded. Check the local database connection and try again.",
+      auditError:
+        "Policy change history could not be loaded. Check the local database connection and try again.",
     };
   } finally {
     client?.release();
@@ -93,7 +147,8 @@ async function loadPolicies(): Promise<
 }
 
 export default async function AutonomyPoliciesPage() {
-  const { policies, error } = await loadPolicies();
+  const { policies, audits, policyError, auditError } =
+    await loadPolicyAdminData();
 
   return (
     <AppShell active="policies">
@@ -151,7 +206,7 @@ export default async function AutonomyPoliciesPage() {
             ) : undefined
           }
         >
-          {error ? (
+          {policyError ? (
             <div
               role="alert"
               className="rounded-lg border border-[var(--status-red-border)] bg-[var(--status-red-bg)] p-5"
@@ -160,7 +215,7 @@ export default async function AutonomyPoliciesPage() {
                 Policy data unavailable
               </p>
               <p className="mt-2 text-sm leading-6 text-[var(--text-secondary)]">
-                {error}
+                {policyError}
               </p>
             </div>
           ) : policies.length === 0 ? (
@@ -245,6 +300,84 @@ export default async function AutonomyPoliciesPage() {
                   ))}
                 </tbody>
               </table>
+            </div>
+          )}
+        </Panel>
+
+        <Panel
+          eyebrow="Change history"
+          title="Policy Change Audit"
+          action={
+            audits.length > 0 ? (
+              <StatusPill variant="default">
+                Latest {audits.length}
+              </StatusPill>
+            ) : undefined
+          }
+        >
+          {auditError ? (
+            <div
+              role="alert"
+              className="rounded-lg border border-[var(--status-red-border)] bg-[var(--status-red-bg)] p-5"
+            >
+              <p className="font-medium text-[var(--status-red-text)]">
+                Policy audit unavailable
+              </p>
+              <p className="mt-2 text-sm leading-6 text-[var(--text-secondary)]">
+                {auditError}
+              </p>
+            </div>
+          ) : audits.length === 0 ? (
+            <div className="rounded-lg border border-dashed border-[var(--border-subtle)] bg-[var(--surface-2)] p-5">
+              <p className="font-medium text-[var(--text-primary)]">
+                No policy changes have been recorded yet.
+              </p>
+              <p className="mt-2 text-sm leading-6 text-[var(--text-muted)]">
+                Seeded defaults are marked with updated_by = seed.
+              </p>
+            </div>
+          ) : (
+            <div className="divide-y divide-[var(--border-subtle)] overflow-hidden rounded-lg border border-[var(--border-subtle)]">
+              {audits.map((audit) => (
+                <article
+                  key={audit.id}
+                  className="grid gap-3 bg-[var(--surface-2)] p-4 md:grid-cols-[minmax(0,1fr)_auto] md:items-start"
+                >
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <p className="font-mono text-xs font-medium text-[var(--text-primary)]">
+                        {audit.action_type}
+                      </p>
+                      <StatusPill
+                        variant={changeTypeVariant(audit.change_type)}
+                      >
+                        {formatLabel(audit.change_type)}
+                      </StatusPill>
+                      <StatusPill variant="default">
+                        {formatSegment(audit.segment)}
+                      </StatusPill>
+                    </div>
+                    <p className="mt-2 text-sm text-[var(--text-secondary)]">
+                      Changed by {audit.changed_by}
+                    </p>
+                    {audit.change_reason ? (
+                      <p className="mt-2 text-sm leading-6 text-[var(--text-muted)]">
+                        {audit.change_reason}
+                      </p>
+                    ) : (
+                      <p className="mt-2 text-xs text-[var(--text-subtle)]">
+                        No change reason recorded.
+                      </p>
+                    )}
+                  </div>
+                  <time
+                    dateTime={audit.created_at.toISOString()}
+                    className="text-xs text-[var(--text-subtle)] md:text-right"
+                  >
+                    {formatDate(audit.created_at)}
+                  </time>
+                </article>
+              ))}
             </div>
           )}
         </Panel>

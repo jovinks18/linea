@@ -165,6 +165,20 @@ CREATE TABLE action_autonomy_policy (
   UNIQUE NULLS NOT DISTINCT (action_type, segment)
 );
 
+CREATE TABLE action_autonomy_policy_audit (
+  id BIGSERIAL PRIMARY KEY,
+  action_type TEXT NOT NULL,
+  segment TEXT,
+  old_policy JSONB,
+  new_policy JSONB NOT NULL,
+  change_type TEXT NOT NULL CHECK (
+    change_type IN ('created', 'updated', 'deleted', 'seeded')
+  ),
+  changed_by TEXT NOT NULL,
+  change_reason TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
 CREATE INDEX idx_accounts_health_status ON accounts(health_status);
 CREATE INDEX idx_accounts_stage ON accounts(stage);
 CREATE INDEX idx_account_contacts_customer_id ON account_contacts(customer_id);
@@ -180,6 +194,14 @@ CREATE INDEX idx_agent_actions_action_type ON agent_actions(action_type);
 CREATE INDEX idx_agent_actions_status ON agent_actions(status);
 CREATE INDEX idx_agent_actions_source ON agent_actions(source);
 CREATE INDEX idx_agent_actions_created_at ON agent_actions(created_at);
+CREATE INDEX idx_action_autonomy_policy_audit_action_type
+  ON action_autonomy_policy_audit(action_type);
+CREATE INDEX idx_action_autonomy_policy_audit_segment
+  ON action_autonomy_policy_audit(segment);
+CREATE INDEX idx_action_autonomy_policy_audit_change_type
+  ON action_autonomy_policy_audit(change_type);
+CREATE INDEX idx_action_autonomy_policy_audit_created_at
+  ON action_autonomy_policy_audit(created_at DESC);
 CREATE INDEX idx_cases_human_review ON cases(last_activity_at DESC)
   WHERE requires_human_review = TRUE;
 

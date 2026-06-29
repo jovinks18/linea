@@ -168,3 +168,7 @@ ON CONFLICT (action_type, segment) DO UPDATE SET
   requires_reversible = EXCLUDED.requires_reversible,
   updated_by = EXCLUDED.updated_by,
   updated_at = NOW();
+
+-- Policy audit rows are intentionally not seeded. Seed provenance remains
+-- visible through action_autonomy_policy.updated_by = 'seed' without creating
+-- duplicate audit history when this idempotent seed file is run repeatedly.
