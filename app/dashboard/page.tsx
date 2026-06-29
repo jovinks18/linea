@@ -247,7 +247,18 @@ export default async function DashboardPage({
           )}
         </Panel>
 
-        <Panel eyebrow="Audit trail" title="Agent Activity">
+        <Panel
+          eyebrow="Audit trail"
+          title="Agent Activity"
+          action={
+            <Link
+              href="/admin/policies"
+              className="rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-2)] px-3 py-2 text-xs font-medium text-[var(--text-secondary)] transition hover:border-[var(--border-strong)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/40"
+            >
+              View policies
+            </Link>
+          }
+        >
           <p className="mb-5 text-sm leading-6 text-[var(--text-muted)]">
             Auditable record of actions Linea executed, suggested, skipped, or
             failed.

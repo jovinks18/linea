@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { ThemeToggle } from "./ThemeToggle";
 
-type NavKey = "home" | "chat" | "dashboard" | "data";
+type NavKey = "home" | "chat" | "dashboard" | "data" | "policies";
 
 const navItems: {
   key: NavKey;
@@ -28,6 +28,12 @@ const navItems: {
     description: "Profile, map, and import",
     href: "/data",
   },
+  {
+    key: "policies",
+    label: "Policy Admin",
+    description: "Inspect autonomy rules",
+    href: "/admin/policies",
+  },
 ];
 
 function Sidebar({ active }: { active: NavKey }) {
@@ -53,7 +59,7 @@ function Sidebar({ active }: { active: NavKey }) {
           </div>
         </div>
 
-        <nav className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-1 lg:gap-1">
+        <nav className="grid grid-cols-2 gap-2 sm:grid-cols-5 lg:grid-cols-1 lg:gap-1">
           {navItems.map((item) => {
             const isActive = item.key === active;
 

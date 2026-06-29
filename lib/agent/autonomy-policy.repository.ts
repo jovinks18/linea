@@ -151,3 +151,29 @@ export async function resolveActionAutonomyPolicies(
 
   return policies;
 }
+
+export async function listActionAutonomyPolicies(
+  client: PoolClient
+): Promise<ActionAutonomyPolicy[]> {
+  const result = await client.query<ActionAutonomyPolicyRow>(
+    `SELECT
+      action_type,
+      segment,
+      tier,
+      confidence_floor,
+      max_blast_radius,
+      requires_reversible,
+      updated_by,
+      updated_at
+     FROM action_autonomy_policy
+     ORDER BY
+       action_type ASC,
+       segment ASC NULLS FIRST,
+       updated_at DESC`
+  );
+
+  return result.rows.flatMap((row) => {
+    const policy = normalizePolicyRow(row);
+    return policy ? [policy] : [];
+  });
+}
