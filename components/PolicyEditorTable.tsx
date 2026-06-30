@@ -6,6 +6,9 @@ import {
   StatusPill,
   type StatusPillVariant,
 } from "./StatusPill";
+import { PolicyImpactPreview } from "./PolicyImpactPreview";
+import type { PolicyImpactSummary } from "../lib/agent/autonomy-policy-simulation";
+import { formatUtcDateTime } from "../lib/ui/date";
 
 type AutonomyTier = "shadow" | "supervised" | "bounded" | "autonomous";
 
@@ -66,6 +69,32 @@ function createEditState(policy: EditableAutonomyPolicy): EditState {
   };
 }
 
+function buildPolicyPatch(editState: EditState) {
+  const patch: Record<string, unknown> = {};
+  const confidenceFloor = Number(editState.confidenceFloor);
+  const maxBlastRadius = Number(editState.maxBlastRadius);
+
+  if (editState.tier !== editState.policy.tier) {
+    patch.tier = editState.tier;
+  }
+
+  if (confidenceFloor !== editState.policy.confidence_floor) {
+    patch.confidence_floor = confidenceFloor;
+  }
+
+  if (maxBlastRadius !== editState.policy.max_blast_radius) {
+    patch.max_blast_radius = maxBlastRadius;
+  }
+
+  if (
+    editState.requiresReversible !== editState.policy.requires_reversible
+  ) {
+    patch.requires_reversible = editState.requiresReversible;
+  }
+
+  return patch;
+}
+
 export function PolicyEditorTable({
   policies,
 }: {
@@ -76,44 +105,27 @@ export function PolicyEditorTable({
   const [errors, setErrors] = useState<string[]>([]);
   const [notice, setNotice] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [previewing, setPreviewing] = useState(false);
+  const [impact, setImpact] = useState<PolicyImpactSummary | null>(null);
 
   function startEditing(policy: EditableAutonomyPolicy) {
     setEditState(createEditState(policy));
     setErrors([]);
     setNotice(null);
+    setImpact(null);
   }
 
   function cancelEditing() {
     setEditState(null);
     setErrors([]);
+    setImpact(null);
   }
 
   async function savePolicy(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!editState || saving) return;
 
-    const patch: Record<string, unknown> = {};
-    const confidenceFloor = Number(editState.confidenceFloor);
-    const maxBlastRadius = Number(editState.maxBlastRadius);
-
-    if (editState.tier !== editState.policy.tier) {
-      patch.tier = editState.tier;
-    }
-
-    if (confidenceFloor !== editState.policy.confidence_floor) {
-      patch.confidence_floor = confidenceFloor;
-    }
-
-    if (maxBlastRadius !== editState.policy.max_blast_radius) {
-      patch.max_blast_radius = maxBlastRadius;
-    }
-
-    if (
-      editState.requiresReversible !==
-      editState.policy.requires_reversible
-    ) {
-      patch.requires_reversible = editState.requiresReversible;
-    }
+    const patch = buildPolicyPatch(editState);
 
     setSaving(true);
     setErrors([]);
@@ -146,6 +158,7 @@ export function PolicyEditorTable({
       }
 
       setEditState(null);
+      setImpact(null);
       setNotice(
         result.mode === "pending_approval"
           ? "Change request created and pending approval."
@@ -156,6 +169,47 @@ export function PolicyEditorTable({
       setErrors(["Policy update could not reach the local server."]);
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function previewImpact() {
+    if (!editState || previewing || saving) return;
+
+    setPreviewing(true);
+    setErrors([]);
+    setNotice(null);
+
+    try {
+      const response = await fetch("/api/admin/policies/simulate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action_type: editState.policy.action_type,
+          segment: editState.policy.segment,
+          patch: buildPolicyPatch(editState),
+        }),
+      });
+      const result = (await response.json()) as {
+        errors?: string[];
+        impact?: PolicyImpactSummary;
+      };
+
+      if (!response.ok || !result.impact) {
+        setImpact(null);
+        setErrors(
+          result.errors?.length
+            ? result.errors
+            : ["Policy impact preview failed unexpectedly."]
+        );
+        return;
+      }
+
+      setImpact(result.impact);
+    } catch {
+      setImpact(null);
+      setErrors(["Policy impact preview could not reach the local server."]);
+    } finally {
+      setPreviewing(false);
     }
   }
 
@@ -239,7 +293,7 @@ export function PolicyEditorTable({
                     </td>
                     <td className="whitespace-nowrap px-4 py-4 text-xs text-[var(--text-muted)]">
                       <time dateTime={policy.updated_at}>
-                        {new Date(policy.updated_at).toLocaleString()}
+                        {formatUtcDateTime(policy.updated_at)}
                       </time>
                     </td>
                     <td className="px-4 py-4">
@@ -296,10 +350,13 @@ export function PolicyEditorTable({
                               <select
                                 value={editState.tier}
                                 onChange={(event) =>
-                                  setEditState({
-                                    ...editState,
-                                    tier: event.target.value as AutonomyTier,
-                                  })
+                                  {
+                                    setImpact(null);
+                                    setEditState({
+                                      ...editState,
+                                      tier: event.target.value as AutonomyTier,
+                                    });
+                                  }
                                 }
                                 className="rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-1)] px-3 py-2 text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/40"
                               >
@@ -325,10 +382,13 @@ export function PolicyEditorTable({
                                 step="0.01"
                                 value={editState.confidenceFloor}
                                 onChange={(event) =>
-                                  setEditState({
-                                    ...editState,
-                                    confidenceFloor: event.target.value,
-                                  })
+                                  {
+                                    setImpact(null);
+                                    setEditState({
+                                      ...editState,
+                                      confidenceFloor: event.target.value,
+                                    });
+                                  }
                                 }
                                 className="rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-1)] px-3 py-2 text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/40"
                               />
@@ -346,10 +406,13 @@ export function PolicyEditorTable({
                                 step="1"
                                 value={editState.maxBlastRadius}
                                 onChange={(event) =>
-                                  setEditState({
-                                    ...editState,
-                                    maxBlastRadius: event.target.value,
-                                  })
+                                  {
+                                    setImpact(null);
+                                    setEditState({
+                                      ...editState,
+                                      maxBlastRadius: event.target.value,
+                                    });
+                                  }
                                 }
                                 className="rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-1)] px-3 py-2 text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/40"
                               />
@@ -363,11 +426,14 @@ export function PolicyEditorTable({
                                 type="checkbox"
                                 checked={editState.requiresReversible}
                                 onChange={(event) =>
-                                  setEditState({
-                                    ...editState,
-                                    requiresReversible:
-                                      event.target.checked,
-                                  })
+                                  {
+                                    setImpact(null);
+                                    setEditState({
+                                      ...editState,
+                                      requiresReversible:
+                                        event.target.checked,
+                                    });
+                                  }
                                 }
                                 className="mt-1 h-4 w-4 accent-[var(--accent)]"
                               />
@@ -417,18 +483,32 @@ export function PolicyEditorTable({
                             </label>
                           </div>
 
+                          {impact ? (
+                            <PolicyImpactPreview impact={impact} />
+                          ) : null}
+
                           <div className="flex flex-wrap justify-end gap-3">
                             <button
                               type="button"
                               onClick={cancelEditing}
-                              disabled={saving}
+                              disabled={saving || previewing}
                               className="rounded-lg border border-[var(--border-subtle)] px-4 py-2 text-sm font-medium text-[var(--text-secondary)] transition hover:bg-[var(--surface-3)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/40 disabled:opacity-50"
                             >
                               Cancel
                             </button>
                             <button
+                              type="button"
+                              onClick={() => void previewImpact()}
+                              disabled={saving || previewing}
+                              className="rounded-lg border border-[var(--border-strong)] bg-[var(--surface-3)] px-4 py-2 text-sm font-medium text-[var(--text-primary)] transition hover:border-[var(--accent)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/40 disabled:cursor-wait disabled:opacity-60"
+                            >
+                              {previewing
+                                ? "Previewing..."
+                                : "Preview impact"}
+                            </button>
+                            <button
                               type="submit"
-                              disabled={saving}
+                              disabled={saving || previewing}
                               className="rounded-lg border border-[var(--border-strong)] bg-[var(--accent-muted)] px-4 py-2 text-sm font-medium text-[var(--text-primary)] transition hover:border-[var(--accent)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/40 disabled:cursor-wait disabled:opacity-60"
                             >
                               {saving ? "Saving..." : "Save policy"}

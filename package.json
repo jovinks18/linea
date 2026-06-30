@@ -21,6 +21,8 @@
     "test:autonomy-policy-list": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON tests/autonomy-policy-list.test.mjs",
     "test:autonomy-policy-risk": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON tests/autonomy-policy-risk.test.mjs",
     "test:autonomy-policy-change-requests": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON tests/autonomy-policy-change-requests.test.mjs",
+    "test:autonomy-policy-simulation": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON tests/autonomy-policy-simulation.test.mjs",
+    "test:autonomy-policy-impact": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON tests/autonomy-policy-impact.test.mjs",
     "test:autonomy-policy-resolution": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON tests/autonomy-policy-resolution.test.mjs",
     "test:autonomy-ui": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON tests/autonomy-ui.test.mjs",
     "test:connectors": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON tests/connectors.test.mjs",

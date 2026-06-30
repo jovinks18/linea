@@ -2,6 +2,9 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import type { PolicyImpactSummary } from "../lib/agent/autonomy-policy-simulation";
+import { formatUtcDateTime } from "../lib/ui/date";
+import { PolicyImpactPreview } from "./PolicyImpactPreview";
 import { StatusPill } from "./StatusPill";
 
 type PolicySnapshot = {
@@ -84,11 +87,59 @@ export function PolicyChangeRequestsPanel({
   const [errors, setErrors] = useState<string[]>([]);
   const [notice, setNotice] = useState<string | null>(null);
   const [saving, setSaving] = useState<"approve" | "reject" | null>(null);
+  const [previewingId, setPreviewingId] = useState<string | null>(null);
+  const [impact, setImpact] = useState<{
+    requestId: string;
+    summary: PolicyImpactSummary;
+  } | null>(null);
+  const [impactError, setImpactError] = useState<{
+    requestId: string;
+    errors: string[];
+  } | null>(null);
 
   function startReview(id: string) {
     setReview({ id, reviewedBy: "", reviewReason: "" });
     setErrors([]);
     setNotice(null);
+  }
+
+  async function previewImpact(requestId: string) {
+    if (previewingId || saving) return;
+
+    setPreviewingId(requestId);
+    setImpactError(null);
+
+    try {
+      const response = await fetch(
+        `/api/admin/policy-change-requests/${requestId}/impact`
+      );
+      const result = (await response.json()) as {
+        errors?: string[];
+        impact?: PolicyImpactSummary;
+      };
+
+      if (!response.ok || !result.impact) {
+        setImpact((current) =>
+          current?.requestId === requestId ? null : current
+        );
+        setImpactError({
+          requestId,
+          errors: result.errors?.length
+            ? result.errors
+            : ["Policy impact preview failed unexpectedly."],
+        });
+        return;
+      }
+
+      setImpact({ requestId, summary: result.impact });
+    } catch {
+      setImpactError({
+        requestId,
+        errors: ["Policy impact preview could not reach the local server."],
+      });
+    } finally {
+      setPreviewingId(null);
+    }
   }
 
   async function submitReview(decision: "approve" | "reject") {
@@ -148,6 +199,10 @@ export function PolicyChangeRequestsPanel({
 
       {requests.map((request) => {
         const isReviewing = review?.id === request.id;
+        const requestImpact =
+          impact?.requestId === request.id ? impact.summary : null;
+        const requestImpactErrors =
+          impactError?.requestId === request.id ? impactError.errors : [];
 
         return (
           <article
@@ -173,19 +228,31 @@ export function PolicyChangeRequestsPanel({
                 </p>
                 <p className="mt-2 text-xs text-[var(--text-subtle)]">
                   Requested by {request.requested_by} on{" "}
-                  {new Date(request.created_at).toLocaleString()}
+                  {formatUtcDateTime(request.created_at)}
                 </p>
               </div>
-              <button
-                type="button"
-                aria-expanded={isReviewing}
-                onClick={() =>
-                  isReviewing ? setReview(null) : startReview(request.id)
-                }
-                className="rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-3)] px-3 py-2 text-xs font-medium text-[var(--text-primary)] transition hover:border-[var(--border-strong)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/40"
-              >
-                {isReviewing ? "Close review" : "Review request"}
-              </button>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={() => void previewImpact(request.id)}
+                  disabled={previewingId !== null || saving !== null}
+                  className="rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-3)] px-3 py-2 text-xs font-medium text-[var(--text-primary)] transition hover:border-[var(--border-strong)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/40 disabled:cursor-wait disabled:opacity-60"
+                >
+                  {previewingId === request.id
+                    ? "Previewing..."
+                    : "Preview impact"}
+                </button>
+                <button
+                  type="button"
+                  aria-expanded={isReviewing}
+                  onClick={() =>
+                    isReviewing ? setReview(null) : startReview(request.id)
+                  }
+                  className="rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-3)] px-3 py-2 text-xs font-medium text-[var(--text-primary)] transition hover:border-[var(--border-strong)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/40"
+                >
+                  {isReviewing ? "Close review" : "Review request"}
+                </button>
+              </div>
             </div>
 
             <div className="mt-4 grid gap-4 lg:grid-cols-[1fr_1fr_minmax(0,1.2fr)]">
@@ -205,6 +272,31 @@ export function PolicyChangeRequestsPanel({
                 </ul>
               </div>
             </div>
+
+            {requestImpactErrors.length > 0 ? (
+              <div
+                role="alert"
+                className="mt-4 rounded-lg border border-[var(--status-red-border)] bg-[var(--status-red-bg)] p-4"
+              >
+                <p className="font-medium text-[var(--status-red-text)]">
+                  Impact preview unavailable
+                </p>
+                {requestImpactErrors.map((error) => (
+                  <p
+                    key={error}
+                    className="mt-2 text-sm text-[var(--status-red-text)]"
+                  >
+                    {error}
+                  </p>
+                ))}
+              </div>
+            ) : null}
+
+            {requestImpact ? (
+              <div className="mt-4">
+                <PolicyImpactPreview impact={requestImpact} />
+              </div>
+            ) : null}
 
             {isReviewing && review ? (
               <form

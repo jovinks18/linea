@@ -219,6 +219,15 @@ export class ActionAutonomyPolicyChangeRequestValidationError extends Error {
   }
 }
 
+export class ActionAutonomyPolicyChangeRequestDataError extends Error {
+  constructor(id: string) {
+    super(
+      `Autonomy policy change request ${id} contains an invalid stored policy snapshot.`
+    );
+    this.name = "ActionAutonomyPolicyChangeRequestDataError";
+  }
+}
+
 export async function createActionAutonomyPolicyChangeRequest(
   client: PoolClient,
   input: ActionAutonomyPolicyChangeRequestInput
@@ -294,6 +303,28 @@ export async function listActionAutonomyPolicyChangeRequests(
     const request = normalizeRequestRow(row);
     return request ? [request] : [];
   });
+}
+
+export async function getActionAutonomyPolicyChangeRequest(
+  client: PoolClient,
+  id: string
+): Promise<ActionAutonomyPolicyChangeRequestRecord | null> {
+  const result = await client.query<ActionAutonomyPolicyChangeRequestRow>(
+    `SELECT *
+     FROM action_autonomy_policy_change_requests
+     WHERE id = $1`,
+    [id]
+  );
+
+  const row = result.rows[0];
+  if (!row) return null;
+
+  const request = normalizeRequestRow(row);
+  if (!request) {
+    throw new ActionAutonomyPolicyChangeRequestDataError(id);
+  }
+
+  return request;
 }
 
 export async function getActionAutonomyPolicyChangeRequestForUpdate(

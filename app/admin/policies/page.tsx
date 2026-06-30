@@ -99,20 +99,36 @@ type PolicyAdminData = {
   requestError: string | null;
 };
 
+async function settle<T>(
+  operation: () => Promise<T>
+): Promise<PromiseSettledResult<T>> {
+  try {
+    return { status: "fulfilled", value: await operation() };
+  } catch (reason) {
+    return { status: "rejected", reason };
+  }
+}
+
 async function loadPolicyAdminData(): Promise<PolicyAdminData> {
   let client: PoolClient | null = null;
 
   try {
-    client = await pool.connect();
+    const connectedClient = await pool.connect();
+    client = connectedClient;
 
-    const [policiesResult, auditsResult, requestsResult] =
-      await Promise.allSettled([
-      listActionAutonomyPolicies(client),
-      listActionAutonomyPolicyAudits(client),
-        listActionAutonomyPolicyChangeRequests(client, {
-          status: "pending",
-        }),
-      ]);
+    // A pg PoolClient executes one query at a time. Keep these reads
+    // sequential while preserving independent error states for each panel.
+    const policiesResult = await settle(() =>
+      listActionAutonomyPolicies(connectedClient)
+    );
+    const auditsResult = await settle(() =>
+      listActionAutonomyPolicyAudits(connectedClient)
+    );
+    const requestsResult = await settle(() =>
+      listActionAutonomyPolicyChangeRequests(connectedClient, {
+        status: "pending",
+      })
+    );
 
     if (policiesResult.status === "rejected") {
       console.error(
