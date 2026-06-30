@@ -1,6 +1,7 @@
 import type { PoolClient } from "pg";
 import { AppShell } from "../../../components/AppShell";
 import { Panel } from "../../../components/Panel";
+import { PolicyEditorTable } from "../../../components/PolicyEditorTable";
 import {
   StatusPill,
   type StatusPillVariant,
@@ -162,7 +163,8 @@ export default async function AutonomyPoliciesPage() {
           </h1>
           <p className="mt-3 max-w-3xl text-sm leading-6 text-[var(--text-muted)] sm:text-base">
             Inspect the rules that determine whether Linea may execute, suggest,
-            or shadow each proposed action. This surface is read-only.
+            or shadow each proposed action. Existing rows can be changed only
+            through guarded, audited updates.
           </p>
         </header>
 
@@ -229,78 +231,12 @@ export default async function AutonomyPoliciesPage() {
               </p>
             </div>
           ) : (
-            <div className="overflow-x-auto rounded-lg border border-[var(--border-subtle)]">
-              <table className="min-w-[980px] w-full border-collapse text-left">
-                <thead className="bg-[var(--surface-3)]">
-                  <tr className="text-xs font-medium uppercase tracking-[0.12em] text-[var(--text-subtle)]">
-                    <th scope="col" className="px-4 py-3">
-                      Action
-                    </th>
-                    <th scope="col" className="px-4 py-3">
-                      Segment
-                    </th>
-                    <th scope="col" className="px-4 py-3">
-                      Tier
-                    </th>
-                    <th scope="col" className="px-4 py-3">
-                      Confidence floor
-                    </th>
-                    <th scope="col" className="px-4 py-3">
-                      Max blast radius
-                    </th>
-                    <th scope="col" className="px-4 py-3">
-                      Requires reversible
-                    </th>
-                    <th scope="col" className="px-4 py-3">
-                      Updated by
-                    </th>
-                    <th scope="col" className="px-4 py-3">
-                      Updated at
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-[var(--border-subtle)]">
-                  {policies.map((policy) => (
-                    <tr
-                      key={`${policy.action_type}:${policy.segment ?? "default"}:${policy.updated_at.toISOString()}`}
-                      className="bg-[var(--surface-2)] text-sm text-[var(--text-secondary)]"
-                    >
-                      <th
-                        scope="row"
-                        className="px-4 py-4 font-mono text-xs font-medium text-[var(--text-primary)]"
-                      >
-                        {policy.action_type}
-                      </th>
-                      <td className="px-4 py-4">
-                        {formatSegment(policy.segment)}
-                      </td>
-                      <td className="px-4 py-4">
-                        <StatusPill variant={tierVariant(policy.tier)}>
-                          {formatLabel(policy.tier)}
-                        </StatusPill>
-                      </td>
-                      <td className="px-4 py-4">
-                        {Math.round(policy.confidence_floor * 100)}%
-                      </td>
-                      <td className="px-4 py-4">
-                        {policy.max_blast_radius}
-                      </td>
-                      <td className="px-4 py-4">
-                        {policy.requires_reversible ? "Yes" : "No"}
-                      </td>
-                      <td className="px-4 py-4">
-                        {policy.updated_by ?? "Not recorded"}
-                      </td>
-                      <td className="whitespace-nowrap px-4 py-4 text-xs text-[var(--text-muted)]">
-                        <time dateTime={policy.updated_at.toISOString()}>
-                          {formatDate(policy.updated_at)}
-                        </time>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+            <PolicyEditorTable
+              policies={policies.map((policy) => ({
+                ...policy,
+                updated_at: policy.updated_at.toISOString(),
+              }))}
+            />
           )}
         </Panel>
 
