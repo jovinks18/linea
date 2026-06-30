@@ -62,6 +62,7 @@ See [Architecture](docs/ARCHITECTURE.md) and [Connector Architecture](docs/CONNE
 - `agent_actions` records the authoritative executed, suggested, skipped, or failed outcome.
 - Account-level automation is blocked when no linked account exists.
 - Failed post-sales actions are audited through a separate connection after rollback.
+- Policy edits and approvals derive actor identity from a signed, HttpOnly operator session. API callers cannot submit audit actor fields.
 - Demo data is synthetic. Never add real customer data, secrets, tokens, or production exports.
 
 Deterministic mode is the default and requires no paid API:
@@ -103,12 +104,24 @@ docker compose exec -T postgres psql -U linea -d linea_db < sql/seed.sql
 npm run dev
 ```
 
+Before opening Policy Admin, set these local-only values in `.env.local`:
+
+```dotenv
+LINEA_ADMIN_USERNAME=your-local-operator-name
+LINEA_ADMIN_PASSWORD=use-a-long-local-password
+LINEA_SESSION_SECRET=generate-a-random-secret-of-at-least-32-characters
+```
+
+For example, `openssl rand -hex 32` generates a suitable session secret.
+Credentials and populated secrets must never be committed.
+
 Open:
 
 - Home: [http://localhost:3000](http://localhost:3000)
 - Chat Intake: [http://localhost:3000/chat](http://localhost:3000/chat)
 - Command Center: [http://localhost:3000/dashboard](http://localhost:3000/dashboard)
 - Data Onboarding: [http://localhost:3000/data](http://localhost:3000/data)
+- Policy Admin: [http://localhost:3000/admin/policies](http://localhost:3000/admin/policies)
 
 `DATABASE_URL` is optional. Without it, the app and CSV importer use the local Docker PostgreSQL defaults.
 
@@ -126,6 +139,7 @@ Open:
 | `npm run test:agent-actions` | Test policy, execution, and audit behavior |
 | `npm run test:imports` | Test import validation and idempotency utilities |
 | `npm run test:connectors` | Test connector normalization and provenance |
+| `npm run test:operator-auth` | Test signed operator sessions and server-bound audit attribution |
 
 ## Demo Flows
 
@@ -163,7 +177,7 @@ Current priorities include deeper supervision controls, read-only connector inge
 
 Linea is a local development project, not a production-ready customer-data platform.
 
-- No authentication, authorization, tenant isolation, or production secret management.
+- Policy Admin has local single-operator authentication with signed sessions. It does not yet provide multi-user RBAC, MFA, centralized identity, tenant isolation, or production secret management.
 - Post-sales automation currently focuses on deterministic onboarding-blocker workflows.
 - The connector layer is a contract and synthetic mock only; no live SaaS connectors or OAuth exist.
 - Qdrant and n8n are available in Docker but are not integrated with the application.

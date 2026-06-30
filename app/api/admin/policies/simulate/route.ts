@@ -4,6 +4,10 @@ import {
   ActionAutonomyPolicyValidationError,
 } from "../../../../../lib/agent/autonomy-policy.repository";
 import { simulatePolicyPatchImpact } from "../../../../../lib/agent/autonomy-policy-simulation";
+import {
+  getCurrentOperator,
+  operatorUnauthorizedResponse,
+} from "../../../../../lib/auth/current-operator";
 import { pool } from "../../../../../lib/db";
 
 export const runtime = "nodejs";
@@ -13,6 +17,9 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 export async function POST(request: Request) {
+  const operator = await getCurrentOperator();
+  if (!operator) return operatorUnauthorizedResponse();
+
   let body: unknown;
 
   try {

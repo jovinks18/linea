@@ -6,6 +6,10 @@ import {
   ActionAutonomyPolicyChangeRequestValidationError,
   approveActionAutonomyPolicyChangeRequest,
 } from "../../../../../../lib/agent/autonomy-policy-change-request.repository";
+import {
+  getCurrentOperator,
+  operatorUnauthorizedResponse,
+} from "../../../../../../lib/auth/current-operator";
 import { pool } from "../../../../../../lib/db";
 
 export const runtime = "nodejs";
@@ -18,6 +22,9 @@ export async function POST(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const operator = await getCurrentOperator();
+  if (!operator) return operatorUnauthorizedResponse();
+
   const { id } = await params;
 
   if (!/^\d+$/.test(id)) {
@@ -53,12 +60,9 @@ export async function POST(
     await client.query("BEGIN");
     transactionStarted = true;
 
-    // Replace caller-supplied reviewer identity with authenticated identity
-    // when Linea adds authentication.
     const result = await approveActionAutonomyPolicyChangeRequest(client, {
       id,
-      reviewed_by:
-        typeof body.reviewed_by === "string" ? body.reviewed_by : "",
+      reviewed_by: operator.username,
       review_reason:
         typeof body.review_reason === "string" ? body.review_reason : "",
     });

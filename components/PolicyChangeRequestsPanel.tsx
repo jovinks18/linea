@@ -28,7 +28,6 @@ export type PendingPolicyChangeRequest = {
 
 type ReviewState = {
   id: string;
-  reviewedBy: string;
   reviewReason: string;
 };
 
@@ -79,8 +78,10 @@ function Snapshot({
 
 export function PolicyChangeRequestsPanel({
   requests,
+  operatorUsername,
 }: {
   requests: PendingPolicyChangeRequest[];
+  operatorUsername: string;
 }) {
   const router = useRouter();
   const [review, setReview] = useState<ReviewState | null>(null);
@@ -98,7 +99,7 @@ export function PolicyChangeRequestsPanel({
   } | null>(null);
 
   function startReview(id: string) {
-    setReview({ id, reviewedBy: "", reviewReason: "" });
+    setReview({ id, reviewReason: "" });
     setErrors([]);
     setNotice(null);
   }
@@ -156,7 +157,6 @@ export function PolicyChangeRequestsPanel({
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            reviewed_by: review.reviewedBy,
             review_reason: review.reviewReason,
           }),
         }
@@ -324,21 +324,17 @@ export function PolicyChangeRequestsPanel({
                 ) : null}
 
                 <div className="grid gap-4 md:grid-cols-2">
-                  <label className="grid gap-2 text-sm text-[var(--text-secondary)]">
-                    Reviewed by
-                    <input
-                      type="text"
-                      value={review.reviewedBy}
-                      onChange={(event) =>
-                        setReview({
-                          ...review,
-                          reviewedBy: event.target.value,
-                        })
-                      }
-                      placeholder="approver"
-                      className="rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-1)] px-3 py-2 text-[var(--text-primary)] placeholder:text-[var(--text-subtle)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/40"
-                    />
-                  </label>
+                  <div className="rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-1)] p-3">
+                    <p className="text-xs uppercase tracking-[0.12em] text-[var(--text-subtle)]">
+                      Authenticated reviewer
+                    </p>
+                    <p className="mt-2 font-mono text-sm text-[var(--text-primary)]">
+                      {operatorUsername}
+                    </p>
+                    <p className="mt-2 text-xs leading-5 text-[var(--text-muted)]">
+                      Review attribution comes from the signed session.
+                    </p>
+                  </div>
                   <label className="grid gap-2 text-sm text-[var(--text-secondary)]">
                     Review reason
                     <textarea

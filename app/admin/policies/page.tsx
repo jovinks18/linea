@@ -1,5 +1,7 @@
 import type { PoolClient } from "pg";
+import { redirect } from "next/navigation";
 import { AppShell } from "../../../components/AppShell";
+import { OperatorIdentity } from "../../../components/OperatorIdentity";
 import { Panel } from "../../../components/Panel";
 import { PolicyEditorTable } from "../../../components/PolicyEditorTable";
 import {
@@ -27,6 +29,7 @@ import type {
   AutonomyTier,
 } from "../../../lib/agent/autonomy-policy";
 import { pool } from "../../../lib/db";
+import { getCurrentOperator } from "../../../lib/auth/current-operator";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -199,24 +202,30 @@ async function loadPolicyAdminData(): Promise<PolicyAdminData> {
 }
 
 export default async function AutonomyPoliciesPage() {
+  const operator = await getCurrentOperator();
+  if (!operator) redirect("/login?returnTo=/admin/policies");
+
   const { policies, audits, requests, policyError, auditError, requestError } =
     await loadPolicyAdminData();
 
   return (
     <AppShell active="policies">
       <div className="grid min-w-0 gap-6">
-        <header>
-          <p className="text-xs font-medium uppercase tracking-[0.18em] text-[var(--text-subtle)]">
-            Policy admin
-          </p>
-          <h1 className="mt-2 text-3xl font-semibold text-[var(--text-primary)] sm:text-4xl">
-            Autonomy Policies
-          </h1>
-          <p className="mt-3 max-w-3xl text-sm leading-6 text-[var(--text-muted)] sm:text-base">
-            Inspect the rules that determine whether Linea may execute, suggest,
-            or shadow each proposed action. Existing rows can be changed only
-            through guarded, audited updates.
-          </p>
+        <header className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+          <div>
+            <p className="text-xs font-medium uppercase tracking-[0.18em] text-[var(--text-subtle)]">
+              Policy admin
+            </p>
+            <h1 className="mt-2 text-3xl font-semibold text-[var(--text-primary)] sm:text-4xl">
+              Autonomy Policies
+            </h1>
+            <p className="mt-3 max-w-3xl text-sm leading-6 text-[var(--text-muted)] sm:text-base">
+              Inspect the rules that determine whether Linea may execute,
+              suggest, or shadow each proposed action. Existing rows can be
+              changed only through guarded, audited updates.
+            </p>
+          </div>
+          <OperatorIdentity username={operator.username} />
         </header>
 
         <Panel eyebrow="Control plane" title="How autonomy tiers behave">
@@ -281,6 +290,7 @@ export default async function AutonomyPoliciesPage() {
             </div>
           ) : (
             <PolicyChangeRequestsPanel
+              operatorUsername={operator.username}
               requests={requests.map((request) => ({
                 id: request.id,
                 action_type: request.action_type,
@@ -335,6 +345,7 @@ export default async function AutonomyPoliciesPage() {
             </div>
           ) : (
             <PolicyEditorTable
+              operatorUsername={operator.username}
               policies={policies.map((policy) => ({
                 ...policy,
                 updated_at: policy.updated_at.toISOString(),

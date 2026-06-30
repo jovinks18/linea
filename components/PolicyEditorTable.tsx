@@ -30,7 +30,6 @@ type EditState = {
   confidenceFloor: string;
   maxBlastRadius: string;
   requiresReversible: boolean;
-  changedBy: string;
   changeReason: string;
 };
 
@@ -64,7 +63,6 @@ function createEditState(policy: EditableAutonomyPolicy): EditState {
     confidenceFloor: String(policy.confidence_floor),
     maxBlastRadius: String(policy.max_blast_radius),
     requiresReversible: policy.requires_reversible,
-    changedBy: "",
     changeReason: "",
   };
 }
@@ -97,8 +95,10 @@ function buildPolicyPatch(editState: EditState) {
 
 export function PolicyEditorTable({
   policies,
+  operatorUsername,
 }: {
   policies: EditableAutonomyPolicy[];
+  operatorUsername: string;
 }) {
   const router = useRouter();
   const [editState, setEditState] = useState<EditState | null>(null);
@@ -139,7 +139,6 @@ export function PolicyEditorTable({
           action_type: editState.policy.action_type,
           segment: editState.policy.segment,
           patch,
-          changed_by: editState.changedBy,
           change_reason: editState.changeReason,
         }),
       });
@@ -449,23 +448,19 @@ export function PolicyEditorTable({
                             </label>
                           </div>
 
-                          <div className="grid gap-4 md:grid-cols-2">
-                            <label className="grid gap-2 text-sm text-[var(--text-secondary)]">
-                              Changed by
-                              <input
-                                type="text"
-                                value={editState.changedBy}
-                                onChange={(event) =>
-                                  setEditState({
-                                    ...editState,
-                                    changedBy: event.target.value,
-                                  })
-                                }
-                                placeholder="operator"
-                                className="rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-1)] px-3 py-2 text-[var(--text-primary)] placeholder:text-[var(--text-subtle)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/40"
-                              />
-                            </label>
-
+                          <div className="grid gap-4 md:grid-cols-[minmax(0,0.7fr)_minmax(0,1.3fr)]">
+                            <div className="rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-1)] p-3">
+                              <p className="text-xs uppercase tracking-[0.12em] text-[var(--text-subtle)]">
+                                Authenticated actor
+                              </p>
+                              <p className="mt-2 font-mono text-sm text-[var(--text-primary)]">
+                                {operatorUsername}
+                              </p>
+                              <p className="mt-2 text-xs leading-5 text-[var(--text-muted)]">
+                                Audit attribution is derived from the signed
+                                operator session.
+                              </p>
+                            </div>
                             <label className="grid gap-2 text-sm text-[var(--text-secondary)]">
                               Change reason
                               <textarea

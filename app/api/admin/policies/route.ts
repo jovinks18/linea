@@ -4,6 +4,10 @@ import {
   ActionAutonomyPolicyValidationError,
 } from "../../../../lib/agent/autonomy-policy.repository";
 import { submitActionAutonomyPolicyChange } from "../../../../lib/agent/autonomy-policy-change-service";
+import {
+  getCurrentOperator,
+  operatorUnauthorizedResponse,
+} from "../../../../lib/auth/current-operator";
 import { pool } from "../../../../lib/db";
 
 export const runtime = "nodejs";
@@ -13,6 +17,9 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 export async function PATCH(request: Request) {
+  const operator = await getCurrentOperator();
+  if (!operator) return operatorUnauthorizedResponse();
+
   let body: unknown;
 
   try {
@@ -63,14 +70,11 @@ export async function PATCH(request: Request) {
     await client.query("BEGIN");
     transactionStarted = true;
 
-    // Replace this caller-supplied identity with the authenticated operator
-    // once Linea adds authentication.
     const result = await submitActionAutonomyPolicyChange(client, {
       action_type: actionType,
       segment,
       patch: body.patch as Record<string, unknown>,
-      changed_by:
-        typeof body.changed_by === "string" ? body.changed_by : "",
+      changed_by: operator.username,
       change_reason:
         typeof body.change_reason === "string" ? body.change_reason : "",
     });

@@ -11,6 +11,7 @@ Linea is currently a Next.js App Router application with a PostgreSQL-backed sup
 - Model provider layer: `lib/models`
 - Agent planner: `lib/agent/planner.ts`
 - Agent action audit repository: `lib/agent/repository.ts`
+- Operator session boundary: `lib/auth`
 - Data onboarding scripts: `scripts/profile-csv.js`, `scripts/recommend-mapping.js`, and `scripts/import-csv.js`
 - PostgreSQL schema: `sql/schema.sql`
 - Demo knowledge base: `knowledge-base/smart-lock-battery.md`
@@ -88,6 +89,23 @@ If a provider is missing configuration, fails, times out, or returns invalid JSO
 The model never writes SQL or calls a repository. It can only return a validated structured plan. The deterministic service and policy layer decides which recommendations are safe, repository functions perform approved writes, and the resulting outcomes are logged inside the same PostgreSQL transaction. Unknown-account blocker actions are skipped rather than applied to account-level tables, while human review is recorded as suggested until a human workflow actually accepts or assigns it.
 
 This boundary prepares Linea for future approval queues and external tools: integrations can consume explicit action records without granting a model direct database access.
+
+## Operator Identity And Policy Governance
+
+Policy administration requires a configured local operator username, password,
+and session-signing secret. Successful authentication creates a signed,
+short-lived HttpOnly cookie containing the operator identity, role, unique
+session ID, and expiry.
+
+The policy page and every `/api/admin` route verify this session server-side.
+Policy mutation and approval routes derive `changed_by`, `reviewed_by`, and
+resulting `updated_by` values exclusively from the verified session. Request
+bodies cannot assert or override actor identity. Policy impact simulation is
+also authenticated, although it remains entirely read-only.
+
+This is a local single-operator boundary, not a production identity platform.
+Production deployment still requires centralized identity, role-based access,
+MFA, session revocation, tenant authorization, and managed secret storage.
 
 ## Data Onboarding Agent
 

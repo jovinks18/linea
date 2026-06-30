@@ -27,6 +27,7 @@
     "test:autonomy-ui": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON tests/autonomy-ui.test.mjs",
     "test:connectors": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON tests/connectors.test.mjs",
     "test:imports": "node tests/import-utils.test.mjs",
+    "test:operator-auth": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON tests/operator-auth.test.mjs",
     "test:post-sales-directives": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON tests/post-sales-directives.test.mjs",
     "test:triage": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON tests/triage-subjects.test.mjs"
   },

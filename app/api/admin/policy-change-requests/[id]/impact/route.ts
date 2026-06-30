@@ -4,6 +4,10 @@ import {
   ActionAutonomyPolicySimulationDataError,
   simulatePolicyChangeRequestImpact,
 } from "../../../../../../lib/agent/autonomy-policy-simulation";
+import {
+  getCurrentOperator,
+  operatorUnauthorizedResponse,
+} from "../../../../../../lib/auth/current-operator";
 import { pool } from "../../../../../../lib/db";
 
 export const runtime = "nodejs";
@@ -12,6 +16,9 @@ export async function GET(
   _request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const operator = await getCurrentOperator();
+  if (!operator) return operatorUnauthorizedResponse();
+
   const { id } = await params;
 
   if (!/^\d+$/.test(id)) {
