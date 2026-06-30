@@ -123,6 +123,9 @@ export function PolicyImpactPreview({
                   Confidence
                 </th>
                 <th scope="col" className="px-3 py-2">
+                  Scope
+                </th>
+                <th scope="col" className="px-3 py-2">
                   Reason
                 </th>
                 <th scope="col" className="px-3 py-2">
@@ -153,6 +156,11 @@ export function PolicyImpactPreview({
                   </td>
                   <td className="px-3 py-3">
                     {formatConfidence(sample.confidence)}
+                  </td>
+                  <td className="px-3 py-3">
+                    {sample.blast_radius_scope
+                      ? formatLabel(sample.blast_radius_scope)
+                      : "Not recorded"}
                   </td>
                   <td className="max-w-64 px-3 py-3 leading-5">
                     {sample.reason}

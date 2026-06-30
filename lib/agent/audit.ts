@@ -17,6 +17,7 @@ type BuildFailedAgentActionAuditInput = {
   caseId: number | null;
   accountId: number | null;
   policyDecision: PolicyDecision;
+  directive?: ActionDirective;
   error: unknown;
 };
 
@@ -41,7 +42,13 @@ function getDirectiveMetadata(
     max_blast_radius: directive.max_blast_radius,
     requires_reversible: directive.requires_reversible,
     blast_radius: directive.blast_radius,
+    blast_radius_scope: directive.blast_radius_scope,
+    blast_radius_reason: directive.blast_radius_reason,
     reversible: directive.reversible,
+    breaker_tripped: directive.breaker_tripped,
+    breaker_reasons: directive.breaker_reasons,
+    breaker_keys: directive.breaker_keys,
+    breaker_source: directive.breaker_source,
     segment: directive.segment,
   };
 }
@@ -51,6 +58,7 @@ export function buildFailedAgentActionAudit({
   caseId,
   accountId,
   policyDecision,
+  directive,
   error,
 }: BuildFailedAgentActionAuditInput): AgentActionInput {
   return {
@@ -62,6 +70,7 @@ export function buildFailedAgentActionAudit({
     confidence: policyDecision.confidence,
     reasoning_summary: policyDecision.reasoning_summary,
     metadata: {
+      ...(directive ? getDirectiveMetadata(directive) : {}),
       reason: "Post-sales action failed",
       error: getErrorMessage(error),
     },

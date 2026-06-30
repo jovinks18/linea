@@ -15,6 +15,10 @@ import {
   listActionAutonomyPolicies,
 } from "../../../lib/agent/autonomy-policy.repository";
 import {
+  listActiveCircuitBreakers,
+  type AgentCircuitBreakerRecord,
+} from "../../../lib/agent/circuit-breaker";
+import {
   listActionAutonomyPolicyAudits,
   type ActionAutonomyPolicyAuditRecord,
   type ActionAutonomyPolicyChangeType,
@@ -97,9 +101,11 @@ type PolicyAdminData = {
   policies: ActionAutonomyPolicy[];
   audits: ActionAutonomyPolicyAuditRecord[];
   requests: ActionAutonomyPolicyChangeRequestRecord[];
+  circuitBreakers: AgentCircuitBreakerRecord[];
   policyError: string | null;
   auditError: string | null;
   requestError: string | null;
+  circuitBreakerError: string | null;
 };
 
 async function settle<T>(
@@ -132,6 +138,9 @@ async function loadPolicyAdminData(): Promise<PolicyAdminData> {
         status: "pending",
       })
     );
+    const circuitBreakersResult = await settle(() =>
+      listActiveCircuitBreakers(connectedClient)
+    );
 
     if (policiesResult.status === "rejected") {
       console.error(
@@ -160,12 +169,25 @@ async function loadPolicyAdminData(): Promise<PolicyAdminData> {
       );
     }
 
+    if (circuitBreakersResult.status === "rejected") {
+      console.error(
+        "Unable to load agent circuit breakers:",
+        circuitBreakersResult.reason instanceof Error
+          ? circuitBreakersResult.reason.message
+          : "Unknown database error"
+      );
+    }
+
     return {
       policies:
         policiesResult.status === "fulfilled" ? policiesResult.value : [],
       audits: auditsResult.status === "fulfilled" ? auditsResult.value : [],
       requests:
         requestsResult.status === "fulfilled" ? requestsResult.value : [],
+      circuitBreakers:
+        circuitBreakersResult.status === "fulfilled"
+          ? circuitBreakersResult.value
+          : [],
       policyError:
         policiesResult.status === "rejected"
           ? "Autonomy policies could not be loaded. Check the local database connection and try again."
@@ -178,6 +200,10 @@ async function loadPolicyAdminData(): Promise<PolicyAdminData> {
         requestsResult.status === "rejected"
           ? "Pending policy changes could not be loaded. Apply the change-request migration and try again."
           : null,
+      circuitBreakerError:
+        circuitBreakersResult.status === "rejected"
+          ? "Circuit breakers could not be loaded. Apply the circuit-breaker migration and try again."
+          : null,
     };
   } catch (error) {
     console.error(
@@ -189,12 +215,15 @@ async function loadPolicyAdminData(): Promise<PolicyAdminData> {
       policies: [],
       audits: [],
       requests: [],
+      circuitBreakers: [],
       policyError:
         "Autonomy policies could not be loaded. Check the local database connection and try again.",
       auditError:
         "Policy change history could not be loaded. Check the local database connection and try again.",
       requestError:
         "Pending policy changes could not be loaded. Check the local database connection and try again.",
+      circuitBreakerError:
+        "Circuit breakers could not be loaded. Check the local database connection and try again.",
     };
   } finally {
     client?.release();
@@ -205,8 +234,16 @@ export default async function AutonomyPoliciesPage() {
   const operator = await getCurrentOperator();
   if (!operator) redirect("/login?returnTo=/admin/policies");
 
-  const { policies, audits, requests, policyError, auditError, requestError } =
-    await loadPolicyAdminData();
+  const {
+    policies,
+    audits,
+    requests,
+    circuitBreakers,
+    policyError,
+    auditError,
+    requestError,
+    circuitBreakerError,
+  } = await loadPolicyAdminData();
 
   return (
     <AppShell active="policies">
@@ -254,6 +291,80 @@ export default async function AutonomyPoliciesPage() {
               facts
             </p>
           </div>
+        </Panel>
+
+        <Panel
+          eyebrow="Runtime safety"
+          title="Circuit Breakers"
+          action={
+            circuitBreakers.length > 0 ? (
+              <StatusPill variant="danger">
+                {circuitBreakers.length} active
+              </StatusPill>
+            ) : undefined
+          }
+        >
+          {circuitBreakerError ? (
+            <div
+              role="alert"
+              className="rounded-lg border border-[var(--status-red-border)] bg-[var(--status-red-bg)] p-5"
+            >
+              <p className="font-medium text-[var(--status-red-text)]">
+                Circuit breaker status unavailable
+              </p>
+              <p className="mt-2 text-sm leading-6 text-[var(--text-secondary)]">
+                {circuitBreakerError}
+              </p>
+            </div>
+          ) : circuitBreakers.length === 0 ? (
+            <div className="rounded-lg border border-dashed border-[var(--border-subtle)] bg-[var(--surface-2)] p-5">
+              <p className="font-medium text-[var(--text-primary)]">
+                No active circuit breakers.
+              </p>
+              <p className="mt-2 text-sm leading-6 text-[var(--text-muted)]">
+                Directive planning will still evaluate recent failures and
+                policy-rejection spikes.
+              </p>
+            </div>
+          ) : (
+            <div className="grid gap-3">
+              {circuitBreakers.map((breaker) => (
+                <article
+                  key={breaker.id}
+                  className="grid gap-4 rounded-lg border border-[var(--status-red-border)] bg-[var(--status-red-bg)] p-4 lg:grid-cols-[minmax(0,1fr)_auto]"
+                >
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <p className="font-mono text-sm font-medium text-[var(--text-primary)]">
+                        {breaker.breaker_key}
+                      </p>
+                      <StatusPill variant="danger">Active</StatusPill>
+                      <StatusPill variant="default">
+                        {formatLabel(breaker.scope)}
+                      </StatusPill>
+                    </div>
+                    <p className="mt-3 text-sm leading-6 text-[var(--text-secondary)]">
+                      {breaker.reason}
+                    </p>
+                    <p className="mt-2 text-xs text-[var(--text-subtle)]">
+                      Triggered by {breaker.triggered_by}
+                    </p>
+                    {Object.keys(breaker.metadata).length > 0 ? (
+                      <pre className="mt-3 overflow-x-auto rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-1)] p-3 text-xs leading-5 text-[var(--text-muted)]">
+                        {JSON.stringify(breaker.metadata, null, 2)}
+                      </pre>
+                    ) : null}
+                  </div>
+                  <time
+                    dateTime={breaker.triggered_at.toISOString()}
+                    className="text-xs text-[var(--text-subtle)] lg:text-right"
+                  >
+                    {formatDate(breaker.triggered_at)}
+                  </time>
+                </article>
+              ))}
+            </div>
+          )}
         </Panel>
 
         <Panel

@@ -90,6 +90,26 @@ The model never writes SQL or calls a repository. It can only return a validated
 
 This boundary prepares Linea for future approval queues and external tools: integrations can consume explicit action records without granting a model direct database access.
 
+## Runtime Guardrails
+
+Each proposed action receives a computed blast radius based on its actual case,
+account, multi-account, or global scope. Directive planning records the numeric
+radius, scope, and user-safe reason before applying the configured autonomy
+policy.
+
+Circuit-breaker state is evaluated from three deterministic sources:
+
+1. Active manual breakers scoped globally, by action type, or by segment.
+2. Three or more recent failed agent actions within the lookback window.
+3. Three or more recent rejected policy changes within the lookback window.
+
+A tripped breaker causes bounded or autonomous directives to become suggested
+through the existing `decide()` guard path. The post-sales executor therefore
+does not perform the blocked account mutation. Audit metadata records the
+breaker source, keys, reasons, and computed blast-radius evidence. Historical
+policy simulation replays only the evidence stored with each action and never
+queries current breaker state.
+
 ## Operator Identity And Policy Governance
 
 Policy administration requires a configured local operator username, password,
@@ -165,6 +185,7 @@ The current schema is intentionally simple. Some product concepts are mapped int
 - `product_signals`: structured product feedback, gaps, bugs, or requests surfaced from conversations.
 - `account_health_events`: account-level health changes and risk events.
 - `agent_actions`: audit records for recommended, executed, skipped, and failed agent actions.
+- `agent_circuit_breakers`: manual and system safety stops evaluated during directive planning.
 
 ## Planned Components
 

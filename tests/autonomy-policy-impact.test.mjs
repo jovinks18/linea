@@ -32,7 +32,9 @@ function actionRow(overrides = {}) {
     confidence: "0.85",
     metadata: {
       blast_radius: 1,
+      blast_radius_scope: "account",
       reversible: true,
+      breaker_tripped: false,
       segment: "linked_account",
     },
     created_at: "2026-06-30T01:00:00.000Z",

@@ -30,6 +30,7 @@ export type PolicyImpactSample = {
   simulated_status: PolicyImpactStatus;
   reason: string;
   confidence: number | null;
+  blast_radius_scope: string | null;
   created_at: string;
 };
 
@@ -88,6 +89,9 @@ function getMissingDirectiveMetadata(
   if (!Number.isFinite(action.metadata.blast_radius)) {
     missing.push("blast_radius");
   }
+  if (typeof action.metadata.blast_radius_scope !== "string") {
+    missing.push("blast_radius_scope");
+  }
   if (typeof action.metadata.reversible !== "boolean") {
     missing.push("reversible");
   }
@@ -110,6 +114,15 @@ function buildProposedAction(
         : false,
     segment: normalizeSegment(action.metadata),
   };
+}
+
+const missingBreakerEvidenceNote =
+  "Breaker metadata missing; assumed not tripped for historical simulation.";
+
+function addLimitation(summary: PolicyImpactSummary, limitation: string) {
+  if (!summary.limitations.includes(limitation)) {
+    summary.limitations.push(limitation);
+  }
 }
 
 function getGuardFailureReason(
@@ -151,6 +164,10 @@ function addSample(
     simulated_status: simulatedStatus,
     reason,
     confidence: action.confidence,
+    blast_radius_scope:
+      typeof action.metadata.blast_radius_scope === "string"
+        ? action.metadata.blast_radius_scope
+        : null,
     created_at: action.created_at.toISOString(),
   });
 }
@@ -221,6 +238,11 @@ export function simulatePolicyImpact({
     }
 
     const proposedAction = buildProposedAction(action);
+    const breakerEvidenceMissing =
+      typeof action.metadata.breaker_tripped !== "boolean";
+    if (breakerEvidenceMissing) {
+      addLimitation(summary, missingBreakerEvidenceNote);
+    }
     const directive = decide(proposedAction, { policy });
     const simulatedStatus = directive.execute ? "executed" : "suggested";
     let reason = directive.reason ?? "policy guards pass";
@@ -228,6 +250,21 @@ export function simulatePolicyImpact({
     if (directive.reason === "out_of_bounds" || directive.reason === "guard_failed") {
       summary.guard_failures += 1;
       reason = getGuardFailureReason(proposedAction, policy);
+
+      if (
+        proposedAction.breaker_tripped &&
+        Array.isArray(action.metadata.breaker_reasons)
+      ) {
+        const breakerReasons = action.metadata.breaker_reasons.filter(
+          (value): value is string => typeof value === "string"
+        );
+        if (breakerReasons.length > 0) {
+          reason = `${reason}: ${breakerReasons.join("; ")}`;
+        }
+      }
+    }
+    if (breakerEvidenceMissing) {
+      reason = `${reason}; breaker metadata missing, assumed not tripped`;
     }
 
     if (action.status === "executed" && simulatedStatus === "executed") {

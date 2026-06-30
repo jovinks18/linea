@@ -15,6 +15,7 @@ import {
   executePostSalesAction,
   PostSalesActionExecutionError,
 } from "../lib/post-sales/execution-error.ts";
+import { generateIntakeResponse } from "../lib/responses/router.ts";
 
 const now = new Date("2026-01-15T12:00:00.000Z");
 
@@ -61,7 +62,25 @@ function createDirective(actionType, execute, overrides = {}) {
       actionType === "detect_onboarding_blocker"
         ? 0
         : 1,
+    blast_radius_scope:
+      actionType === "require_human_review" ||
+      actionType === "detect_onboarding_blocker"
+        ? "none"
+        : actionType === "create_support_case"
+          ? "case"
+          : "account",
+    blast_radius_reason:
+      actionType === "require_human_review" ||
+      actionType === "detect_onboarding_blocker"
+        ? "Classifies or routes work without mutating customer records."
+        : actionType === "create_support_case"
+          ? "Affects only the current support case."
+          : "Affects one linked account.",
     reversible: actionType !== "update_account_health",
+    breaker_tripped: false,
+    breaker_reasons: [],
+    breaker_keys: [],
+    breaker_source: "none",
     segment: "linked_account",
     ...overrides,
   };
@@ -201,11 +220,59 @@ assert.equal(
 assert.equal(knownBlocker.audit[0].metadata.tier, "bounded");
 assert.equal(knownBlocker.audit[0].metadata.segment, "linked_account");
 assert.equal(knownBlocker.audit[0].metadata.blast_radius, 1);
+assert.equal(knownBlocker.audit[0].metadata.blast_radius_scope, "case");
+assert.equal(knownBlocker.audit[0].metadata.breaker_tripped, false);
 assert.equal(knownBlocker.audit[5].metadata.reversible, false);
 assert.equal(
   knownBlocker.audit[5].metadata.requires_reversible,
   false
 );
+
+{
+  const breakerDirectives =
+    knownBlocker.envelope.policy_decision.recommended_actions.map(
+      (actionType) =>
+        createDirective(actionType, actionType === "create_support_case", {
+          breaker_tripped: true,
+          breaker_reasons: ["Synthetic breaker"],
+          breaker_keys: ["synthetic-breaker"],
+          breaker_source: "manual",
+          ...(actionType === "create_support_case"
+            ? {}
+            : {
+                enqueue_review: true,
+                reason: "out_of_bounds",
+              }),
+        })
+    );
+  const breakerExecution = buildExecutionResult({
+    caseId: 104,
+    accountId: 10,
+    caseWasCreated: true,
+    onboardingBlockerDetected: true,
+    actions: createActions(),
+    actionDirectives: breakerDirectives,
+  });
+  const breakerDecision = buildAgentDecision({
+    policyDecision: knownBlocker.envelope.policy_decision,
+    executionResult: breakerExecution,
+  });
+
+  assert.deepEqual(breakerDecision.executed_actions, [
+    "create_support_case",
+  ]);
+  assert.equal(breakerDecision.requires_human_review, true);
+  assert.match(
+    generateIntakeResponse({
+      message:
+        "Our API setup is still blocked and we are supposed to go live Friday.",
+      onboardingBlockerDetected: true,
+      hasLinkedAccount: true,
+      automationBlockedByBreaker: true,
+    }),
+    /held by an active safety circuit breaker/
+  );
+}
 
 const unknownBlocker = buildScenario({
   caseId: 102,

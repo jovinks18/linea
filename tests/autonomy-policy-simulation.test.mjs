@@ -28,7 +28,9 @@ function action(id, status, overrides = {}) {
     confidence: 0.85,
     metadata: {
       blast_radius: 1,
+      blast_radius_scope: "account",
       reversible: true,
+      breaker_tripped: false,
       segment: "linked_account",
     },
     created_at: new Date(`2026-06-30T00:00:0${id}.000Z`),
@@ -39,11 +41,61 @@ function action(id, status, overrides = {}) {
 {
   const impact = simulatePolicyImpact({
     policy: policy(),
+    actions: [
+      action(1, "executed", {
+        metadata: {
+          blast_radius: 1,
+          blast_radius_scope: "account",
+          reversible: true,
+          breaker_tripped: true,
+          breaker_reasons: ["Synthetic breaker"],
+          segment: "linked_account",
+        },
+      }),
+    ],
+  });
+
+  assert.equal(impact.would_change_executed_to_suggested, 1);
+  assert.equal(impact.guard_failures, 1);
+  assert.match(impact.sample_impacts[0].reason, /breaker tripped/);
+  assert.match(impact.sample_impacts[0].reason, /Synthetic breaker/);
+}
+
+{
+  const impact = simulatePolicyImpact({
+    policy: policy(),
+    actions: [
+      action(2, "executed", {
+        metadata: {
+          blast_radius: 1,
+          blast_radius_scope: "account",
+          reversible: true,
+          segment: "linked_account",
+        },
+      }),
+    ],
+  });
+
+  assert.equal(impact.would_remain_executed, 1);
+  assert.match(
+    impact.limitations.join(" "),
+    /Breaker metadata missing; assumed not tripped/
+  );
+  assert.match(
+    impact.sample_impacts[0].reason,
+    /breaker metadata missing, assumed not tripped/
+  );
+}
+
+{
+  const impact = simulatePolicyImpact({
+    policy: policy(),
     actions: [action(1, "suggested")],
   });
 
   assert.equal(impact.would_change_suggested_to_executed, 1);
   assert.equal(impact.sample_impacts[0].simulated_status, "executed");
+  assert.equal(impact.sample_impacts[0].blast_radius_scope, "account");
 }
 
 {

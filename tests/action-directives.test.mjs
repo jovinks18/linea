@@ -159,8 +159,15 @@ const seedLikePolicies = [
   assert.equal(directives[5].requires_reversible, false);
   assert.equal(directives[5].reversible, false);
   assert.equal(directives[5].blast_radius, 1);
+  assert.equal(directives[5].blast_radius_scope, "account");
+  assert.equal(
+    directives[5].blast_radius_reason,
+    "Affects one linked account."
+  );
   assert.equal(directives[5].segment, "linked_account");
   assert.equal(directives[1].blast_radius, 0);
+  assert.equal(directives[1].blast_radius_scope, "none");
+  assert.equal(directives[0].blast_radius_scope, "case");
 }
 
 {
@@ -233,6 +240,30 @@ const seedLikePolicies = [
       },
     ]
   );
+}
+
+{
+  const breakerState = {
+    tripped: true,
+    reasons: ["Manual breaker synthetic-stop: Test stop"],
+    breaker_keys: ["synthetic-stop"],
+    source: "manual",
+  };
+  const [directive] = await buildActionDirectives({
+    client: createFakeClient(seedLikePolicies),
+    policyDecision: createPolicyDecision(["create_csm_task"]),
+    accountId: 123,
+    caseId: 456,
+    breakerStates: new Map([["create_csm_task", breakerState]]),
+  });
+
+  assert.equal(directive.execute, false);
+  assert.equal(directive.status, "suggested");
+  assert.equal(directive.reason, "out_of_bounds");
+  assert.equal(directive.breaker_tripped, true);
+  assert.deepEqual(directive.breaker_reasons, breakerState.reasons);
+  assert.deepEqual(directive.breaker_keys, ["synthetic-stop"]);
+  assert.equal(directive.breaker_source, "manual");
 }
 
 {

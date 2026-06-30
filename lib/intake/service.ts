@@ -8,6 +8,10 @@ import {
 } from "../agent/audit";
 import { buildActionDirectives } from "../agent/action-directives";
 import {
+  getCircuitBreakerStatesForActions,
+} from "../agent/circuit-breaker";
+import { getAutonomySegment } from "../agent/autonomy-policy";
+import {
   buildAgentDecision,
   buildAgentEnvelope,
   buildPolicyDecision,
@@ -79,6 +83,7 @@ export async function processIntakeMessage({
     caseId: number | null;
     accountId: number | null;
     policyDecision: PolicyDecision;
+    actionDirectives: Awaited<ReturnType<typeof buildActionDirectives>>;
   } | null = null;
 
   try {
@@ -157,17 +162,30 @@ export async function processIntakeMessage({
       }),
       modelProposal,
     });
+    const accountId = account?.id ?? null;
+    const autonomySegment = getAutonomySegment({ accountId });
+    const breakerStates = await getCircuitBreakerStatesForActions(client, {
+      actionTypes: policyDecision.recommended_actions,
+      segment: autonomySegment,
+      accountId,
+    });
     const actionDirectives = await buildActionDirectives({
       client,
       policyDecision,
-      accountId: account?.id ?? null,
-      breakerTripped: false,
+      accountId,
+      caseId: supportCase.id,
+      affectedAccountIds: account ? [account.id] : [],
+      affectedCustomerIds: [customer.id],
+      isBatch: false,
+      isPolicyChange: false,
+      breakerStates,
     });
 
     failureAuditContext = {
       caseId: caseWasCreated ? null : supportCase.id,
-      accountId: account?.id ?? null,
+      accountId,
       policyDecision,
+      actionDirectives,
     };
 
     const postSalesActions = await runPostSalesAutomation({
@@ -191,6 +209,12 @@ export async function processIntakeMessage({
       message,
       onboardingBlockerDetected: messageLevelOnboardingBlocker,
       hasLinkedAccount: account !== null,
+      automationBlockedByBreaker: actionDirectives.some(
+        (directive) =>
+          directive.action_type !== "create_support_case" &&
+          directive.breaker_tripped &&
+          !directive.execute
+      ),
     });
 
     const agentEnvelope = buildAgentEnvelope({
@@ -259,6 +283,9 @@ export async function processIntakeMessage({
         caseId: failureAuditContext.caseId,
         accountId: failureAuditContext.accountId,
         policyDecision: failureAuditContext.policyDecision,
+        directive: failureAuditContext.actionDirectives.find(
+          (directive) => directive.action_type === error.actionType
+        ),
         error: error.originalError,
       });
 

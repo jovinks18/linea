@@ -206,6 +206,23 @@ CREATE TABLE action_autonomy_policy_change_requests (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+CREATE TABLE agent_circuit_breakers (
+  id BIGSERIAL PRIMARY KEY,
+  breaker_key TEXT NOT NULL,
+  scope TEXT NOT NULL DEFAULT 'global',
+  status TEXT NOT NULL DEFAULT 'active' CHECK (
+    status IN ('active', 'cleared')
+  ),
+  reason TEXT NOT NULL,
+  triggered_by TEXT NOT NULL,
+  triggered_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  cleared_by TEXT,
+  cleared_at TIMESTAMPTZ,
+  metadata JSONB NOT NULL DEFAULT '{}'::jsonb,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
 CREATE INDEX idx_accounts_health_status ON accounts(health_status);
 CREATE INDEX idx_accounts_stage ON accounts(stage);
 CREATE INDEX idx_account_contacts_customer_id ON account_contacts(customer_id);
@@ -237,6 +254,14 @@ CREATE INDEX idx_action_autonomy_policy_change_requests_segment
   ON action_autonomy_policy_change_requests(segment);
 CREATE INDEX idx_action_autonomy_policy_change_requests_created_at
   ON action_autonomy_policy_change_requests(created_at DESC);
+CREATE INDEX idx_agent_circuit_breakers_breaker_key
+  ON agent_circuit_breakers(breaker_key);
+CREATE INDEX idx_agent_circuit_breakers_status
+  ON agent_circuit_breakers(status);
+CREATE INDEX idx_agent_circuit_breakers_scope
+  ON agent_circuit_breakers(scope);
+CREATE INDEX idx_agent_circuit_breakers_triggered_at
+  ON agent_circuit_breakers(triggered_at DESC);
 CREATE INDEX idx_cases_human_review ON cases(last_activity_at DESC)
   WHERE requires_human_review = TRUE;
 

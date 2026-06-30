@@ -225,6 +225,11 @@ export function buildAgentDecision({
 }): AgentDecision {
   return {
     ...policyDecision,
+    requires_human_review:
+      policyDecision.requires_human_review ||
+      executionResult.suggested_actions.some(
+        (directive) => directive.enqueue_review === true
+      ),
     executed_actions: executionResult.executed_actions,
   };
 }

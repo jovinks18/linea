@@ -26,10 +26,15 @@ export function generateIntakeResponse(input: {
   message: string;
   onboardingBlockerDetected: boolean;
   hasLinkedAccount: boolean;
+  automationBlockedByBreaker?: boolean;
 }): string {
   if (input.onboardingBlockerDetected) {
     if (!input.hasLinkedAccount) {
       return "Thanks for flagging this. I’ve identified this as an onboarding or go-live blocker, but I could not find a linked account for this customer. I created a support case and marked it for human review.";
+    }
+
+    if (input.automationBlockedByBreaker) {
+      return "Thanks for flagging this. I’ve identified an onboarding blocker and created a support case, but automated account actions were held by an active safety circuit breaker for human review.";
     }
 
     return "Thanks for flagging this. I’ve marked this as an onboarding blocker, created a CSM follow-up task, logged an implementation product signal, and updated the account health to at-risk. A team member should follow up before the go-live date.";
