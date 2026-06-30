@@ -133,6 +133,7 @@ export function PolicyEditorTable({
       });
       const result = (await response.json()) as {
         errors?: string[];
+        mode?: "applied" | "pending_approval";
       };
 
       if (!response.ok) {
@@ -145,7 +146,11 @@ export function PolicyEditorTable({
       }
 
       setEditState(null);
-      setNotice("Policy updated and audit record created.");
+      setNotice(
+        result.mode === "pending_approval"
+          ? "Change request created and pending approval."
+          : "Policy updated and audit record created."
+      );
       router.refresh();
     } catch {
       setErrors(["Policy update could not reach the local server."]);

@@ -16,7 +16,10 @@ export type ActionAutonomyPolicyChangeType =
   | "created"
   | "updated"
   | "deleted"
-  | "seeded";
+  | "seeded"
+  | "requested"
+  | "approved"
+  | "rejected";
 
 export type ActionAutonomyPolicyAuditInput = {
   action_type: string;
@@ -71,6 +74,9 @@ const changeTypes: ActionAutonomyPolicyChangeType[] = [
   "updated",
   "deleted",
   "seeded",
+  "requested",
+  "approved",
+  "rejected",
 ];
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -90,7 +96,7 @@ function isChangeType(
   return changeTypes.includes(value as ActionAutonomyPolicyChangeType);
 }
 
-function normalizeSnapshot(
+export function normalizeActionAutonomyPolicySnapshot(
   value: unknown
 ): ActionAutonomyPolicySnapshot | null {
   if (!isRecord(value)) return null;
@@ -128,8 +134,10 @@ function normalizeAuditRow(
   row: ActionAutonomyPolicyAuditRow
 ): ActionAutonomyPolicyAuditRecord | null {
   const oldPolicy =
-    row.old_policy === null ? null : normalizeSnapshot(row.old_policy);
-  const newPolicy = normalizeSnapshot(row.new_policy);
+    row.old_policy === null
+      ? null
+      : normalizeActionAutonomyPolicySnapshot(row.old_policy);
+  const newPolicy = normalizeActionAutonomyPolicySnapshot(row.new_policy);
   const createdAt = new Date(row.created_at);
 
   if (

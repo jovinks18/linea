@@ -27,6 +27,11 @@ export type PolicyUpdateValidationResult =
       errors: string[];
     };
 
+export type PolicyChangeRisk = {
+  risky: boolean;
+  reasons: string[];
+};
+
 const allowedPatchFields = new Set([
   "tier",
   "confidence_floor",
@@ -181,5 +186,67 @@ export function validatePolicyUpdate({
       changedBy: normalizedChangedBy,
       changeReason: normalizedChangeReason,
     },
+  };
+}
+
+const tierRisk: Record<AutonomyTier, number> = {
+  shadow: 0,
+  supervised: 1,
+  bounded: 2,
+  autonomous: 3,
+};
+
+export function classifyPolicyChangeRisk({
+  existingPolicy,
+  normalizedPatch,
+}: {
+  existingPolicy: ActionAutonomyPolicy;
+  normalizedPatch: PolicyUpdatePatch;
+}): PolicyChangeRisk {
+  const reasons: string[] = [];
+  const nextTier = normalizedPatch.tier ?? existingPolicy.tier;
+  const nextConfidence =
+    normalizedPatch.confidence_floor ?? existingPolicy.confidence_floor;
+  const nextBlastRadius =
+    normalizedPatch.max_blast_radius ?? existingPolicy.max_blast_radius;
+  const nextRequiresReversible =
+    normalizedPatch.requires_reversible ?? existingPolicy.requires_reversible;
+
+  if (tierRisk[nextTier] > tierRisk[existingPolicy.tier]) {
+    reasons.push(
+      `Tier increases from ${existingPolicy.tier} to ${nextTier}.`
+    );
+  }
+
+  if (nextConfidence < existingPolicy.confidence_floor) {
+    reasons.push(
+      `Confidence floor decreases from ${existingPolicy.confidence_floor} to ${nextConfidence}.`
+    );
+  }
+
+  if (nextBlastRadius > existingPolicy.max_blast_radius) {
+    reasons.push(
+      `Max blast radius increases from ${existingPolicy.max_blast_radius} to ${nextBlastRadius}.`
+    );
+  }
+
+  if (existingPolicy.requires_reversible && !nextRequiresReversible) {
+    reasons.push("Reversibility is no longer required.");
+  }
+
+  const boundedGuardsLoosen =
+    existingPolicy.tier === "bounded" &&
+    nextTier === "bounded" &&
+    (nextConfidence < existingPolicy.confidence_floor ||
+      nextBlastRadius > existingPolicy.max_blast_radius ||
+      (existingPolicy.requires_reversible && !nextRequiresReversible));
+
+  if (boundedGuardsLoosen) {
+    reasons.push("Bounded policy guards become less restrictive.");
+  }
+
+  return {
+    risky: reasons.length > 0,
+    reasons,
   };
 }

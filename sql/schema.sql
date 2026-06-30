@@ -172,11 +172,38 @@ CREATE TABLE action_autonomy_policy_audit (
   old_policy JSONB,
   new_policy JSONB NOT NULL,
   change_type TEXT NOT NULL CHECK (
-    change_type IN ('created', 'updated', 'deleted', 'seeded')
+    change_type IN (
+      'created',
+      'updated',
+      'deleted',
+      'seeded',
+      'requested',
+      'approved',
+      'rejected'
+    )
   ),
   changed_by TEXT NOT NULL,
   change_reason TEXT,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE action_autonomy_policy_change_requests (
+  id BIGSERIAL PRIMARY KEY,
+  action_type TEXT NOT NULL,
+  segment TEXT,
+  old_policy JSONB NOT NULL,
+  proposed_policy JSONB NOT NULL,
+  patch JSONB NOT NULL,
+  status TEXT NOT NULL DEFAULT 'pending' CHECK (
+    status IN ('pending', 'approved', 'rejected', 'cancelled')
+  ),
+  requested_by TEXT NOT NULL,
+  request_reason TEXT NOT NULL,
+  reviewed_by TEXT,
+  review_reason TEXT,
+  reviewed_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 CREATE INDEX idx_accounts_health_status ON accounts(health_status);
@@ -202,6 +229,14 @@ CREATE INDEX idx_action_autonomy_policy_audit_change_type
   ON action_autonomy_policy_audit(change_type);
 CREATE INDEX idx_action_autonomy_policy_audit_created_at
   ON action_autonomy_policy_audit(created_at DESC);
+CREATE INDEX idx_action_autonomy_policy_change_requests_status
+  ON action_autonomy_policy_change_requests(status);
+CREATE INDEX idx_action_autonomy_policy_change_requests_action_type
+  ON action_autonomy_policy_change_requests(action_type);
+CREATE INDEX idx_action_autonomy_policy_change_requests_segment
+  ON action_autonomy_policy_change_requests(segment);
+CREATE INDEX idx_action_autonomy_policy_change_requests_created_at
+  ON action_autonomy_policy_change_requests(created_at DESC);
 CREATE INDEX idx_cases_human_review ON cases(last_activity_at DESC)
   WHERE requires_human_review = TRUE;
 

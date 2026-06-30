@@ -3,6 +3,9 @@ import { AppShell } from "../../../components/AppShell";
 import { Panel } from "../../../components/Panel";
 import { PolicyEditorTable } from "../../../components/PolicyEditorTable";
 import {
+  PolicyChangeRequestsPanel,
+} from "../../../components/PolicyChangeRequestsPanel";
+import {
   StatusPill,
   type StatusPillVariant,
 } from "../../../components/StatusPill";
@@ -14,6 +17,11 @@ import {
   type ActionAutonomyPolicyAuditRecord,
   type ActionAutonomyPolicyChangeType,
 } from "../../../lib/agent/autonomy-policy-audit.repository";
+import {
+  listActionAutonomyPolicyChangeRequests,
+  type ActionAutonomyPolicyChangeRequestRecord,
+} from "../../../lib/agent/autonomy-policy-change-request.repository";
+import { classifyPolicyChangeRisk } from "../../../lib/agent/autonomy-policy-validation";
 import type {
   ActionAutonomyPolicy,
   AutonomyTier,
@@ -75,6 +83,9 @@ function changeTypeVariant(
 ): StatusPillVariant {
   if (changeType === "deleted") return "danger";
   if (changeType === "updated") return "warning";
+  if (changeType === "requested") return "warning";
+  if (changeType === "approved") return "success";
+  if (changeType === "rejected") return "danger";
   if (changeType === "created") return "info";
   return "muted";
 }
@@ -82,8 +93,10 @@ function changeTypeVariant(
 type PolicyAdminData = {
   policies: ActionAutonomyPolicy[];
   audits: ActionAutonomyPolicyAuditRecord[];
+  requests: ActionAutonomyPolicyChangeRequestRecord[];
   policyError: string | null;
   auditError: string | null;
+  requestError: string | null;
 };
 
 async function loadPolicyAdminData(): Promise<PolicyAdminData> {
@@ -92,10 +105,14 @@ async function loadPolicyAdminData(): Promise<PolicyAdminData> {
   try {
     client = await pool.connect();
 
-    const [policiesResult, auditsResult] = await Promise.allSettled([
+    const [policiesResult, auditsResult, requestsResult] =
+      await Promise.allSettled([
       listActionAutonomyPolicies(client),
       listActionAutonomyPolicyAudits(client),
-    ]);
+        listActionAutonomyPolicyChangeRequests(client, {
+          status: "pending",
+        }),
+      ]);
 
     if (policiesResult.status === "rejected") {
       console.error(
@@ -115,10 +132,21 @@ async function loadPolicyAdminData(): Promise<PolicyAdminData> {
       );
     }
 
+    if (requestsResult.status === "rejected") {
+      console.error(
+        "Unable to load autonomy policy change requests:",
+        requestsResult.reason instanceof Error
+          ? requestsResult.reason.message
+          : "Unknown database error"
+      );
+    }
+
     return {
       policies:
         policiesResult.status === "fulfilled" ? policiesResult.value : [],
       audits: auditsResult.status === "fulfilled" ? auditsResult.value : [],
+      requests:
+        requestsResult.status === "fulfilled" ? requestsResult.value : [],
       policyError:
         policiesResult.status === "rejected"
           ? "Autonomy policies could not be loaded. Check the local database connection and try again."
@@ -126,6 +154,10 @@ async function loadPolicyAdminData(): Promise<PolicyAdminData> {
       auditError:
         auditsResult.status === "rejected"
           ? "Policy change history could not be loaded. Apply the audit migration and try again."
+          : null,
+      requestError:
+        requestsResult.status === "rejected"
+          ? "Pending policy changes could not be loaded. Apply the change-request migration and try again."
           : null,
     };
   } catch (error) {
@@ -137,10 +169,13 @@ async function loadPolicyAdminData(): Promise<PolicyAdminData> {
     return {
       policies: [],
       audits: [],
+      requests: [],
       policyError:
         "Autonomy policies could not be loaded. Check the local database connection and try again.",
       auditError:
         "Policy change history could not be loaded. Check the local database connection and try again.",
+      requestError:
+        "Pending policy changes could not be loaded. Check the local database connection and try again.",
     };
   } finally {
     client?.release();
@@ -148,7 +183,7 @@ async function loadPolicyAdminData(): Promise<PolicyAdminData> {
 }
 
 export default async function AutonomyPoliciesPage() {
-  const { policies, audits, policyError, auditError } =
+  const { policies, audits, requests, policyError, auditError, requestError } =
     await loadPolicyAdminData();
 
   return (
@@ -194,6 +229,58 @@ export default async function AutonomyPoliciesPage() {
               facts
             </p>
           </div>
+        </Panel>
+
+        <Panel
+          eyebrow="Approval queue"
+          title="Pending Policy Change Requests"
+          action={
+            requests.length > 0 ? (
+              <StatusPill variant="warning">
+                {requests.length} pending
+              </StatusPill>
+            ) : undefined
+          }
+        >
+          {requestError ? (
+            <div
+              role="alert"
+              className="rounded-lg border border-[var(--status-red-border)] bg-[var(--status-red-bg)] p-5"
+            >
+              <p className="font-medium text-[var(--status-red-text)]">
+                Approval queue unavailable
+              </p>
+              <p className="mt-2 text-sm leading-6 text-[var(--text-secondary)]">
+                {requestError}
+              </p>
+            </div>
+          ) : requests.length === 0 ? (
+            <div className="rounded-lg border border-dashed border-[var(--border-subtle)] bg-[var(--surface-2)] p-5">
+              <p className="font-medium text-[var(--text-primary)]">
+                No policy changes are waiting for approval.
+              </p>
+              <p className="mt-2 text-sm leading-6 text-[var(--text-muted)]">
+                Risky edits appear here without affecting effective policy.
+              </p>
+            </div>
+          ) : (
+            <PolicyChangeRequestsPanel
+              requests={requests.map((request) => ({
+                id: request.id,
+                action_type: request.action_type,
+                segment: request.segment,
+                old_policy: request.old_policy,
+                proposed_policy: request.proposed_policy,
+                requested_by: request.requested_by,
+                request_reason: request.request_reason,
+                created_at: request.created_at.toISOString(),
+                risk_reasons: classifyPolicyChangeRisk({
+                  existingPolicy: request.old_policy,
+                  normalizedPatch: request.patch,
+                }).reasons,
+              }))}
+            />
+          )}
         </Panel>
 
         <Panel

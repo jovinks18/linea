@@ -209,7 +209,7 @@ export async function listActionAutonomyPolicies(
   });
 }
 
-async function findActionAutonomyPolicyForUpdate(
+export async function findActionAutonomyPolicyForUpdate(
   client: PoolClient,
   actionType: string,
   segment: string | null

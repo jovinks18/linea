@@ -99,7 +99,7 @@ function createSnapshot({
               ...createSnapshot({ confidenceFloor: "0.80" }),
               updated_at: "2026-06-28T12:00:00.000Z",
             },
-            change_type: "updated",
+            change_type: "requested",
             changed_by: "operator@example.invalid",
             change_reason: "Synthetic policy review",
             created_at: "2026-06-28T12:01:00.000Z",
@@ -128,7 +128,7 @@ function createSnapshot({
   const audits = await listActionAutonomyPolicyAudits(client, {
     actionType: "create_csm_task",
     segment: "linked_account",
-    changeType: "updated",
+    changeType: "requested",
     limit: 10,
   });
 
@@ -137,11 +137,12 @@ function createSnapshot({
   assert.deepEqual(calls[0].values, [
     "create_csm_task",
     "linked_account",
-    "updated",
+    "requested",
     10,
   ]);
   assert.equal(audits.length, 2);
   assert.equal(audits[0].id, "52");
+  assert.equal(audits[0].change_type, "requested");
   assert.equal(audits[0].old_policy?.confidence_floor, 0.9);
   assert.equal(audits[0].new_policy.confidence_floor, 0.8);
   assert.ok(audits[0].old_policy?.updated_at instanceof Date);

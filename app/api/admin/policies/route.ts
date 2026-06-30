@@ -2,8 +2,8 @@ import type { PoolClient } from "pg";
 import {
   ActionAutonomyPolicyNotFoundError,
   ActionAutonomyPolicyValidationError,
-  updateActionAutonomyPolicyWithAudit,
 } from "../../../../lib/agent/autonomy-policy.repository";
+import { submitActionAutonomyPolicyChange } from "../../../../lib/agent/autonomy-policy-change-service";
 import { pool } from "../../../../lib/db";
 
 export const runtime = "nodejs";
@@ -65,7 +65,7 @@ export async function PATCH(request: Request) {
 
     // Replace this caller-supplied identity with the authenticated operator
     // once Linea adds authentication.
-    const updatedPolicy = await updateActionAutonomyPolicyWithAudit(client, {
+    const result = await submitActionAutonomyPolicyChange(client, {
       action_type: actionType,
       segment,
       patch: body.patch as Record<string, unknown>,
@@ -78,12 +78,7 @@ export async function PATCH(request: Request) {
     await client.query("COMMIT");
     transactionStarted = false;
 
-    return Response.json({
-      policy: {
-        ...updatedPolicy,
-        updated_at: updatedPolicy.updated_at.toISOString(),
-      },
-    });
+    return Response.json(result);
   } catch (error) {
     if (client && transactionStarted) {
       try {
