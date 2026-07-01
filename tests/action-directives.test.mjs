@@ -119,12 +119,6 @@ const seedLikePolicies = [
     })),
     [
       {
-        action_type: "create_support_case",
-        execute: true,
-        status: "executed",
-        enqueue_review: undefined,
-      },
-      {
         action_type: "detect_onboarding_blocker",
         execute: true,
         status: "executed",
@@ -156,18 +150,17 @@ const seedLikePolicies = [
       },
     ]
   );
-  assert.equal(directives[5].requires_reversible, false);
-  assert.equal(directives[5].reversible, false);
-  assert.equal(directives[5].blast_radius, 1);
-  assert.equal(directives[5].blast_radius_scope, "account");
+  assert.equal(directives[4].requires_reversible, false);
+  assert.equal(directives[4].reversible, false);
+  assert.equal(directives[4].blast_radius, 1);
+  assert.equal(directives[4].blast_radius_scope, "account");
   assert.equal(
-    directives[5].blast_radius_reason,
+    directives[4].blast_radius_reason,
     "Affects one linked account."
   );
-  assert.equal(directives[5].segment, "linked_account");
-  assert.equal(directives[1].blast_radius, 0);
-  assert.equal(directives[1].blast_radius_scope, "none");
-  assert.equal(directives[0].blast_radius_scope, "case");
+  assert.equal(directives[4].segment, "linked_account");
+  assert.equal(directives[0].blast_radius, 0);
+  assert.equal(directives[0].blast_radius_scope, "none");
 }
 
 {
@@ -196,12 +189,6 @@ const seedLikePolicies = [
       tier,
     })),
     [
-      {
-        action_type: "create_support_case",
-        execute: true,
-        reason: undefined,
-        tier: "bounded",
-      },
       {
         action_type: "detect_onboarding_blocker",
         execute: false,
@@ -267,15 +254,13 @@ const seedLikePolicies = [
 }
 
 {
-  const [directive] = await buildActionDirectives({
+  const directives = await buildActionDirectives({
     client: createFakeClient(seedLikePolicies),
     policyDecision: createPolicyDecision(["create_support_case"], 0.5),
     accountId: 123,
   });
 
-  assert.equal(directive.execute, false);
-  assert.equal(directive.status, "suggested");
-  assert.equal(directive.reason, "out_of_bounds");
+  assert.deepEqual(directives, []);
 }
 
 {

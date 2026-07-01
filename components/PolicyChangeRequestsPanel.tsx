@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import type { PolicyImpactSummary } from "../lib/agent/autonomy-policy-simulation";
-import { formatUtcDateTime } from "../lib/ui/date";
+import { formatOperatorDateTime } from "../lib/ui/datetime";
 import { PolicyImpactPreview } from "./PolicyImpactPreview";
 import { StatusPill } from "./StatusPill";
 
@@ -228,7 +228,7 @@ export function PolicyChangeRequestsPanel({
                 </p>
                 <p className="mt-2 text-xs text-[var(--text-subtle)]">
                   Requested by {request.requested_by} on{" "}
-                  {formatUtcDateTime(request.created_at)}
+                  {formatOperatorDateTime(request.created_at)}
                 </p>
               </div>
               <div className="flex flex-wrap gap-2">

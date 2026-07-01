@@ -15,6 +15,7 @@ import {
   priorityVariant,
   severityVariant,
 } from "../../lib/ui/status";
+import { formatOperatorDateTime } from "../../lib/ui/datetime";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -25,12 +26,6 @@ function EmptyState({ label }: { label: string }) {
       {label}
     </div>
   );
-}
-
-function formatDate(value: string | null) {
-  if (!value) return "Not set";
-
-  return new Date(value).toLocaleString();
 }
 
 function formatLabel(value: string | null | undefined) {
@@ -340,7 +335,9 @@ export default async function DashboardPage({
                         dateTime={action.executed_at ?? action.created_at}
                         className="basis-full"
                       >
-                        {formatDate(action.executed_at ?? action.created_at)}
+                        {formatOperatorDateTime(
+                          action.executed_at ?? action.created_at
+                        )}
                       </time>
                     </div>
                   </article>
@@ -605,7 +602,8 @@ export default async function DashboardPage({
                       {supportCase.subject ?? "No subject"}
                     </p>
                     <p className="mt-3 text-xs text-[var(--text-subtle)]">
-                      Last activity: {formatDate(supportCase.last_activity_at)}
+                      Last activity:{" "}
+                      {formatOperatorDateTime(supportCase.last_activity_at)}
                     </p>
                   </Link>
                 ))}

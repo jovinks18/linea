@@ -8,7 +8,7 @@ import {
 } from "./StatusPill";
 import { PolicyImpactPreview } from "./PolicyImpactPreview";
 import type { PolicyImpactSummary } from "../lib/agent/autonomy-policy-simulation";
-import { formatUtcDateTime } from "../lib/ui/date";
+import { formatOperatorDateTime } from "../lib/ui/datetime";
 
 type AutonomyTier = "shadow" | "supervised" | "bounded" | "autonomous";
 
@@ -292,7 +292,7 @@ export function PolicyEditorTable({
                     </td>
                     <td className="whitespace-nowrap px-4 py-4 text-xs text-[var(--text-muted)]">
                       <time dateTime={policy.updated_at}>
-                        {formatUtcDateTime(policy.updated_at)}
+                        {formatOperatorDateTime(policy.updated_at)}
                       </time>
                     </td>
                     <td className="px-4 py-4">

@@ -12,6 +12,7 @@ import {
   reviewVariant,
   sentimentVariant,
 } from "../../lib/ui/status";
+import { formatOperatorDateTime } from "../../lib/ui/datetime";
 
 type AgentDecision = {
   classification: string;
@@ -123,10 +124,6 @@ function formatLabel(value: string | null | undefined) {
     .split("_")
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
     .join(" ");
-}
-
-function formatDate(value: string) {
-  return new Date(value).toLocaleString();
 }
 
 function DetailRow({
@@ -697,7 +694,7 @@ export default function ChatPage() {
                             />
                             <DetailRow
                               label="Last activity"
-                              value={formatDate(
+                              value={formatOperatorDateTime(
                                 caseDetails.case.last_activity_at
                               )}
                             />
@@ -714,7 +711,7 @@ export default function ChatPage() {
                                     {formatLabel(msg.sender_type)}
                                   </p>
                                   <p className="text-xs text-zinc-600">
-                                    {formatDate(msg.created_at)}
+                                    {formatOperatorDateTime(msg.created_at)}
                                   </p>
                                 </div>
                                 <p className="mt-3 text-sm leading-6 text-zinc-400">

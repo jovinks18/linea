@@ -1,4 +1,5 @@
 import {
+  DataImportValidationError,
   importDataset,
   type DataSourceMode,
 } from "../../../../lib/data-onboarding/service";
@@ -29,6 +30,16 @@ export async function POST(request: Request) {
 
     return Response.json(await importDataset({ mode, sessionId }));
   } catch (error) {
+    if (error instanceof DataImportValidationError) {
+      return Response.json(
+        {
+          error: error.message,
+          validation_errors: error.validationErrors,
+        },
+        { status: 422 }
+      );
+    }
+
     console.error("Data import failed", error);
     return Response.json(
       {

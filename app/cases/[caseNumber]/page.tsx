@@ -18,6 +18,7 @@ import {
   reviewVariant,
   sentimentVariant,
 } from "../../../lib/ui/status";
+import { formatOperatorDateTime } from "../../../lib/ui/datetime";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -29,10 +30,6 @@ function formatLabel(value: string | null | undefined) {
     .split("_")
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
     .join(" ");
-}
-
-function formatDate(value: string | null) {
-  return value ? new Date(value).toLocaleString() : "Not set";
 }
 
 function Detail({
@@ -130,7 +127,7 @@ export default async function CaseDetailPage({
                 {formatLabel(detail.case.review_status)}
               </Detail>
               <Detail label="Last activity">
-                {formatDate(detail.case.last_activity_at)}
+                {formatOperatorDateTime(detail.case.last_activity_at)}
               </Detail>
             </dl>
           </Panel>
@@ -247,7 +244,7 @@ export default async function CaseDetailPage({
                       dateTime={message.created_at}
                       className="text-xs text-[var(--text-subtle)]"
                     >
-                      {formatDate(message.created_at)}
+                      {formatOperatorDateTime(message.created_at)}
                     </time>
                   </div>
                   <p className="mt-3 whitespace-pre-wrap text-sm leading-6 text-[var(--text-secondary)]">
@@ -380,7 +377,9 @@ export default async function CaseDetailPage({
                       dateTime={action.executed_at ?? action.created_at}
                       className="text-xs text-[var(--text-subtle)]"
                     >
-                      {formatDate(action.executed_at ?? action.created_at)}
+                      {formatOperatorDateTime(
+                        action.executed_at ?? action.created_at
+                      )}
                     </time>
                   </article>
                 );

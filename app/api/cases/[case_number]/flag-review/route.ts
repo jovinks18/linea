@@ -1,4 +1,8 @@
 import { NextResponse } from "next/server";
+import {
+  getCurrentOperator,
+  operatorUnauthorizedResponse,
+} from "../../../../../lib/auth/current-operator";
 import { flagCaseForHumanReview } from "../../../../../lib/cases/review-repository";
 import { pool } from "../../../../../lib/db";
 
@@ -8,6 +12,9 @@ export async function POST(
   _request: Request,
   { params }: { params: Promise<{ case_number: string }> }
 ) {
+  const operator = await getCurrentOperator();
+  if (!operator) return operatorUnauthorizedResponse();
+
   const { case_number: caseNumber } = await params;
 
   if (!caseNumber) {
@@ -21,7 +28,10 @@ export async function POST(
 
   try {
     await client.query("BEGIN");
-    const result = await flagCaseForHumanReview(client, caseNumber);
+    const result = await flagCaseForHumanReview(client, {
+      caseNumber,
+      operatorUsername: operator.username,
+    });
 
     if (!result) {
       await client.query("ROLLBACK");

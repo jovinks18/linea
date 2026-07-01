@@ -9,6 +9,7 @@ import type { ExecutionResult, PolicyDecision } from "./types";
 type BuildAgentActionAuditInput = {
   executionResult: ExecutionResult;
   policyDecision: PolicyDecision;
+  intakeRunId: string;
   now?: Date;
 };
 
@@ -19,6 +20,7 @@ type BuildFailedAgentActionAuditInput = {
   policyDecision: PolicyDecision;
   directive?: ActionDirective;
   error: unknown;
+  intakeRunId: string;
 };
 
 function getErrorMessage(error: unknown) {
@@ -60,6 +62,7 @@ export function buildFailedAgentActionAudit({
   policyDecision,
   directive,
   error,
+  intakeRunId,
 }: BuildFailedAgentActionAuditInput): AgentActionInput {
   return {
     case_id: caseId,
@@ -70,6 +73,7 @@ export function buildFailedAgentActionAudit({
     confidence: policyDecision.confidence,
     reasoning_summary: policyDecision.reasoning_summary,
     metadata: {
+      intake_run_id: intakeRunId,
       ...(directive ? getDirectiveMetadata(directive) : {}),
       reason: "Post-sales action failed",
       error: getErrorMessage(error),
@@ -81,6 +85,7 @@ export function buildFailedAgentActionAudit({
 export function buildAgentActionAudit({
   executionResult,
   policyDecision,
+  intakeRunId,
   now = new Date(),
 }: BuildAgentActionAuditInput): AgentActionInput[] {
   const auditRows: AgentActionInput[] = [];
@@ -102,26 +107,35 @@ export function buildAgentActionAudit({
       source: policyDecision.source,
       confidence: policyDecision.confidence,
       reasoning_summary: policyDecision.reasoning_summary,
-      metadata,
+      metadata: {
+        intake_run_id: intakeRunId,
+        ...metadata,
+      },
       executed_at: status === "executed" ? now : null,
     });
   };
 
   for (const action of executionResult.executed_actions) {
+    if (action === "create_support_case") {
+      addAction({
+        actionType: action,
+        status: "executed",
+        metadata: {
+          policy_exempt: true,
+          reason: "intake_capture_prerequisite",
+          case_resolution: executionResult.support_case_resolution,
+        },
+      });
+      continue;
+    }
+
     const directive = executionResult.executed_directives.find(
       (candidate) => candidate.action_type === action
     );
     addAction({
       actionType: action,
       status: "executed",
-      metadata: {
-        ...(directive ? getDirectiveMetadata(directive) : {}),
-        ...(action === "create_support_case"
-          ? {
-              case_resolution: executionResult.support_case_resolution,
-            }
-          : {}),
-      },
+      metadata: directive ? getDirectiveMetadata(directive) : {},
     });
   }
 

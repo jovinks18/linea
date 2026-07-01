@@ -8,6 +8,16 @@ import type { PoolClient } from "pg";
 import { pool } from "../db";
 
 export type DataSourceMode = "sample" | "upload";
+
+export class DataImportValidationError extends Error {
+  validationErrors: Record<string, unknown>[];
+
+  constructor(validationErrors: Record<string, unknown>[]) {
+    super("Import validation failed. Run the dry-run preview for details.");
+    this.name = "DataImportValidationError";
+    this.validationErrors = validationErrors;
+  }
+}
 export type UploadEntity =
   | "accounts"
   | "contacts"
@@ -520,9 +530,7 @@ export async function importDataset({
   const directory = getDatasetDirectory(mode, sessionId);
   const plan = buildDatasetPlan(mode, directory);
   if (plan.errors.length > 0) {
-    throw new Error(
-      "Import validation failed. Run the dry-run preview for details."
-    );
+    throw new DataImportValidationError(plan.errors);
   }
   const summary = await csvImporter.executeImport(plan);
 

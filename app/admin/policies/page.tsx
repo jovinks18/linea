@@ -34,6 +34,7 @@ import type {
 } from "../../../lib/agent/autonomy-policy";
 import { pool } from "../../../lib/db";
 import { getCurrentOperator } from "../../../lib/auth/current-operator";
+import { formatOperatorDateTime } from "../../../lib/ui/datetime";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -72,10 +73,6 @@ function formatLabel(value: string) {
 
 function formatSegment(segment: string | null) {
   return segment === null ? "Default" : formatLabel(segment);
-}
-
-function formatDate(value: Date) {
-  return value.toLocaleString();
 }
 
 function tierVariant(tier: AutonomyTier): StatusPillVariant {
@@ -359,7 +356,7 @@ export default async function AutonomyPoliciesPage() {
                     dateTime={breaker.triggered_at.toISOString()}
                     className="text-xs text-[var(--text-subtle)] lg:text-right"
                   >
-                    {formatDate(breaker.triggered_at)}
+                    {formatOperatorDateTime(breaker.triggered_at)}
                   </time>
                 </article>
               ))}
@@ -535,7 +532,7 @@ export default async function AutonomyPoliciesPage() {
                     dateTime={audit.created_at.toISOString()}
                     className="text-xs text-[var(--text-subtle)] md:text-right"
                   >
-                    {formatDate(audit.created_at)}
+                    {formatOperatorDateTime(audit.created_at)}
                   </time>
                 </article>
               ))}

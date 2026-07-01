@@ -55,6 +55,20 @@ assert.equal(
   getAutonomySummary({ status: "executed", metadata: {} }),
   null
 );
+assert.equal(
+  getAutonomySummary({
+    status: "executed",
+    metadata: {
+      policy_exempt: true,
+      reason: "intake_capture_prerequisite",
+    },
+  }),
+  "Executed as the policy-exempt intake capture prerequisite."
+);
+assert.deepEqual(
+  getAutonomyBadges({ policy_exempt: true }),
+  [{ kind: "exempt", label: "Intake prerequisite" }]
+);
 assert.deepEqual(getAutonomyBadges(undefined), []);
 assert.deepEqual(
   getAutonomyBadges({

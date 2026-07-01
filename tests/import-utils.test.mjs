@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import importUtils from "../scripts/import-utils.js";
 
 const {
@@ -115,5 +116,13 @@ assert.ok(
     error.includes("Missing required field: customer_email")
   )
 );
+
+const importRoute = readFileSync(
+  new URL("../app/api/data/import/route.ts", import.meta.url),
+  "utf8"
+);
+assert.match(importRoute, /DataImportValidationError/);
+assert.match(importRoute, /validation_errors: error\.validationErrors/);
+assert.match(importRoute, /status: 422/);
 
 console.log("PASS CSV import identity and validation");

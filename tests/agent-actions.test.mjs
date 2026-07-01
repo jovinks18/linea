@@ -90,8 +90,10 @@ function createScenarioDirectives(policyDecision, accountId) {
   const segment =
     accountId === null ? "unknown_account" : "linked_account";
 
-  return policyDecision.recommended_actions.map((actionType) => {
-    if (accountId !== null || actionType === "create_support_case") {
+  return policyDecision.recommended_actions
+    .filter((actionType) => actionType !== "create_support_case")
+    .map((actionType) => {
+    if (accountId !== null) {
       return createDirective(actionType, true, { segment });
     }
 
@@ -111,7 +113,7 @@ function createScenarioDirectives(policyDecision, accountId) {
       reason: "supervised",
       segment,
     });
-  });
+    });
 }
 
 function buildScenario({
@@ -122,6 +124,7 @@ function buildScenario({
   modelPlan,
   caseId,
   priority = "P1",
+  intakeRunId = `intake-${caseId}`,
 }) {
   const preliminaryExecutionResult = buildExecutionResult({
     caseId,
@@ -164,6 +167,7 @@ function buildScenario({
   const audit = buildAgentActionAudit({
     policyDecision: envelope.policy_decision,
     executionResult: envelope.execution_result,
+    intakeRunId,
     now,
   });
 
@@ -217,11 +221,16 @@ assert.equal(
   new Set(knownBlocker.audit.map(({ action_type }) => action_type)).size,
   knownBlocker.audit.length
 );
-assert.equal(knownBlocker.audit[0].metadata.tier, "bounded");
-assert.equal(knownBlocker.audit[0].metadata.segment, "linked_account");
-assert.equal(knownBlocker.audit[0].metadata.blast_radius, 1);
-assert.equal(knownBlocker.audit[0].metadata.blast_radius_scope, "case");
-assert.equal(knownBlocker.audit[0].metadata.breaker_tripped, false);
+assert.equal(knownBlocker.audit[0].metadata.policy_exempt, true);
+assert.equal(
+  knownBlocker.audit[0].metadata.reason,
+  "intake_capture_prerequisite"
+);
+assert.equal(knownBlocker.audit[0].metadata.case_resolution, "created");
+assert.equal(knownBlocker.audit[0].metadata.tier, undefined);
+assert.equal(knownBlocker.audit[0].metadata.breaker_tripped, undefined);
+assert.equal(knownBlocker.audit[1].metadata.tier, "bounded");
+assert.equal(knownBlocker.audit[1].metadata.segment, "linked_account");
 assert.equal(knownBlocker.audit[5].metadata.reversible, false);
 assert.equal(
   knownBlocker.audit[5].metadata.requires_reversible,
@@ -230,19 +239,17 @@ assert.equal(
 
 {
   const breakerDirectives =
-    knownBlocker.envelope.policy_decision.recommended_actions.map(
+    knownBlocker.envelope.policy_decision.recommended_actions
+      .filter((actionType) => actionType !== "create_support_case")
+      .map(
       (actionType) =>
-        createDirective(actionType, actionType === "create_support_case", {
+        createDirective(actionType, false, {
           breaker_tripped: true,
           breaker_reasons: ["Synthetic breaker"],
           breaker_keys: ["synthetic-breaker"],
           breaker_source: "manual",
-          ...(actionType === "create_support_case"
-            ? {}
-            : {
-                enqueue_review: true,
-                reason: "out_of_bounds",
-              }),
+          enqueue_review: true,
+          reason: "out_of_bounds",
         })
     );
   const breakerExecution = buildExecutionResult({
@@ -262,6 +269,18 @@ assert.equal(
     "create_support_case",
   ]);
   assert.equal(breakerDecision.requires_human_review, true);
+  const breakerAudit = buildAgentActionAudit({
+    policyDecision: knownBlocker.envelope.policy_decision,
+    executionResult: breakerExecution,
+    intakeRunId: "intake-breaker",
+    now,
+  });
+  assert.deepEqual(breakerAudit[0].metadata, {
+    intake_run_id: "intake-breaker",
+    policy_exempt: true,
+    reason: "intake_capture_prerequisite",
+    case_resolution: "created",
+  });
   assert.match(
     generateIntakeResponse({
       message:
@@ -345,6 +364,7 @@ const restoredSmartLockExecution = buildExecutionResult({
 const restoredSmartLockAudit = buildAgentActionAudit({
   executionResult: restoredSmartLockExecution,
   policyDecision: smartLock.envelope.policy_decision,
+  intakeRunId: "intake-restored-smart-lock",
   now,
 });
 
@@ -355,6 +375,17 @@ assert.equal(
   restoredSmartLockAudit[0].metadata.case_resolution,
   "restored"
 );
+assert.notEqual(
+  smartLock.audit[0].metadata.intake_run_id,
+  restoredSmartLockAudit[0].metadata.intake_run_id
+);
+
+for (const scenario of [knownBlocker, unknownBlocker, smartLock]) {
+  const outcomeKeys = scenario.audit.map(
+    (row) => `${row.metadata.intake_run_id}:${row.action_type}`
+  );
+  assert.equal(new Set(outcomeKeys).size, outcomeKeys.length);
+}
 
 const agreeingModel = buildScenario({
   caseId: 104,
@@ -407,6 +438,7 @@ const failedAction = buildFailedAgentActionAudit({
   accountId: 10,
   policyDecision: knownBlocker.envelope.policy_decision,
   error: simulatedPostSalesFailure.originalError,
+  intakeRunId: "intake-failed-action",
 });
 const transactionWrites = [failedAction];
 const durableWrites = [];
@@ -448,6 +480,7 @@ assert.deepEqual(durableWrites, [
     reasoning_summary:
       knownBlocker.envelope.policy_decision.reasoning_summary,
     metadata: {
+      intake_run_id: "intake-failed-action",
       reason: "Post-sales action failed",
       error: "Simulated task insert failure",
     },

@@ -16,6 +16,8 @@
     "test:agent-actions": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON tests/agent-actions.test.mjs",
     "test:blast-radius": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON tests/blast-radius.test.mjs",
     "test:circuit-breaker": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON tests/circuit-breaker.test.mjs",
+    "test:case-review": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON tests/case-review.test.mjs",
+    "test:datetime": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON tests/datetime.test.mjs",
     "test:autonomy-policy": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON tests/autonomy-policy.test.mjs",
     "test:autonomy-policy-audit": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON tests/autonomy-policy-audit.test.mjs",
     "test:autonomy-policy-edit": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON tests/autonomy-policy-edit.test.mjs",

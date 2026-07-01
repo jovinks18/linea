@@ -92,6 +92,10 @@ export async function buildActionDirectives({
   const directives: ActionDirective[] = [];
 
   for (const actionType of policyDecision.recommended_actions) {
+    if (actionType === "create_support_case") {
+      continue;
+    }
+
     const blastRadius = computeBlastRadius({
       action_type: actionType,
       case_id: caseId,

@@ -56,7 +56,6 @@ export function buildExecutionResult({
 
   for (const directive of actionDirectives) {
     if (directive.action_type === "create_support_case") {
-      executedDirectives.push(directive);
       continue;
     }
 

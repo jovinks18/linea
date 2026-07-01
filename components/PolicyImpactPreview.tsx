@@ -2,7 +2,7 @@ import type {
   PolicyImpactStatus,
   PolicyImpactSummary,
 } from "../lib/agent/autonomy-policy-simulation";
-import { formatUtcDateTime } from "../lib/ui/date";
+import { formatOperatorDateTime } from "../lib/ui/datetime";
 import {
   StatusPill,
   type StatusPillVariant,
@@ -167,7 +167,7 @@ export function PolicyImpactPreview({
                   </td>
                   <td className="whitespace-nowrap px-3 py-3 text-[var(--text-subtle)]">
                     <time dateTime={sample.created_at}>
-                      {formatUtcDateTime(sample.created_at)}
+                      {formatOperatorDateTime(sample.created_at)}
                     </time>
                   </td>
                 </tr>

@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import {
   findCustomerAccount,
   type PostSalesAccount,
@@ -79,6 +80,7 @@ export async function processIntakeMessage({
   message,
 }: IntakeRequest): Promise<IntakeResponse> {
   const client = await pool.connect();
+  const intakeRunId = randomUUID();
   let failureAuditContext: {
     caseId: number | null;
     accountId: number | null;
@@ -165,7 +167,9 @@ export async function processIntakeMessage({
     const accountId = account?.id ?? null;
     const autonomySegment = getAutonomySegment({ accountId });
     const breakerStates = await getCircuitBreakerStatesForActions(client, {
-      actionTypes: policyDecision.recommended_actions,
+      actionTypes: policyDecision.recommended_actions.filter(
+        (actionType) => actionType !== "create_support_case"
+      ),
       segment: autonomySegment,
       accountId,
     });
@@ -231,6 +235,7 @@ export async function processIntakeMessage({
     const agentActionAudit = buildAgentActionAudit({
       executionResult: agentEnvelope.execution_result,
       policyDecision: agentEnvelope.policy_decision,
+      intakeRunId,
     });
 
     await saveCaseAgentDecision(client, supportCase.id, agentDecision);
@@ -287,6 +292,7 @@ export async function processIntakeMessage({
           (directive) => directive.action_type === error.actionType
         ),
         error: error.originalError,
+        intakeRunId,
       });
 
       try {

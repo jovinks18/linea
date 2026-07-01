@@ -115,6 +115,7 @@ const mutationRoutes = [
   "app/api/admin/policies/route.ts",
   "app/api/admin/policy-change-requests/[id]/approve/route.ts",
   "app/api/admin/policy-change-requests/[id]/reject/route.ts",
+  "app/api/cases/[case_number]/flag-review/route.ts",
 ];
 
 for (const route of mutationRoutes) {
@@ -129,7 +130,7 @@ const policyRoute = readFileSync(
 );
 assert.match(policyRoute, /changed_by: operator\.username/);
 
-for (const route of mutationRoutes.slice(1)) {
+for (const route of mutationRoutes.slice(1, 3)) {
   const source = readFileSync(new URL(`../${route}`, import.meta.url), "utf8");
   assert.match(source, /reviewed_by: operator\.username/);
 }

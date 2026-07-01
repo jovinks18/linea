@@ -1,5 +1,6 @@
 import type { PoolClient } from "pg";
-import { insertAgentAction } from "../agent/repository";
+// @ts-expect-error Node's direct TypeScript test runner requires the extension.
+import { insertAgentAction } from "../agent/repository.ts";
 
 export type CaseReviewResult = {
   case_number: string;
@@ -10,7 +11,13 @@ export type CaseReviewResult = {
 
 export async function flagCaseForHumanReview(
   client: PoolClient,
-  caseNumber: string
+  {
+    caseNumber,
+    operatorUsername,
+  }: {
+    caseNumber: string;
+    operatorUsername: string;
+  }
 ): Promise<CaseReviewResult | null> {
   const caseResult = await client.query<{
     id: number;
@@ -67,6 +74,8 @@ export async function flagCaseForHumanReview(
       reasoning_summary: "Operator flagged this case for human review.",
       metadata: {
         reason: "Operator requested review",
+        actor: operatorUsername,
+        operator: operatorUsername,
       },
       executed_at: new Date(),
     });

@@ -6,7 +6,7 @@ export type AutonomyActionLike = {
 };
 
 export type AutonomyBadge = {
-  kind: "tier" | "counterfactual" | "review";
+  kind: "tier" | "counterfactual" | "review" | "exempt";
   label: string;
 };
 
@@ -21,6 +21,7 @@ export type AutonomyDetails = {
   requiresReversible: boolean | null;
   counterfactual: boolean;
   enqueueReview: boolean;
+  policyExempt: boolean;
 };
 
 function readString(metadata: AutonomyMetadata, key: string) {
@@ -67,11 +68,16 @@ export function getAutonomyDetails(
     requiresReversible: readBoolean(metadata, "requires_reversible"),
     counterfactual: readBoolean(metadata, "counterfactual") === true,
     enqueueReview: readBoolean(metadata, "enqueue_review") === true,
+    policyExempt: readBoolean(metadata, "policy_exempt") === true,
   };
 }
 
 export function getAutonomySummary(action: AutonomyActionLike) {
   const details = getAutonomyDetails(action.metadata);
+
+  if (details.policyExempt) {
+    return "Executed as the policy-exempt intake capture prerequisite.";
+  }
 
   if (details.counterfactual) {
     return "Counterfactual only; no database mutation was performed.";
@@ -118,6 +124,9 @@ export function getAutonomyBadges(
   const badges: AutonomyBadge[] = [];
   const tier = formatAutonomyTier(details.tier);
 
+  if (details.policyExempt) {
+    badges.push({ kind: "exempt", label: "Intake prerequisite" });
+  }
   if (tier) {
     badges.push({ kind: "tier", label: `${tier} policy` });
   }
