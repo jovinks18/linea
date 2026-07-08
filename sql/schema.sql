@@ -223,6 +223,22 @@ CREATE TABLE agent_circuit_breakers (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+CREATE TABLE model_scorecard (
+  id BIGSERIAL PRIMARY KEY,
+  action_type TEXT NOT NULL,
+  eval_run_id TEXT NOT NULL,
+  mode TEXT NOT NULL CHECK (
+    mode IN ('offline')
+  ),
+  f1 NUMERIC NOT NULL,
+  precision NUMERIC NOT NULL,
+  recall NUMERIC NOT NULL,
+  priority_exact NUMERIC NOT NULL,
+  unsafe_gate_rate NUMERIC NOT NULL,
+  sample_size INTEGER NOT NULL,
+  computed_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
 CREATE INDEX idx_accounts_health_status ON accounts(health_status);
 CREATE INDEX idx_accounts_stage ON accounts(stage);
 CREATE INDEX idx_account_contacts_customer_id ON account_contacts(customer_id);
@@ -262,6 +278,12 @@ CREATE INDEX idx_agent_circuit_breakers_scope
   ON agent_circuit_breakers(scope);
 CREATE INDEX idx_agent_circuit_breakers_triggered_at
   ON agent_circuit_breakers(triggered_at DESC);
+CREATE INDEX idx_model_scorecard_eval_run_id
+  ON model_scorecard(eval_run_id);
+CREATE INDEX idx_model_scorecard_action_type
+  ON model_scorecard(action_type);
+CREATE INDEX idx_model_scorecard_computed_at
+  ON model_scorecard(computed_at DESC);
 CREATE INDEX idx_cases_human_review ON cases(last_activity_at DESC)
   WHERE requires_human_review = TRUE;
 

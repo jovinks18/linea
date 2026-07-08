@@ -1,0 +1,774 @@
+[
+  {
+    "input": {
+      "channel": "web_chat",
+      "message": "Our API setup is still blocked and we are supposed to go live Friday.",
+      "account_context": {
+        "account_id": 1,
+        "customer_id": 1,
+        "name": "Acme Clinics",
+        "industry": "Healthcare",
+        "plan": "Growth",
+        "stage": "implementation",
+        "health_status": "at_risk"
+      }
+    },
+    "expected": {
+      "intent": "question",
+      "sentiment": "negative",
+      "priority": "P1",
+      "classification": "implementation_blocker",
+      "recommended_actions": [
+        "create_support_case",
+        "detect_onboarding_blocker",
+        "create_csm_task",
+        "log_product_signal",
+        "create_account_health_event",
+        "update_account_health"
+      ],
+      "must_gate": false
+    },
+    "meta": {
+      "id": "seed-known-api-blocker-001",
+      "source": "seed",
+      "labeled_by": "linea",
+      "labeled_at": "2026-07-07T00:00:00.000Z"
+    }
+  },
+  {
+    "input": {
+      "channel": "web_chat",
+      "message": "Our API setup is still blocked and we are supposed to go live Friday.",
+      "account_context": null
+    },
+    "expected": {
+      "intent": "question",
+      "sentiment": "negative",
+      "priority": "P1",
+      "classification": "implementation_blocker",
+      "recommended_actions": [
+        "create_support_case",
+        "detect_onboarding_blocker",
+        "create_csm_task",
+        "log_product_signal",
+        "create_account_health_event",
+        "update_account_health",
+        "require_human_review"
+      ],
+      "must_gate": true
+    },
+    "meta": {
+      "id": "seed-unknown-api-blocker-002",
+      "source": "seed",
+      "labeled_by": "linea",
+      "labeled_at": "2026-07-07T00:00:00.000Z"
+    }
+  },
+  {
+    "input": {
+      "channel": "web_chat",
+      "message": "My smart lock is not responding after I changed the batteries.",
+      "account_context": {
+        "account_id": 1,
+        "customer_id": 1,
+        "name": "Acme Clinics",
+        "industry": "Healthcare",
+        "plan": "Growth",
+        "stage": "implementation",
+        "health_status": "at_risk"
+      }
+    },
+    "expected": {
+      "intent": "question",
+      "sentiment": "negative",
+      "priority": "P1",
+      "classification": "support_question",
+      "recommended_actions": ["create_support_case"],
+      "must_gate": false
+    },
+    "meta": {
+      "id": "seed-smart-lock-battery-003",
+      "source": "seed",
+      "labeled_by": "linea",
+      "labeled_at": "2026-07-07T00:00:00.000Z"
+    }
+  },
+  {
+    "input": {
+      "channel": "email",
+      "message": "Can you help me with setup?",
+      "account_context": {
+        "account_id": 2,
+        "customer_id": 2,
+        "name": "Northstar Apartments",
+        "industry": "Property Management",
+        "plan": "Pro",
+        "stage": "onboarding",
+        "health_status": "healthy"
+      }
+    },
+    "expected": {
+      "intent": "request",
+      "sentiment": "neutral",
+      "priority": "P2",
+      "classification": "support_question",
+      "recommended_actions": ["create_support_case"],
+      "must_gate": false
+    },
+    "meta": {
+      "id": "seed-setup-question-004",
+      "source": "seed",
+      "labeled_by": "linea",
+      "labeled_at": "2026-07-07T00:00:00.000Z"
+    }
+  },
+  {
+    "input": {
+      "channel": "web_chat",
+      "message": "The gateway implementation is stuck and our launch is blocked.",
+      "account_context": {
+        "account_id": 1,
+        "customer_id": 1,
+        "name": "Acme Clinics",
+        "industry": "Healthcare",
+        "plan": "Growth",
+        "stage": "implementation",
+        "health_status": "at_risk"
+      }
+    },
+    "expected": {
+      "intent": "question",
+      "sentiment": "negative",
+      "priority": "P1",
+      "classification": "implementation_blocker",
+      "recommended_actions": [
+        "create_support_case",
+        "detect_onboarding_blocker",
+        "create_csm_task",
+        "log_product_signal",
+        "create_account_health_event",
+        "update_account_health"
+      ],
+      "must_gate": false
+    },
+    "meta": {
+      "id": "seed-gateway-launch-blocker-005",
+      "source": "seed",
+      "labeled_by": "linea",
+      "labeled_at": "2026-07-07T00:00:00.000Z"
+    }
+  },
+  {
+    "input": {
+      "channel": "email",
+      "message": "We cannot launch until someone helps with the API setup.",
+      "account_context": null
+    },
+    "expected": {
+      "intent": "question",
+      "sentiment": "neutral",
+      "priority": "P2",
+      "classification": "implementation_blocker",
+      "recommended_actions": [
+        "create_support_case",
+        "detect_onboarding_blocker",
+        "create_csm_task",
+        "log_product_signal",
+        "create_account_health_event",
+        "update_account_health",
+        "require_human_review"
+      ],
+      "must_gate": true
+    },
+    "meta": {
+      "id": "seed-unknown-cannot-launch-006",
+      "source": "seed",
+      "labeled_by": "linea",
+      "labeled_at": "2026-07-07T00:00:00.000Z"
+    }
+  },
+  {
+    "input": {
+      "channel": "web_chat",
+      "message": "Feature request: it would be helpful to bulk invite site admins.",
+      "account_context": {
+        "account_id": 3,
+        "customer_id": 3,
+        "name": "Bluebird Coworking",
+        "industry": "Coworking",
+        "plan": "Starter",
+        "stage": "live",
+        "health_status": "watch"
+      }
+    },
+    "expected": {
+      "intent": "request",
+      "sentiment": "neutral",
+      "priority": "P2",
+      "classification": "product_feedback",
+      "recommended_actions": ["create_support_case"],
+      "must_gate": false
+    },
+    "meta": {
+      "id": "seed-feature-request-007",
+      "source": "seed",
+      "labeled_by": "linea",
+      "labeled_at": "2026-07-07T00:00:00.000Z"
+    }
+  },
+  {
+    "input": {
+      "channel": "email",
+      "message": "The documentation is missing the SSO callback example.",
+      "account_context": null
+    },
+    "expected": {
+      "intent": "question",
+      "sentiment": "neutral",
+      "priority": "P2",
+      "classification": "product_feedback",
+      "recommended_actions": ["create_support_case"],
+      "must_gate": false
+    },
+    "meta": {
+      "id": "seed-docs-gap-008",
+      "source": "seed",
+      "labeled_by": "linea",
+      "labeled_at": "2026-07-07T00:00:00.000Z"
+    }
+  },
+  {
+    "input": {
+      "channel": "web_chat",
+      "message": "I am frustrated that the report export is not working.",
+      "account_context": {
+        "account_id": 4,
+        "customer_id": null,
+        "name": "Summit School District",
+        "industry": "Education",
+        "plan": "Enterprise",
+        "stage": "discovery",
+        "health_status": "unknown"
+      }
+    },
+    "expected": {
+      "intent": "complaint",
+      "sentiment": "negative",
+      "priority": "P1",
+      "classification": "unknown",
+      "recommended_actions": ["create_support_case"],
+      "must_gate": false
+    },
+    "meta": {
+      "id": "seed-complaint-not-blocker-009",
+      "source": "seed",
+      "labeled_by": "linea",
+      "labeled_at": "2026-07-07T00:00:00.000Z"
+    }
+  },
+  {
+    "input": {
+      "channel": "web_chat",
+      "message": "The camera has been offline since yesterday.",
+      "account_context": {
+        "account_id": 2,
+        "customer_id": 2,
+        "name": "Northstar Apartments",
+        "industry": "Property Management",
+        "plan": "Pro",
+        "stage": "onboarding",
+        "health_status": "healthy"
+      }
+    },
+    "expected": {
+      "intent": "question",
+      "sentiment": "neutral",
+      "priority": "P2",
+      "classification": "support_question",
+      "recommended_actions": ["create_support_case"],
+      "must_gate": false
+    },
+    "meta": {
+      "id": "seed-camera-offline-010",
+      "source": "seed",
+      "labeled_by": "linea",
+      "labeled_at": "2026-07-07T00:00:00.000Z"
+    }
+  },
+  {
+    "input": {
+      "channel": "web_chat",
+      "message": "We are locked out of the east entrance.",
+      "account_context": {
+        "account_id": 2,
+        "customer_id": 2,
+        "name": "Northstar Apartments",
+        "industry": "Property Management",
+        "plan": "Pro",
+        "stage": "onboarding",
+        "health_status": "healthy"
+      }
+    },
+    "expected": {
+      "intent": "question",
+      "sentiment": "negative",
+      "priority": "P1",
+      "classification": "support_question",
+      "recommended_actions": ["create_support_case"],
+      "must_gate": false
+    },
+    "meta": {
+      "id": "seed-lockout-support-011",
+      "source": "seed",
+      "labeled_by": "linea",
+      "labeled_at": "2026-07-07T00:00:00.000Z"
+    }
+  },
+  {
+    "input": {
+      "channel": "email",
+      "message": "Thanks, the setup went great.",
+      "account_context": {
+        "account_id": 3,
+        "customer_id": 3,
+        "name": "Bluebird Coworking",
+        "industry": "Coworking",
+        "plan": "Starter",
+        "stage": "live",
+        "health_status": "watch"
+      }
+    },
+    "expected": {
+      "intent": "question",
+      "sentiment": "positive",
+      "priority": "P2",
+      "classification": "support_question",
+      "recommended_actions": ["create_support_case"],
+      "must_gate": false
+    },
+    "meta": {
+      "id": "seed-positive-setup-012",
+      "source": "seed",
+      "labeled_by": "linea",
+      "labeled_at": "2026-07-07T00:00:00.000Z"
+    }
+  },
+  {
+    "input": {
+      "channel": "web_chat",
+      "message": "The onboarding checklist says implementation is done, but we still need to confirm the owner.",
+      "account_context": {
+        "account_id": 1,
+        "customer_id": 1,
+        "name": "Acme Clinics",
+        "industry": "Healthcare",
+        "plan": "Growth",
+        "stage": "implementation",
+        "health_status": "at_risk"
+      }
+    },
+    "expected": {
+      "intent": "question",
+      "sentiment": "neutral",
+      "priority": "P2",
+      "classification": "implementation_blocker",
+      "recommended_actions": [
+        "create_support_case",
+        "detect_onboarding_blocker",
+        "create_csm_task",
+        "log_product_signal",
+        "create_account_health_event",
+        "update_account_health"
+      ],
+      "must_gate": false
+    },
+    "meta": {
+      "id": "seed-implementation-near-miss-013",
+      "source": "seed",
+      "labeled_by": "linea",
+      "labeled_at": "2026-07-07T00:00:00.000Z"
+    }
+  },
+  {
+    "input": {
+      "channel": "email",
+      "message": "Please configure the admin permissions before training.",
+      "account_context": {
+        "account_id": 4,
+        "customer_id": null,
+        "name": "Summit School District",
+        "industry": "Education",
+        "plan": "Enterprise",
+        "stage": "discovery",
+        "health_status": "unknown"
+      }
+    },
+    "expected": {
+      "intent": "request",
+      "sentiment": "neutral",
+      "priority": "P2",
+      "classification": "support_question",
+      "recommended_actions": ["create_support_case"],
+      "must_gate": false
+    },
+    "meta": {
+      "id": "seed-configure-request-014",
+      "source": "seed",
+      "labeled_by": "linea",
+      "labeled_at": "2026-07-07T00:00:00.000Z"
+    }
+  },
+  {
+    "input": {
+      "channel": "web_chat",
+      "message": "The batteries failed again after one day.",
+      "account_context": null
+    },
+    "expected": {
+      "intent": "question",
+      "sentiment": "negative",
+      "priority": "P1",
+      "classification": "support_question",
+      "recommended_actions": ["create_support_case"],
+      "must_gate": false
+    },
+    "meta": {
+      "id": "seed-battery-failed-015",
+      "source": "seed",
+      "labeled_by": "linea",
+      "labeled_at": "2026-07-07T00:00:00.000Z"
+    }
+  },
+  {
+    "input": {
+      "channel": "web_chat",
+      "message": "There is a bug where the mobile unlock button disappears.",
+      "account_context": {
+        "account_id": 2,
+        "customer_id": 2,
+        "name": "Northstar Apartments",
+        "industry": "Property Management",
+        "plan": "Pro",
+        "stage": "onboarding",
+        "health_status": "healthy"
+      }
+    },
+    "expected": {
+      "intent": "question",
+      "sentiment": "neutral",
+      "priority": "P2",
+      "classification": "support_question",
+      "recommended_actions": ["create_support_case"],
+      "must_gate": false
+    },
+    "meta": {
+      "id": "seed-unlock-product-near-miss-016",
+      "source": "seed",
+      "labeled_by": "linea",
+      "labeled_at": "2026-07-07T00:00:00.000Z"
+    }
+  },
+  {
+    "input": {
+      "channel": "email",
+      "message": "We are angry about renewal pricing, but nothing is blocked.",
+      "account_context": null
+    },
+    "expected": {
+      "intent": "complaint",
+      "sentiment": "negative",
+      "priority": "P1",
+      "classification": "implementation_blocker",
+      "recommended_actions": [
+        "create_support_case",
+        "detect_onboarding_blocker",
+        "create_csm_task",
+        "log_product_signal",
+        "create_account_health_event",
+        "update_account_health",
+        "require_human_review"
+      ],
+      "must_gate": true
+    },
+    "meta": {
+      "id": "seed-complaint-blocked-word-017",
+      "source": "seed",
+      "labeled_by": "linea",
+      "labeled_at": "2026-07-07T00:00:00.000Z"
+    }
+  },
+  {
+    "input": {
+      "channel": "web_chat",
+      "message": "Can you help me understand whether go live requires the gateway first?",
+      "account_context": {
+        "account_id": 1,
+        "customer_id": 1,
+        "name": "Acme Clinics",
+        "industry": "Healthcare",
+        "plan": "Growth",
+        "stage": "implementation",
+        "health_status": "at_risk"
+      }
+    },
+    "expected": {
+      "intent": "request",
+      "sentiment": "neutral",
+      "priority": "P2",
+      "classification": "implementation_blocker",
+      "recommended_actions": [
+        "create_support_case",
+        "detect_onboarding_blocker",
+        "create_csm_task",
+        "log_product_signal",
+        "create_account_health_event",
+        "update_account_health"
+      ],
+      "must_gate": false
+    },
+    "meta": {
+      "id": "seed-go-live-question-018",
+      "source": "seed",
+      "labeled_by": "linea",
+      "labeled_at": "2026-07-07T00:00:00.000Z"
+    }
+  },
+  {
+    "input": {
+      "channel": "email",
+      "message": "The API setup looks complete, but the customer is stuck waiting for procurement.",
+      "account_context": null
+    },
+    "expected": {
+      "intent": "question",
+      "sentiment": "negative",
+      "priority": "P1",
+      "classification": "implementation_blocker",
+      "recommended_actions": [
+        "create_support_case",
+        "detect_onboarding_blocker",
+        "create_csm_task",
+        "log_product_signal",
+        "create_account_health_event",
+        "update_account_health",
+        "require_human_review"
+      ],
+      "must_gate": true
+    },
+    "meta": {
+      "id": "seed-procurement-stuck-019",
+      "source": "seed",
+      "labeled_by": "linea",
+      "labeled_at": "2026-07-07T00:00:00.000Z"
+    }
+  },
+  {
+    "input": {
+      "channel": "web_chat",
+      "message": "The thermostat is not working in the north wing.",
+      "account_context": {
+        "account_id": 4,
+        "customer_id": null,
+        "name": "Summit School District",
+        "industry": "Education",
+        "plan": "Enterprise",
+        "stage": "discovery",
+        "health_status": "unknown"
+      }
+    },
+    "expected": {
+      "intent": "complaint",
+      "sentiment": "negative",
+      "priority": "P1",
+      "classification": "unknown",
+      "recommended_actions": ["create_support_case"],
+      "must_gate": false
+    },
+    "meta": {
+      "id": "seed-thermostat-not-working-020",
+      "source": "seed",
+      "labeled_by": "linea",
+      "labeled_at": "2026-07-07T00:00:00.000Z"
+    }
+  },
+  {
+    "input": {
+      "channel": "email",
+      "message": "A missing feature is slowing down our site admin workflow.",
+      "account_context": {
+        "account_id": 3,
+        "customer_id": 3,
+        "name": "Bluebird Coworking",
+        "industry": "Coworking",
+        "plan": "Starter",
+        "stage": "live",
+        "health_status": "watch"
+      }
+    },
+    "expected": {
+      "intent": "question",
+      "sentiment": "neutral",
+      "priority": "P2",
+      "classification": "product_feedback",
+      "recommended_actions": ["create_support_case"],
+      "must_gate": false
+    },
+    "meta": {
+      "id": "seed-missing-feature-021",
+      "source": "seed",
+      "labeled_by": "linea",
+      "labeled_at": "2026-07-07T00:00:00.000Z"
+    }
+  },
+  {
+    "input": {
+      "channel": "web_chat",
+      "message": "The smart lock works, but the battery warning seems too early.",
+      "account_context": {
+        "account_id": 2,
+        "customer_id": 2,
+        "name": "Northstar Apartments",
+        "industry": "Property Management",
+        "plan": "Pro",
+        "stage": "onboarding",
+        "health_status": "healthy"
+      }
+    },
+    "expected": {
+      "intent": "question",
+      "sentiment": "neutral",
+      "priority": "P2",
+      "classification": "support_question",
+      "recommended_actions": ["create_support_case"],
+      "must_gate": false
+    },
+    "meta": {
+      "id": "seed-smart-lock-warning-022",
+      "source": "seed",
+      "labeled_by": "linea",
+      "labeled_at": "2026-07-07T00:00:00.000Z"
+    }
+  },
+  {
+    "input": {
+      "channel": "web_chat",
+      "message": "Please do not update health yet; we only need implementation owner details.",
+      "account_context": {
+        "account_id": 1,
+        "customer_id": 1,
+        "name": "Acme Clinics",
+        "industry": "Healthcare",
+        "plan": "Growth",
+        "stage": "implementation",
+        "health_status": "at_risk"
+      }
+    },
+    "expected": {
+      "intent": "request",
+      "sentiment": "neutral",
+      "priority": "P2",
+      "classification": "implementation_blocker",
+      "recommended_actions": [
+        "create_support_case",
+        "detect_onboarding_blocker",
+        "create_csm_task",
+        "log_product_signal",
+        "create_account_health_event",
+        "update_account_health"
+      ],
+      "must_gate": false
+    },
+    "meta": {
+      "id": "seed-operator-override-near-miss-023",
+      "source": "seed",
+      "labeled_by": "linea",
+      "labeled_at": "2026-07-07T00:00:00.000Z"
+    }
+  },
+  {
+    "input": {
+      "channel": "email",
+      "message": "Everything is fine, but can you send the onboarding checklist again?",
+      "account_context": null
+    },
+    "expected": {
+      "intent": "request",
+      "sentiment": "neutral",
+      "priority": "P2",
+      "classification": "implementation_blocker",
+      "recommended_actions": [
+        "create_support_case",
+        "detect_onboarding_blocker",
+        "create_csm_task",
+        "log_product_signal",
+        "create_account_health_event",
+        "update_account_health",
+        "require_human_review"
+      ],
+      "must_gate": true
+    },
+    "meta": {
+      "id": "seed-onboarding-checklist-024",
+      "source": "seed",
+      "labeled_by": "linea",
+      "labeled_at": "2026-07-07T00:00:00.000Z"
+    }
+  },
+  {
+    "input": {
+      "channel": "web_chat",
+      "message": "This is a complaint: the admin invite email never arrived.",
+      "account_context": null
+    },
+    "expected": {
+      "intent": "complaint",
+      "sentiment": "negative",
+      "priority": "P1",
+      "classification": "unknown",
+      "recommended_actions": ["create_support_case"],
+      "must_gate": false
+    },
+    "meta": {
+      "id": "seed-admin-invite-complaint-025",
+      "source": "seed",
+      "labeled_by": "linea",
+      "labeled_at": "2026-07-07T00:00:00.000Z"
+    }
+  },
+  {
+    "input": {
+      "channel": "email",
+      "message": "The docs mention go-live sequencing, but we are only planning next quarter.",
+      "account_context": {
+        "account_id": 4,
+        "customer_id": null,
+        "name": "Summit School District",
+        "industry": "Education",
+        "plan": "Enterprise",
+        "stage": "discovery",
+        "health_status": "unknown"
+      }
+    },
+    "expected": {
+      "intent": "question",
+      "sentiment": "neutral",
+      "priority": "P2",
+      "classification": "implementation_blocker",
+      "recommended_actions": [
+        "create_support_case",
+        "detect_onboarding_blocker",
+        "create_csm_task",
+        "log_product_signal",
+        "create_account_health_event",
+        "update_account_health"
+      ],
+      "must_gate": false
+    },
+    "meta": {
+      "id": "seed-docs-go-live-near-miss-026",
+      "source": "seed",
+      "labeled_by": "linea",
+      "labeled_at": "2026-07-07T00:00:00.000Z"
+    }
+  }
+]
