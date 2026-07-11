@@ -76,6 +76,10 @@ export function getAutonomySummary(action: AutonomyActionLike) {
   const details = getAutonomyDetails(action.metadata);
 
   if (details.policyExempt) {
+    if (details.enqueueReview) {
+      return "Suggested as a policy-exempt human review handoff.";
+    }
+
     return "Executed as the policy-exempt intake capture prerequisite.";
   }
 
@@ -125,7 +129,10 @@ export function getAutonomyBadges(
   const tier = formatAutonomyTier(details.tier);
 
   if (details.policyExempt) {
-    badges.push({ kind: "exempt", label: "Intake prerequisite" });
+    badges.push({
+      kind: "exempt",
+      label: details.enqueueReview ? "Review handoff" : "Intake prerequisite",
+    });
   }
   if (tier) {
     badges.push({ kind: "tier", label: `${tier} policy` });

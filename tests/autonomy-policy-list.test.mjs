@@ -24,6 +24,26 @@ const rows = [
     updated_by: null,
     updated_at: new Date("2026-02-01T00:00:00.000Z"),
   },
+  {
+    action_type: "create_support_case",
+    segment: "linked_account",
+    tier: "bounded",
+    confidence_floor: 0.7,
+    max_blast_radius: 1,
+    requires_reversible: true,
+    updated_by: "legacy_seed",
+    updated_at: new Date("2026-02-01T00:00:00.000Z"),
+  },
+  {
+    action_type: "require_human_review",
+    segment: "unknown_account",
+    tier: "bounded",
+    confidence_floor: 0.9,
+    max_blast_radius: 1,
+    requires_reversible: true,
+    updated_by: "legacy_seed",
+    updated_at: new Date("2026-02-01T00:00:00.000Z"),
+  },
 ];
 
 const calls = [];
@@ -39,6 +59,10 @@ const policies = await listActionAutonomyPolicies(client);
 assert.equal(calls.length, 1);
 assert.equal(calls[0].values, undefined);
 assert.match(calls[0].sql, /action_type ASC/);
+assert.match(
+  calls[0].sql,
+  /action_type NOT IN \('create_support_case', 'require_human_review'\)/
+);
 assert.match(calls[0].sql, /segment ASC NULLS FIRST/);
 assert.match(calls[0].sql, /updated_at DESC/);
 

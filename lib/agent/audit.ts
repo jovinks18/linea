@@ -37,6 +37,7 @@ function getDirectiveMetadata(
 ) {
   return {
     reason,
+    policy_exempt: directive.policy_exempt ?? false,
     tier: directive.tier,
     counterfactual: directive.counterfactual ?? false,
     enqueue_review: directive.enqueue_review ?? false,

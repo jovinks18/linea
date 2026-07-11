@@ -7,6 +7,7 @@ import * as policyAuditRepository from "./autonomy-policy-audit.repository.ts";
 import * as policyValidation from "./autonomy-policy-validation.ts";
 import type { ActionAutonomyPolicy } from "./autonomy-policy";
 import type {
+  ActionAutonomyPolicyGateEvidence,
   ActionAutonomyPolicySnapshot,
 } from "./autonomy-policy-audit.repository";
 import type { PolicyUpdatePatch } from "./autonomy-policy-validation";
@@ -25,6 +26,7 @@ export type ActionAutonomyPolicyChangeRequestInput = {
   patch: PolicyUpdatePatch;
   requested_by: string;
   request_reason: string;
+  gate_evidence?: ActionAutonomyPolicyGateEvidence | null;
 };
 
 export type ActionAutonomyPolicyChangeRequestRecord = {
@@ -37,6 +39,7 @@ export type ActionAutonomyPolicyChangeRequestRecord = {
   status: ActionAutonomyPolicyChangeRequestStatus;
   requested_by: string;
   request_reason: string;
+  gate_evidence: ActionAutonomyPolicyGateEvidence | null;
   reviewed_by: string | null;
   review_reason: string | null;
   reviewed_at: Date | null;
@@ -59,6 +62,11 @@ type ActionAutonomyPolicyChangeRequestRow = {
   status: string;
   requested_by: string;
   request_reason: string;
+  eval_run_id?: string | null;
+  f1?: string | number | null;
+  unsafe_gate_rate?: string | number | null;
+  sample_size?: string | number | null;
+  gate_run_id?: string | null;
   reviewed_by: string | null;
   review_reason: string | null;
   reviewed_at: Date | string | null;
@@ -111,11 +119,40 @@ function normalizeRequestRow(
     row.reviewed_at === null ? null : new Date(row.reviewed_at);
   const createdAt = new Date(row.created_at);
   const updatedAt = new Date(row.updated_at);
+  const evalRunId = row.eval_run_id ?? null;
+  const rawF1 = row.f1 ?? null;
+  const rawUnsafeGateRate = row.unsafe_gate_rate ?? null;
+  const rawSampleSize = row.sample_size ?? null;
+  const gateRunId = row.gate_run_id ?? null;
+  const f1 = rawF1 === null ? null : Number(rawF1);
+  const unsafeGateRate =
+    rawUnsafeGateRate === null ? null : Number(rawUnsafeGateRate);
+  const sampleSize = rawSampleSize === null ? null : Number(rawSampleSize);
+  const gateEvidence =
+    evalRunId === null &&
+    rawF1 === null &&
+    rawUnsafeGateRate === null &&
+    rawSampleSize === null &&
+    gateRunId === null
+      ? null
+      : {
+          eval_run_id: evalRunId,
+          f1,
+          unsafe_gate_rate: unsafeGateRate,
+          sample_size: sampleSize,
+          gate_run_id: gateRunId,
+        };
 
   if (
     !oldPolicy ||
     !proposedPolicy ||
     !patch ||
+    (gateEvidence !== null &&
+      (typeof gateEvidence.eval_run_id !== "string" ||
+        typeof gateEvidence.gate_run_id !== "string" ||
+        !Number.isFinite(gateEvidence.f1) ||
+        !Number.isFinite(gateEvidence.unsafe_gate_rate) ||
+        !Number.isInteger(gateEvidence.sample_size))) ||
     !requestStatuses.includes(
       row.status as ActionAutonomyPolicyChangeRequestStatus
     ) ||
@@ -136,6 +173,7 @@ function normalizeRequestRow(
     status: row.status as ActionAutonomyPolicyChangeRequestStatus,
     requested_by: row.requested_by,
     request_reason: row.request_reason,
+    gate_evidence: gateEvidence as ActionAutonomyPolicyGateEvidence | null,
     reviewed_by: row.reviewed_by,
     review_reason: row.review_reason,
     reviewed_at: reviewedAt,
@@ -241,9 +279,14 @@ export async function createActionAutonomyPolicyChangeRequest(
         proposed_policy,
         patch,
         requested_by,
-        request_reason
+        request_reason,
+        eval_run_id,
+        f1,
+        unsafe_gate_rate,
+        sample_size,
+        gate_run_id
       )
-     VALUES ($1, $2, $3::jsonb, $4::jsonb, $5::jsonb, $6, $7)
+     VALUES ($1, $2, $3::jsonb, $4::jsonb, $5::jsonb, $6, $7, $8, $9, $10, $11, $12)
      RETURNING *`,
     [
       input.action_type,
@@ -253,6 +296,11 @@ export async function createActionAutonomyPolicyChangeRequest(
       JSON.stringify(input.patch),
       input.requested_by,
       input.request_reason,
+      input.gate_evidence?.eval_run_id ?? null,
+      input.gate_evidence?.f1 ?? null,
+      input.gate_evidence?.unsafe_gate_rate ?? null,
+      input.gate_evidence?.sample_size ?? null,
+      input.gate_evidence?.gate_run_id ?? null,
     ]
   );
 
@@ -270,6 +318,7 @@ export async function createActionAutonomyPolicyChangeRequest(
     change_type: "requested",
     changed_by: request.requested_by,
     change_reason: request.request_reason,
+    gate_evidence: request.gate_evidence,
   });
 
   return request;
@@ -466,6 +515,7 @@ export async function approveActionAutonomyPolicyChangeRequest(
     change_type: "approved",
     changed_by: reviewer.reviewedBy,
     change_reason: reviewer.reviewReason,
+    gate_evidence: request.gate_evidence,
   });
 
   return {
@@ -527,6 +577,7 @@ export async function rejectActionAutonomyPolicyChangeRequest(
     change_type: "rejected",
     changed_by: reviewer.reviewedBy,
     change_reason: reviewer.reviewReason,
+    gate_evidence: request.gate_evidence,
   });
 
   return rejectedRequest;

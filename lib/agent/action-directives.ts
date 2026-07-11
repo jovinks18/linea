@@ -25,10 +25,11 @@ export type ActionDirective = {
   enqueue_review?: boolean;
   counterfactual?: boolean;
   reason?: string;
-  tier: AutonomyTier;
-  confidence_floor: number;
-  max_blast_radius: number;
-  requires_reversible: boolean;
+  policy_exempt?: boolean;
+  tier?: AutonomyTier;
+  confidence_floor?: number;
+  max_blast_radius?: number;
+  requires_reversible?: boolean;
   blast_radius: number;
   blast_radius_scope: BlastRadiusScope;
   blast_radius_reason: string;
@@ -67,6 +68,46 @@ function buildProposedAction({
   };
 }
 
+function getHumanReviewReason({
+  policyDecision,
+  segment,
+}: {
+  policyDecision: PolicyDecision;
+  segment: string;
+}) {
+  if (segment === "unknown_account") return "unknown_account_requires_review";
+  if (policyDecision.confidence < 0.8) return "low_confidence";
+
+  return "human_review_required";
+}
+
+function buildHumanReviewDirective({
+  policyDecision,
+  segment,
+}: {
+  policyDecision: PolicyDecision;
+  segment: string;
+}): ActionDirective {
+  return {
+    action_type: "require_human_review",
+    execute: false,
+    status: "suggested",
+    enqueue_review: true,
+    reason: getHumanReviewReason({ policyDecision, segment }),
+    policy_exempt: true,
+    blast_radius: 0,
+    blast_radius_scope: "none",
+    blast_radius_reason:
+      "Requests human review without mutating customer records.",
+    reversible: true,
+    breaker_tripped: false,
+    breaker_reasons: [],
+    breaker_keys: [],
+    breaker_source: "none",
+    segment,
+  };
+}
+
 export async function buildActionDirectives({
   client,
   policyDecision,
@@ -93,6 +134,16 @@ export async function buildActionDirectives({
 
   for (const actionType of policyDecision.recommended_actions) {
     if (actionType === "create_support_case") {
+      continue;
+    }
+
+    if (actionType === "require_human_review") {
+      directives.push(
+        buildHumanReviewDirective({
+          policyDecision,
+          segment,
+        })
+      );
       continue;
     }
 

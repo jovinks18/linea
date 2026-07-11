@@ -91,9 +91,6 @@ const seedLikePolicies = [
   createPolicyRow("update_account_health", "supervised", {
     segment: "unknown_account",
   }),
-  createPolicyRow("require_human_review", "bounded", {
-    segment: "unknown_account",
-  }),
 ];
 
 {
@@ -182,51 +179,78 @@ const seedLikePolicies = [
   });
 
   assert.deepEqual(
-    directives.map(({ action_type, execute, reason, tier }) => ({
-      action_type,
-      execute,
-      reason,
-      tier,
-    })),
+    directives.map(
+      ({
+        action_type,
+        execute,
+        reason,
+        tier,
+        policy_exempt,
+        enqueue_review,
+      }) => ({
+        action_type,
+        execute,
+        reason,
+        tier,
+        policy_exempt,
+        enqueue_review,
+      })
+    ),
     [
       {
         action_type: "detect_onboarding_blocker",
         execute: false,
         reason: "supervised",
         tier: "supervised",
+        policy_exempt: undefined,
+        enqueue_review: true,
       },
       {
         action_type: "create_csm_task",
         execute: false,
         reason: "supervised",
         tier: "supervised",
+        policy_exempt: undefined,
+        enqueue_review: true,
       },
       {
         action_type: "log_product_signal",
         execute: false,
         reason: "supervised",
         tier: "supervised",
+        policy_exempt: undefined,
+        enqueue_review: true,
       },
       {
         action_type: "create_account_health_event",
         execute: false,
         reason: "supervised",
         tier: "supervised",
+        policy_exempt: undefined,
+        enqueue_review: true,
       },
       {
         action_type: "update_account_health",
         execute: false,
         reason: "supervised",
         tier: "supervised",
+        policy_exempt: undefined,
+        enqueue_review: true,
       },
       {
         action_type: "require_human_review",
         execute: false,
-        reason: "out_of_bounds",
-        tier: "bounded",
+        reason: "unknown_account_requires_review",
+        tier: undefined,
+        policy_exempt: true,
+        enqueue_review: true,
       },
     ]
   );
+
+  assert.equal(directives[5].blast_radius, 0);
+  assert.equal(directives[5].blast_radius_scope, "none");
+  assert.equal(directives[5].segment, "unknown_account");
 }
 
 {

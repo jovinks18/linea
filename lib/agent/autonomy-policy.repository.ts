@@ -28,6 +28,13 @@ const autonomyTiers: AutonomyTier[] = [
   "autonomous",
 ];
 
+function isGovernedPolicyAction(actionType: string) {
+  return (
+    actionType !== "create_support_case" &&
+    actionType !== "require_human_review"
+  );
+}
+
 function isAutonomyTier(value: string): value is AutonomyTier {
   return autonomyTiers.includes(value as AutonomyTier);
 }
@@ -197,6 +204,7 @@ export async function listActionAutonomyPolicies(
       updated_by,
       updated_at
      FROM action_autonomy_policy
+     WHERE action_type NOT IN ('create_support_case', 'require_human_review')
      ORDER BY
        action_type ASC,
        segment ASC NULLS FIRST,
@@ -204,6 +212,8 @@ export async function listActionAutonomyPolicies(
   );
 
   return result.rows.flatMap((row) => {
+    if (!isGovernedPolicyAction(row.action_type)) return [];
+
     const policy = normalizePolicyRow(row);
     return policy ? [policy] : [];
   });
@@ -331,6 +341,82 @@ export async function updateActionAutonomyPolicyWithAudit(
     change_type: "updated",
     changed_by: validation.value.changedBy,
     change_reason: validation.value.changeReason,
+  });
+
+  return updatedPolicy;
+}
+
+export async function applyAutomaticPolicyDemotionWithAudit(
+  client: PoolClient,
+  input: {
+    action_type: string;
+    segment: string | null;
+    target_tier: AutonomyTier;
+    gate_run_id: string;
+    change_reason: string;
+    gate_evidence: {
+      eval_run_id: string;
+      f1: number;
+      unsafe_gate_rate: number;
+      sample_size: number;
+      gate_run_id: string;
+    };
+  }
+): Promise<ActionAutonomyPolicy> {
+  const existingPolicy = await findActionAutonomyPolicyForUpdate(
+    client,
+    input.action_type,
+    input.segment
+  );
+
+  if (!existingPolicy) {
+    throw new ActionAutonomyPolicyNotFoundError(
+      input.action_type,
+      input.segment
+    );
+  }
+
+  const result = await client.query<ActionAutonomyPolicyRow>(
+    `UPDATE action_autonomy_policy
+     SET
+       tier = $3,
+       updated_by = $4,
+       updated_at = NOW()
+     WHERE action_type = $1
+       AND segment IS NOT DISTINCT FROM $2
+     RETURNING
+       action_type,
+       segment,
+       tier,
+       confidence_floor,
+       max_blast_radius,
+       requires_reversible,
+       updated_by,
+       updated_at`,
+    [
+      input.action_type,
+      input.segment,
+      input.target_tier,
+      input.gate_run_id,
+    ]
+  );
+
+  const updatedRow = result.rows[0];
+  const updatedPolicy = updatedRow ? normalizePolicyRow(updatedRow) : null;
+
+  if (!updatedPolicy) {
+    throw new Error("Automatic policy demotion did not return a valid row.");
+  }
+
+  await insertActionAutonomyPolicyAudit(client, {
+    action_type: updatedPolicy.action_type,
+    segment: updatedPolicy.segment,
+    old_policy: existingPolicy,
+    new_policy: updatedPolicy,
+    change_type: "auto_demoted",
+    changed_by: input.gate_run_id,
+    change_reason: input.change_reason,
+    gate_evidence: input.gate_evidence,
   });
 
   return updatedPolicy;

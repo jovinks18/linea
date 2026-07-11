@@ -99,9 +99,20 @@ function createScenarioDirectives(policyDecision, accountId) {
 
     if (actionType === "require_human_review") {
       return createDirective(actionType, false, {
-        confidence_floor: 0.9,
         enqueue_review: true,
-        reason: "out_of_bounds",
+        reason:
+          segment === "unknown_account"
+            ? "unknown_account_requires_review"
+            : "human_review_required",
+        policy_exempt: true,
+        tier: undefined,
+        confidence_floor: undefined,
+        max_blast_radius: undefined,
+        requires_reversible: undefined,
+        blast_radius: 0,
+        blast_radius_scope: "none",
+        blast_radius_reason:
+          "Requests human review without mutating customer records.",
         segment,
       });
     }
@@ -324,6 +335,15 @@ assert.equal(unknownBlocker.audit[1].metadata.reason, "supervised");
 assert.equal(unknownBlocker.audit[1].metadata.tier, "supervised");
 assert.equal(unknownBlocker.audit[1].metadata.enqueue_review, true);
 assert.equal(
+  unknownBlocker.audit[6].metadata.reason,
+  "unknown_account_requires_review"
+);
+assert.equal(unknownBlocker.audit[6].metadata.policy_exempt, true);
+assert.equal(unknownBlocker.audit[6].metadata.enqueue_review, true);
+assert.equal(unknownBlocker.audit[6].metadata.blast_radius, 0);
+assert.equal(unknownBlocker.audit[6].metadata.segment, "unknown_account");
+assert.equal(unknownBlocker.audit[6].metadata.tier, undefined);
+assert.equal(
   new Set(unknownBlocker.audit.map(({ action_type }) => action_type)).size,
   unknownBlocker.audit.length
 );
@@ -353,6 +373,20 @@ assert.deepEqual(
   [["create_support_case", "executed"]]
 );
 assert.match(smartLock.agentDecision.reasoning_summary, /ignored/i);
+
+const auditedRows = [
+  ...knownBlocker.audit,
+  ...unknownBlocker.audit,
+  ...smartLock.audit,
+];
+const invalidHumanReviewReasons = auditedRows.filter(
+  (row) =>
+    row.action_type === "require_human_review" &&
+    (row.metadata.reason === "out_of_bounds" ||
+      row.metadata.reason === "guard_failed")
+);
+
+assert.deepEqual(invalidHumanReviewReasons, []);
 
 const restoredSmartLockExecution = buildExecutionResult({
   caseId: 103,

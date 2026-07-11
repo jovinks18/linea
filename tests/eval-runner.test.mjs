@@ -40,9 +40,6 @@ function createFakePolicyClient(rows) {
 }
 
 const seedLikePolicies = [
-  createPolicyRow("require_human_review", null, "bounded", {
-    confidence_floor: "0.90",
-  }),
   createPolicyRow("create_csm_task", null, "bounded", {
     confidence_floor: "0.90",
   }),
@@ -66,7 +63,6 @@ const seedLikePolicies = [
   createPolicyRow("update_account_health", "linked_account", "bounded", {
     requires_reversible: false,
   }),
-  createPolicyRow("require_human_review", "linked_account", "bounded"),
   createPolicyRow(
     "detect_onboarding_blocker",
     "unknown_account",
@@ -86,9 +82,6 @@ const seedLikePolicies = [
     { confidence_floor: "0.90" }
   ),
   createPolicyRow("update_account_health", "unknown_account", "supervised", {
-    confidence_floor: "0.90",
-  }),
-  createPolicyRow("require_human_review", "unknown_account", "bounded", {
     confidence_floor: "0.90",
   }),
 ];

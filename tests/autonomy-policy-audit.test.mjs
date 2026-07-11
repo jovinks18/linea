@@ -85,6 +85,48 @@ function createSnapshot({
   const client = {
     async query(sql, values) {
       calls.push({ sql, values });
+      return { rows: [{ id: 43 }] };
+    },
+  };
+  const id = await insertActionAutonomyPolicyAudit(client, {
+    action_type: "log_product_signal",
+    segment: "linked_account",
+    old_policy: createSnapshot({
+      actionType: "log_product_signal",
+      segment: "linked_account",
+      tier: "bounded",
+    }),
+    new_policy: createSnapshot({
+      actionType: "log_product_signal",
+      segment: "linked_account",
+      tier: "supervised",
+    }),
+    change_type: "auto_demoted",
+    changed_by: "gate-test",
+    change_reason: "autonomy_gate:f1_below_current_tier_floor",
+    gate_evidence: {
+      eval_run_id: "eval-1",
+      f1: 0.5,
+      unsafe_gate_rate: 0,
+      sample_size: 25,
+      gate_run_id: "gate-test",
+    },
+  });
+
+  assert.equal(id, "43");
+  assert.equal(calls[0].values[4], "auto_demoted");
+  assert.equal(calls[0].values[7], "eval-1");
+  assert.equal(calls[0].values[8], 0.5);
+  assert.equal(calls[0].values[9], 0);
+  assert.equal(calls[0].values[10], 25);
+  assert.equal(calls[0].values[11], "gate-test");
+}
+
+{
+  const calls = [];
+  const client = {
+    async query(sql, values) {
+      calls.push({ sql, values });
       return {
         rows: [
           {

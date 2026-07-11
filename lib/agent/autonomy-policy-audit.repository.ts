@@ -19,7 +19,16 @@ export type ActionAutonomyPolicyChangeType =
   | "seeded"
   | "requested"
   | "approved"
-  | "rejected";
+  | "rejected"
+  | "auto_demoted";
+
+export type ActionAutonomyPolicyGateEvidence = {
+  eval_run_id: string;
+  f1: number;
+  unsafe_gate_rate: number;
+  sample_size: number;
+  gate_run_id: string;
+};
 
 export type ActionAutonomyPolicyAuditInput = {
   action_type: string;
@@ -29,6 +38,7 @@ export type ActionAutonomyPolicyAuditInput = {
   change_type: ActionAutonomyPolicyChangeType;
   changed_by: string;
   change_reason: string | null;
+  gate_evidence?: ActionAutonomyPolicyGateEvidence | null;
 };
 
 export type ActionAutonomyPolicyAuditRecord = {
@@ -40,6 +50,7 @@ export type ActionAutonomyPolicyAuditRecord = {
   change_type: ActionAutonomyPolicyChangeType;
   changed_by: string;
   change_reason: string | null;
+  gate_evidence: ActionAutonomyPolicyGateEvidence | null;
   created_at: Date;
 };
 
@@ -59,6 +70,11 @@ type ActionAutonomyPolicyAuditRow = {
   change_type: string;
   changed_by: string;
   change_reason: string | null;
+  eval_run_id: string | null;
+  f1: string | number | null;
+  unsafe_gate_rate: string | number | null;
+  sample_size: string | number | null;
+  gate_run_id: string | null;
   created_at: Date | string;
 };
 
@@ -77,6 +93,7 @@ const changeTypes: ActionAutonomyPolicyChangeType[] = [
   "requested",
   "approved",
   "rejected",
+  "auto_demoted",
 ];
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -139,11 +156,40 @@ function normalizeAuditRow(
       : normalizeActionAutonomyPolicySnapshot(row.old_policy);
   const newPolicy = normalizeActionAutonomyPolicySnapshot(row.new_policy);
   const createdAt = new Date(row.created_at);
+  const evalRunId = row.eval_run_id ?? null;
+  const rawF1 = row.f1 ?? null;
+  const rawUnsafeGateRate = row.unsafe_gate_rate ?? null;
+  const rawSampleSize = row.sample_size ?? null;
+  const gateRunId = row.gate_run_id ?? null;
+  const f1 = rawF1 === null ? null : Number(rawF1);
+  const unsafeGateRate =
+    rawUnsafeGateRate === null ? null : Number(rawUnsafeGateRate);
+  const sampleSize = rawSampleSize === null ? null : Number(rawSampleSize);
+  const gateEvidence =
+    evalRunId === null &&
+    rawF1 === null &&
+    rawUnsafeGateRate === null &&
+    rawSampleSize === null &&
+    gateRunId === null
+      ? null
+      : {
+          eval_run_id: evalRunId,
+          f1,
+          unsafe_gate_rate: unsafeGateRate,
+          sample_size: sampleSize,
+          gate_run_id: gateRunId,
+        };
 
   if (
     (row.old_policy !== null && oldPolicy === null) ||
     newPolicy === null ||
     !isChangeType(row.change_type) ||
+    (gateEvidence !== null &&
+      (typeof gateEvidence.eval_run_id !== "string" ||
+        typeof gateEvidence.gate_run_id !== "string" ||
+        !Number.isFinite(gateEvidence.f1) ||
+        !Number.isFinite(gateEvidence.unsafe_gate_rate) ||
+        !Number.isInteger(gateEvidence.sample_size))) ||
     Number.isNaN(createdAt.getTime())
   ) {
     return null;
@@ -158,6 +204,7 @@ function normalizeAuditRow(
     change_type: row.change_type,
     changed_by: row.changed_by,
     change_reason: row.change_reason,
+    gate_evidence: gateEvidence as ActionAutonomyPolicyGateEvidence | null,
     created_at: createdAt,
   };
 }
@@ -175,9 +222,14 @@ export async function insertActionAutonomyPolicyAudit(
         new_policy,
         change_type,
         changed_by,
-        change_reason
+        change_reason,
+        eval_run_id,
+        f1,
+        unsafe_gate_rate,
+        sample_size,
+        gate_run_id
       )
-     VALUES ($1, $2, $3::jsonb, $4::jsonb, $5, $6, $7)
+     VALUES ($1, $2, $3::jsonb, $4::jsonb, $5, $6, $7, $8, $9, $10, $11, $12)
      RETURNING id`,
     [
       input.action_type,
@@ -187,6 +239,11 @@ export async function insertActionAutonomyPolicyAudit(
       input.change_type,
       input.changed_by,
       input.change_reason,
+      input.gate_evidence?.eval_run_id ?? null,
+      input.gate_evidence?.f1 ?? null,
+      input.gate_evidence?.unsafe_gate_rate ?? null,
+      input.gate_evidence?.sample_size ?? null,
+      input.gate_evidence?.gate_run_id ?? null,
     ]
   );
 
@@ -238,6 +295,11 @@ export async function listActionAutonomyPolicyAudits(
       change_type,
       changed_by,
       change_reason,
+      eval_run_id,
+      f1,
+      unsafe_gate_rate,
+      sample_size,
+      gate_run_id,
       created_at
      FROM action_autonomy_policy_audit
      ${clauses.length > 0 ? `WHERE ${clauses.join(" AND ")}` : ""}

@@ -179,11 +179,17 @@ CREATE TABLE action_autonomy_policy_audit (
       'seeded',
       'requested',
       'approved',
-      'rejected'
+      'rejected',
+      'auto_demoted'
     )
   ),
   changed_by TEXT NOT NULL,
   change_reason TEXT,
+  eval_run_id TEXT,
+  f1 NUMERIC,
+  unsafe_gate_rate NUMERIC,
+  sample_size INTEGER,
+  gate_run_id TEXT,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
@@ -199,6 +205,11 @@ CREATE TABLE action_autonomy_policy_change_requests (
   ),
   requested_by TEXT NOT NULL,
   request_reason TEXT NOT NULL,
+  eval_run_id TEXT,
+  f1 NUMERIC,
+  unsafe_gate_rate NUMERIC,
+  sample_size INTEGER,
+  gate_run_id TEXT,
   reviewed_by TEXT,
   review_reason TEXT,
   reviewed_at TIMESTAMPTZ,
@@ -262,6 +273,10 @@ CREATE INDEX idx_action_autonomy_policy_audit_change_type
   ON action_autonomy_policy_audit(change_type);
 CREATE INDEX idx_action_autonomy_policy_audit_created_at
   ON action_autonomy_policy_audit(created_at DESC);
+CREATE INDEX idx_action_autonomy_policy_audit_eval_run_id
+  ON action_autonomy_policy_audit(eval_run_id);
+CREATE INDEX idx_action_autonomy_policy_audit_gate_run_id
+  ON action_autonomy_policy_audit(gate_run_id);
 CREATE INDEX idx_action_autonomy_policy_change_requests_status
   ON action_autonomy_policy_change_requests(status);
 CREATE INDEX idx_action_autonomy_policy_change_requests_action_type
@@ -270,6 +285,10 @@ CREATE INDEX idx_action_autonomy_policy_change_requests_segment
   ON action_autonomy_policy_change_requests(segment);
 CREATE INDEX idx_action_autonomy_policy_change_requests_created_at
   ON action_autonomy_policy_change_requests(created_at DESC);
+CREATE INDEX idx_action_autonomy_policy_change_requests_eval_run_id
+  ON action_autonomy_policy_change_requests(eval_run_id);
+CREATE INDEX idx_action_autonomy_policy_change_requests_gate_run_id
+  ON action_autonomy_policy_change_requests(gate_run_id);
 CREATE INDEX idx_agent_circuit_breakers_breaker_key
   ON agent_circuit_breakers(breaker_key);
 CREATE INDEX idx_agent_circuit_breakers_status

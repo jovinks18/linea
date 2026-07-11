@@ -65,9 +65,27 @@ assert.equal(
   }),
   "Executed as the policy-exempt intake capture prerequisite."
 );
+assert.equal(
+  getAutonomySummary({
+    status: "suggested",
+    metadata: {
+      policy_exempt: true,
+      enqueue_review: true,
+      reason: "unknown_account_requires_review",
+    },
+  }),
+  "Suggested as a policy-exempt human review handoff."
+);
 assert.deepEqual(
   getAutonomyBadges({ policy_exempt: true }),
   [{ kind: "exempt", label: "Intake prerequisite" }]
+);
+assert.deepEqual(
+  getAutonomyBadges({ policy_exempt: true, enqueue_review: true }),
+  [
+    { kind: "exempt", label: "Review handoff" },
+    { kind: "review", label: "Review queued" },
+  ]
 );
 assert.deepEqual(getAutonomyBadges(undefined), []);
 assert.deepEqual(

@@ -100,7 +100,6 @@ Requirements: Node.js, npm, Docker, and Docker Compose.
 npm ci
 cp .env.example .env.local
 docker compose up -d postgres
-docker compose exec -T postgres psql -U linea -d linea_db < sql/seed.sql
 npm run dev
 ```
 
@@ -125,13 +124,22 @@ Open:
 
 `DATABASE_URL` is optional. Without it, the app and CSV importer use the local Docker PostgreSQL defaults.
 
+Fresh Docker initialization loads both `sql/schema.sql` and `sql/seed.sql`, so the known-account demo works immediately after the Postgres container starts.
+
 > PostgreSQL initialization runs only when its Docker volume is first created. After schema changes, `docker compose down -v` resets the local database and deletes all local volume data.
+
+To reset and reseed the local database without deleting Docker volumes:
+
+```bash
+npm run db:reset
+```
 
 ## Useful Commands
 
 | Command | Purpose |
 | --- | --- |
 | `npm run dev` | Start the Next.js development server |
+| `npm run db:reset` | Recreate the local schema and reload synthetic seed data |
 | `npm run smoke` | Exercise the three core intake demo flows |
 | `npm run lint` | Run ESLint |
 | `npx tsc --noEmit --pretty false` | Type-check the application |

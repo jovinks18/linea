@@ -110,6 +110,17 @@ breaker source, keys, reasons, and computed blast-radius evidence. Historical
 policy simulation replays only the evidence stored with each action and never
 queries current breaker state.
 
+Autonomy promotion and demotion gates are evidence-based and read only the
+latest `model_scorecard` rows. Scorecards are currently action-level, while
+policies are action + segment. The same scorecard evidence can evaluate each
+segment row for an action, but segment ceilings still apply: `unknown_account`
+may not be promoted into bounded or autonomous auto-execution from aggregate
+evidence. Automatic promotion is also deliberately capped at `bounded`.
+`bounded` to `autonomous` readiness may be reported as a recommendation, but it
+does not create an approval request or bypass the autonomous-upgrade block in
+policy validation. This is intentional until the golden set and human review
+process are stronger.
+
 ## Operator Identity And Policy Governance
 
 Policy administration requires a configured local operator username, password,
