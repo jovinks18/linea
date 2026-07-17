@@ -8,11 +8,11 @@ export function MetricCard({
   detail?: string;
 }) {
   return (
-    <div className="rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-1)] p-4 shadow-[0_1px_0_rgba(255,255,255,0.04)]">
+    <div className="rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-1)] p-5 shadow-[0_1px_0_rgba(255,255,255,0.04)]">
       <p className="text-xs font-medium uppercase tracking-[0.16em] text-[var(--text-subtle)]">
         {label}
       </p>
-      <p className="mt-3 text-3xl font-semibold text-[var(--text-primary)]">
+      <p className="mt-4 text-3xl font-semibold leading-none text-[var(--text-primary)]">
         {value}
       </p>
       {detail && (

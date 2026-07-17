@@ -239,7 +239,7 @@ export default async function AutonomyPoliciesPage() {
 
   return (
     <AppShell active="policies">
-      <div className="grid min-w-0 gap-6">
+      <div className="grid min-w-0 gap-8">
         <header className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <div>
             <p className="text-xs font-medium uppercase tracking-[0.18em] text-[var(--text-subtle)]">

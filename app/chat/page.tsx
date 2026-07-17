@@ -269,7 +269,7 @@ export default function ChatPage() {
 
   return (
     <AppShell active="chat">
-      <div className="grid gap-6">
+      <div className="grid gap-8">
         <header>
           <p className="text-xs font-medium uppercase tracking-[0.18em] text-[var(--text-subtle)]">
             Chat intake
@@ -321,11 +321,11 @@ export default function ChatPage() {
                   />
                 </div>
 
-                <div>
-                  <label className="mb-2 block text-xs font-medium uppercase tracking-[0.14em] text-zinc-600">
+                <details className="rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-2)] px-3 py-2">
+                  <summary className="cursor-pointer text-xs font-medium uppercase tracking-[0.14em] text-[var(--text-subtle)] marker:text-[var(--accent)]">
                     Optional case restore
-                  </label>
-                  <div className="flex gap-2">
+                  </summary>
+                  <div className="mt-3 flex gap-2">
                     <input
                       className="min-w-0 flex-1 rounded-lg border border-white/10 bg-black/25 px-3 py-2.5 text-sm text-zinc-300 outline-none transition placeholder:text-zinc-700 focus:border-cyan-300/40 focus:ring-2 focus:ring-cyan-300/15"
                       value={caseNumber}
@@ -341,7 +341,7 @@ export default function ChatPage() {
                       Load
                     </button>
                   </div>
-                </div>
+                </details>
 
                 <div>
                   <label className="mb-2 block text-sm font-medium text-zinc-300">

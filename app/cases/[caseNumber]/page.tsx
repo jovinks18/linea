@@ -12,6 +12,10 @@ import {
   getAutonomySummary,
   getAutonomyTermDefinition,
 } from "../../../lib/ui/autonomy";
+import {
+  getAuditRowClassName,
+  getAuditStatusPillClassName,
+} from "../../../lib/ui/audit-visuals";
 import { formatDisplayLabel } from "../../../lib/ui/labels";
 import {
   agentActionStatusVariant,
@@ -61,7 +65,7 @@ export default async function CaseDetailPage({
 
   return (
     <AppShell active="dashboard">
-      <div className="grid gap-6">
+      <div className="grid gap-8">
         <header className="grid gap-4 sm:grid-cols-[1fr_auto] sm:items-end">
           <div>
             <Link
@@ -266,7 +270,7 @@ export default async function CaseDetailPage({
               No agent actions recorded for this case.
             </p>
           ) : (
-            <div className="divide-y divide-[var(--border-subtle)] overflow-hidden rounded-lg border border-[var(--border-subtle)]">
+            <div className="audit-list border">
               {detail.agent_actions.map((action) => {
                 const autonomyDetails = getAutonomyDetails(action.metadata);
                 const autonomyBadges = getAutonomyBadges(action.metadata);
@@ -279,14 +283,22 @@ export default async function CaseDetailPage({
                 return (
                   <article
                     key={action.id}
-                    className="grid gap-3 bg-[var(--surface-2)] p-4 sm:grid-cols-[1fr_auto]"
+                    className={`grid gap-4 p-4 sm:grid-cols-[1fr_auto] ${getAuditRowClassName(
+                      {
+                        policyExempt: autonomyDetails.policyExempt,
+                        status: action.status,
+                      }
+                    )}`}
                   >
                     <div>
-                      <div className="flex flex-wrap items-center gap-2">
-                        <p className="text-sm font-medium text-[var(--text-primary)]">
+                      <div className="flex flex-wrap items-center gap-x-2 gap-y-2">
+                        <p className="mr-1 text-sm font-semibold text-[var(--text-primary)]">
                           {formatDisplayLabel(action.action_type)}
                         </p>
                         <StatusPill
+                          className={getAuditStatusPillClassName(
+                            action.status
+                          )}
                           variant={agentActionStatusVariant(action.status)}
                         >
                           {formatDisplayLabel(action.status)}
@@ -312,13 +324,13 @@ export default async function CaseDetailPage({
                           </StatusPill>
                         ) : null}
                       </div>
-                      <p className="mt-2 text-xs text-[var(--text-muted)]">
+                      <p className="mt-2 text-xs leading-5 text-[var(--text-muted)]">
                         Source: {formatDisplayLabel(action.source)}
                         {action.confidence
                           ? ` / Agent confidence: ${Math.round(Number(action.confidence) * 100)}%`
                           : ""}
                       </p>
-                      <div className="mt-3 border-l-2 border-[var(--border-strong)] pl-3">
+                      <div className="mt-4 rounded-md border border-[var(--border-subtle)] bg-[var(--surface-1)] px-3 py-2.5">
                         <p className="text-xs font-medium uppercase tracking-[0.14em] text-[var(--text-subtle)]">
                           Autonomy decision
                         </p>
@@ -332,7 +344,7 @@ export default async function CaseDetailPage({
                           <summary className="cursor-pointer text-xs font-medium text-[var(--text-muted)] marker:text-[var(--accent)]">
                             View policy guard details
                           </summary>
-                          <dl className="mt-3 grid gap-3 text-xs sm:grid-cols-2 lg:grid-cols-3">
+                          <dl className="mt-3 grid gap-2 text-xs sm:grid-cols-2 lg:grid-cols-3">
                             {autonomyDetails.reason ? (
                               <Detail label="Reason">
                                 {formatDisplayLabel(autonomyDetails.reason)}

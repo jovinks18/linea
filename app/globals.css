@@ -12,7 +12,7 @@
   --text-primary: #fafafa;
   --text-secondary: #d4d4d8;
   --text-muted: #a1a1aa;
-  --text-subtle: #71717a;
+  --text-subtle: #85858f;
   --accent: #67e8f9;
   --accent-muted: rgba(103, 232, 249, 0.12);
   --status-red-bg: rgba(244, 63, 94, 0.12);
@@ -53,7 +53,7 @@
   --text-secondary: #3f3f46;
   --text-muted: #52525b;
   --text-subtle: #71717a;
-  --accent: #0891b2;
+  --accent: #0f6f86;
   --accent-muted: rgba(8, 145, 178, 0.1);
   --status-red-bg: rgba(225, 29, 72, 0.09);
   --status-red-border: rgba(225, 29, 72, 0.24);
@@ -76,6 +76,8 @@ body {
   background: var(--background);
   color: var(--foreground);
   font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
+  font-feature-settings: "cv02", "cv03", "cv04";
+  line-height: 1.5;
 }
 
 button,
@@ -84,4 +86,75 @@ input,
 textarea,
 summary {
   outline-offset: 2px;
+}
+
+.audit-list {
+  border-color: var(--border-subtle);
+  border-radius: 0.5rem;
+  overflow: hidden;
+}
+
+.audit-row {
+  --audit-accent: var(--status-neutral-text);
+  --audit-bg: var(--surface-2);
+  --audit-outline: transparent;
+  background:
+    linear-gradient(90deg, color-mix(in srgb, var(--audit-accent) 6%, transparent), transparent 10rem),
+    var(--audit-bg);
+  border-left: 3px solid var(--audit-accent);
+  box-shadow: inset 0 0 0 1px var(--audit-outline);
+}
+
+.audit-row + .audit-row {
+  border-top: 1px solid var(--border-subtle);
+}
+
+.audit-row--executed {
+  --audit-accent: #34d399;
+}
+
+.audit-row--suggested {
+  --audit-accent: #fbbf24;
+}
+
+.audit-row--skipped {
+  --audit-accent: #a1a1aa;
+}
+
+.audit-row--failed {
+  --audit-accent: #fb7185;
+}
+
+.audit-row--policy-exempt {
+  --audit-outline: var(--status-blue-border);
+}
+
+[data-theme="light"] .audit-row--executed {
+  --audit-accent: #047857;
+}
+
+[data-theme="light"] .audit-row--suggested {
+  --audit-accent: #b45309;
+}
+
+[data-theme="light"] .audit-row--skipped {
+  --audit-accent: #52525b;
+}
+
+[data-theme="light"] .audit-row--failed {
+  --audit-accent: #be123c;
+}
+
+.metadata-grid {
+  display: grid;
+  gap: 0.25rem;
+}
+
+.metadata-row {
+  border-bottom: 1px solid var(--border-subtle);
+  padding-block: 0.625rem;
+}
+
+.metadata-row:last-child {
+  border-bottom: 0;
 }

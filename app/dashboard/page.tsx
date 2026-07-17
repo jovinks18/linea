@@ -7,8 +7,13 @@ import { StatusPill } from "../../components/StatusPill";
 import { getDashboardData } from "../../lib/dashboard/repository";
 import {
   getAutonomyBadges,
+  getAutonomyDetails,
   getAutonomySummary,
 } from "../../lib/ui/autonomy";
+import {
+  getAuditRowClassName,
+  getAuditStatusPillClassName,
+} from "../../lib/ui/audit-visuals";
 import {
   agentActionStatusVariant,
   healthVariant,
@@ -149,7 +154,7 @@ export default async function DashboardPage({
 
   return (
     <AppShell active="dashboard">
-      <div className="grid gap-6">
+      <div className="grid gap-8">
         <header>
           <p className="text-xs font-medium uppercase tracking-[0.18em] text-[var(--text-subtle)]">
             Command center
@@ -167,22 +172,18 @@ export default async function DashboardPage({
           <MetricCard
             label="At-risk accounts"
             value={data.atRiskAccounts.length}
-            detail="health_status = at_risk"
           />
           <MetricCard
             label="Open tasks"
             value={data.openTasks.length}
-            detail="CSM follow-ups"
           />
           <MetricCard
             label="Product signals"
             value={data.recentProductSignals.length}
-            detail="recent signals"
           />
           <MetricCard
             label="Open cases"
             value={openCaseCount}
-            detail="from recent activity"
           />
         </section>
 
@@ -254,23 +255,32 @@ export default async function DashboardPage({
           {data.agentActions.length === 0 ? (
             <EmptyState label="No agent actions recorded yet. Run a demo message from Chat Intake." />
           ) : (
-            <div className="divide-y divide-[var(--border-subtle)] overflow-hidden rounded-lg border border-[var(--border-subtle)]">
+            <div className="audit-list border">
               {data.agentActions.map((action) => {
                 const confidence = formatConfidence(action.confidence);
                 const autonomyBadges = getAutonomyBadges(action.metadata);
+                const autonomyDetails = getAutonomyDetails(action.metadata);
                 const autonomySummary = getAutonomySummary(action);
 
                 return (
                   <article
                     key={action.id}
-                    className="grid gap-3 bg-[var(--surface-2)] px-4 py-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-start"
+                    className={`grid gap-4 px-4 py-3.5 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-start ${getAuditRowClassName(
+                      {
+                        policyExempt: autonomyDetails.policyExempt,
+                        status: action.status,
+                      }
+                    )}`}
                   >
                     <div className="min-w-0">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <p className="text-sm font-medium text-[var(--text-primary)]">
+                      <div className="flex flex-wrap items-center gap-x-2 gap-y-2">
+                        <p className="mr-1 text-sm font-semibold text-[var(--text-primary)]">
                           {formatDisplayLabel(action.action_type)}
                         </p>
                         <StatusPill
+                          className={getAuditStatusPillClassName(
+                            action.status
+                          )}
                           variant={agentActionStatusVariant(action.status)}
                         >
                           {formatDisplayLabel(action.status)}
@@ -292,7 +302,7 @@ export default async function DashboardPage({
                         ))}
                       </div>
 
-                      <p className="mt-1 text-xs text-[var(--text-muted)]">
+                      <p className="mt-2 text-xs leading-5 text-[var(--text-muted)]">
                         {action.account_name ?? "No linked account"}
                         {action.case_number && (
                           <>
@@ -306,7 +316,7 @@ export default async function DashboardPage({
                       </p>
 
                       {autonomySummary && (
-                        <p className="mt-2 text-xs font-medium leading-5 text-[var(--text-secondary)]">
+                        <p className="mt-3 rounded-md border border-[var(--border-subtle)] bg-[var(--surface-1)] px-3 py-2 text-xs font-medium leading-5 text-[var(--text-secondary)]">
                           {autonomySummary}
                         </p>
                       )}

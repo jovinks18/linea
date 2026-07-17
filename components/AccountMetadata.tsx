@@ -81,11 +81,11 @@ export function AccountMetadata({ metadata }: AccountMetadataProps) {
           <summary className="cursor-pointer text-xs font-medium text-[var(--text-muted)] marker:text-[var(--accent)]">
             Additional fields ({additionalEntries.length})
           </summary>
-          <dl className="mt-3 divide-y divide-[var(--border-subtle)] rounded-lg border border-[var(--border-subtle)] px-3">
+          <dl className="metadata-grid mt-3 rounded-md bg-[var(--surface-2)] px-3">
             {additionalEntries.map(([key, value]) => (
               <div
                 key={key}
-                className="grid grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)] gap-3 py-2 text-xs"
+                className="metadata-row grid grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)] gap-3 text-xs"
               >
                 <dt className="break-words text-[var(--text-subtle)]">
                   {formatDisplayLabel(key)}

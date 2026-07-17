@@ -83,29 +83,8 @@ function Sidebar({ active }: { active: NavKey }) {
           })}
         </nav>
 
-        <div className="mt-auto hidden rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-2)] p-4 lg:block">
-          <p className="text-xs font-medium uppercase tracking-[0.18em] text-[var(--text-subtle)]">
-            Local status
-          </p>
-          <div className="mt-4 grid gap-3 text-sm">
-            {["Local mode", "PostgreSQL", "Deterministic agent"].map(
-              (label) => (
-                <div
-                  key={label}
-                  className="flex items-center justify-between gap-3"
-                >
-                  <span className="text-[var(--text-muted)]">{label}</span>
-                  <span className="flex items-center gap-2 text-[var(--status-green-text)]">
-                    <span className="h-1.5 w-1.5 rounded-full bg-[var(--status-green-text)]" />
-                    Ready
-                  </span>
-                </div>
-              )
-            )}
-          </div>
-          <div className="mt-4 border-t border-[var(--border-subtle)] pt-4">
-            <ThemeToggle />
-          </div>
+        <div className="mt-auto hidden lg:block">
+          <ThemeToggle />
         </div>
       </div>
     </aside>
@@ -121,7 +100,6 @@ export function AppShell({
 }) {
   return (
     <div className="min-h-screen bg-[var(--background)] text-[var(--text-primary)]">
-      <div className="pointer-events-none fixed inset-0 bg-[linear-gradient(var(--border-subtle)_1px,transparent_1px),linear-gradient(90deg,var(--border-subtle)_1px,transparent_1px)] bg-[size:44px_44px]" />
       <div className="relative lg:pl-72">
         <Sidebar active={active} />
         <main className="mx-auto min-h-screen w-full max-w-7xl px-4 py-5 sm:px-6 lg:px-8 lg:py-8">
