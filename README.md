@@ -1,8 +1,8 @@
 # Linea
 
-**A local-first, supervised AI workspace for post-sales operations.**
+**A local-first workspace for supervised post-sales agent governance.**
 
-Linea turns customer messages into structured cases, account context, post-sales actions, and an auditable agent activity trail. It is an early open-source project built to explore how support, customer success, implementation, and product teams can supervise agents that act on customer accounts.
+Linea turns synthetic customer messages into structured cases, account context, proposed post-sales actions, autonomy decisions, evaluation scorecards, and an auditable policy trail. It is an early open-source project for exploring how support, customer success, implementation, and product teams can verify and govern agents before allowing them to act on customer accounts.
 
 ## What Linea Does
 
@@ -12,6 +12,9 @@ Linea currently:
 - Links known customers to accounts and surfaces account metadata and KPIs.
 - Detects support issues, onboarding blockers, and account risk with deterministic rules.
 - Creates CSM tasks, product signals, and health events for eligible account-linked blockers.
+- Routes proposed agent actions through an autonomy policy ladder by `action_type` and account segment.
+- Runs offline golden-set evals against the real triage and `decide()` paths, then writes `model_scorecard` evidence for gates.
+- Moves policy tiers from scorecard evidence only: promotions become human-reviewed change requests, while demotions apply immediately.
 - Records executed, suggested, skipped, and failed actions in `agent_actions`.
 - Shows case context, agent decisions, post-sales actions, and recent activity in `/chat` and `/dashboard`.
 - Profiles, maps, validates, and idempotently imports CSV data into a canonical post-sales schema.
@@ -28,6 +31,9 @@ Linea treats supervision and auditability as core product behavior rather than a
 - **Support intake:** deterministic triage, case memory, message history, and account lookup.
 - **Post-sales automation:** onboarding-blocker detection with controlled task, signal, and health mutations.
 - **Agent supervision:** structured decisions with classification, confidence, reasoning summaries, recommendations, execution outcomes, and human-review state.
+- **Autonomy governance:** per-action and per-segment policy tiers with guardrails for confidence, blast radius, reversibility, and circuit breakers.
+- **Offline evaluation:** a hand-labeled golden set that exercises the real deterministic triage and `decide()` paths before producing scorecards.
+- **Evidence-based gates:** policy tiers move only from eval evidence; promotion is slow and human-approved, demotion is automatic and audited.
 - **Durable audit:** action records survive business-transaction failures and remain visible in the Agent Activity feed.
 - **Data onboarding:** CSV profiling, mapping recommendations, dry-run validation, metadata preservation, and idempotent imports.
 - **Connector foundation:** source-independent normalized records and provenance contracts, without live SaaS access or unsafe writes.
@@ -38,10 +44,16 @@ Linea treats supervision and auditability as core product behavior rather than a
 ```text
 customer message
   -> triage + account context + optional model proposal
-  -> deterministic policy/execution envelope
+  -> deterministic policy decision + autonomy directives
   -> approved repository actions
   -> PostgreSQL + agent_actions audit
   -> supervised Chat and Command Center UI
+
+offline golden cases
+  -> real triage + policy decision + decide() paths
+  -> action metrics + unsafe gate checks
+  -> model_scorecard evidence
+  -> autonomy gates + audited policy change requests/demotions
 
 CSV or future connector
   -> profile/normalize
@@ -50,19 +62,20 @@ CSV or future connector
   -> canonical Linea schema
 ```
 
-The canonical schema covers customers, accounts, cases, messages, implementation steps, tasks, product signals, health events, and agent actions. Source-specific fields remain in JSON metadata instead of expanding the schema for every system.
+The canonical schema covers customers, accounts, cases, messages, implementation steps, tasks, product signals, health events, autonomy policies, policy audit records, policy change requests, scorecards, and agent actions. Source-specific fields remain in JSON metadata instead of expanding the schema for every system.
 
 See [Architecture](docs/ARCHITECTURE.md) and [Connector Architecture](docs/CONNECTORS.md) for deeper design details.
 
 ## Safety Model
 
 - Models produce validated proposals only. They cannot call repositories or write to PostgreSQL.
-- Deterministic policy decides which actions are allowed.
+- Deterministic policy decides which actions are allowed, and execution is deny-by-default when a governed policy row is missing.
 - Repository code performs approved mutations inside explicit transactions.
 - `agent_actions` records the authoritative executed, suggested, skipped, or failed outcome.
 - Account-level automation is blocked when no linked account exists.
 - Failed post-sales actions are audited through a separate connection after rollback.
 - Policy edits and approvals derive actor identity from a signed, HttpOnly operator session. API callers cannot submit audit actor fields.
+- Governance actions are audited with structured policy snapshots and, when gate-driven, scorecard evidence.
 - Demo data is synthetic. Never add real customer data, secrets, tokens, or production exports.
 
 Deterministic mode is the default and requires no paid API:
@@ -72,6 +85,65 @@ MODEL_PROVIDER=deterministic
 ```
 
 Ollama is the recommended optional local-model path. Hosted OpenAI-compatible APIs are supported as adapters, not requirements.
+
+## Autonomy Policy Ladder
+
+Linea does not grant autonomy to "the agent" as a whole. Autonomy is granted per `action_type` plus segment (`linked_account`, `unknown_account`, or default). Each governed policy row has a tier:
+
+- `shadow`: never executes; records a counterfactual suggestion.
+- `supervised`: never executes automatically; queues or suggests human review.
+- `bounded`: executes only when all guards pass.
+- `autonomous`: represented in the schema and decision code, but automatic promotion to this tier is deliberately capped.
+
+Execution is deny-by-default: a governed action executes only if its directive allows it. Bounded and autonomous decisions still have to pass the same guard envelope: confidence floor, maximum blast radius, reversibility requirement, and circuit-breaker state. If there is no matching segment/default policy, Linea falls back to a restrictive supervised policy with a confidence floor of `1`, blast radius `0`, and reversible-only execution.
+
+Automatic promotion is deliberately capped at `bounded`. Nothing promotes itself to `autonomous`.
+
+The `unknown_account` segment has a promotion ceiling. It can move from `shadow` to `supervised`, but never into auto-execution, regardless of score. The operator-facing rule is plain: actions auto-execute only for verified linked accounts; unknown accounts hold for human review. Without a linked account, Linea should not automatically mutate account-level records, create account-scoped tasks, or treat ambiguous identity as resolved.
+
+Policy edits use the existing change-request flow. Manual approvals, rejections, simulations, and gate-generated promotion requests all leave audit records.
+
+## Policy-Exempt Actions
+
+Two actions are intentionally outside the guard-controlled policy ladder:
+
+- `create_support_case` is the intake prerequisite. The case is the container the audit trail lives in, so it is always executed and never guard-checked.
+- `require_human_review` is the safe fallback: defer to a human. It is never guard-checked because guarding the safe action would mean the system could fail to ask for help, which is backwards.
+
+These exemptions are narrow. They do not allow account-level post-sales mutations.
+
+## Offline Evaluation Harness
+
+The offline eval harness loads `lib/eval/golden`, currently 26 hand-labeled synthetic cases, including deliberate near-misses. The labels are hand-authored because you cannot benchmark against data where the correct answer is unknown, and model-generated labels would only measure model-vs-model agreement.
+
+The harness runs the real deterministic triage path, builds the real policy decision, and calls the same action-directive/`decide()` path used by runtime execution. It is not a copied evaluator. It also aborts unless `MODEL_PROVIDER=deterministic`, so the result is repeatable for local regression checks.
+
+Eval runs are read-only except for `model_scorecard`. Before running cases, the harness fingerprints guarded business tables; after scoring, it fingerprints them again and fails if the eval mutated customer, case, policy, audit, task, signal, health, breaker, or action data.
+
+`npm run eval` writes one `model_scorecard` row per governed action type with:
+
+- `f1`
+- `precision`
+- `recall`
+- `priority_exact`
+- `unsafe_gate_rate`
+- `sample_size`
+
+Use `npm run test:eval` as the no-write CI gate. It fails on any governed action F1 below the configured floor or any `unsafe_gate_rate > 0`. The README does not print F1 numbers as a selling point; run the command to inspect the current scorecard behavior yourself.
+
+## Autonomy Gates
+
+Tiers move on `model_scorecard` evidence only. No gate hardcodes that a particular action type or segment should receive a specific tier. Gates read the latest scorecard per action type and then evaluate each non-exempt policy row.
+
+Promotion is slow and requires human approval through the existing change-request flow. Passing evidence creates a pending change request; it does not directly raise the tier.
+
+Demotion is automatic, immediate, and never waits for approval. If `unsafe_gate_rate` is positive or F1 falls below the current tier floor, the gate applies the lower tier directly.
+
+The asymmetry is intentional: promotion is a privilege earned narrowly and confirmed by a human; demotion is a protection applied broadly and instantly.
+
+Every gate-driven tier change or promotion request writes structured evidence: `eval_run_id`, `f1`, `unsafe_gate_rate`, `sample_size`, and `gate_run_id`. Any tier movement is traceable back to the exact eval run and gate run that caused it.
+
+Automatic promotion is capped at `bounded`. Even when a scorecard would satisfy the configured `autonomous` floor, the gate records a hold instead of creating a bounded-to-autonomous request.
 
 ## Data Onboarding
 
@@ -141,10 +213,31 @@ npm run db:reset
 | `npm run dev` | Start the Next.js development server |
 | `npm run db:reset` | Recreate the local schema and reload synthetic seed data |
 | `npm run smoke` | Exercise the three core intake demo flows |
+| `npm run eval` | Run offline eval and write `model_scorecard` rows |
+| `npm run gates` | Evaluate scorecards against autonomy policies and create promotion requests or automatic demotions |
 | `npm run lint` | Run ESLint |
 | `npx tsc --noEmit --pretty false` | Type-check the application |
 | `npm run test:triage` | Test deterministic triage and case subjects |
 | `npm run test:agent-actions` | Test policy, execution, and audit behavior |
+| `npm run test:agent-action-invariants` | Test persisted agent-action invariants |
+| `npm run test:action-directives` | Test action directive construction and policy metadata |
+| `npm run test:blast-radius` | Test blast-radius classification for proposed actions |
+| `npm run test:circuit-breaker` | Test circuit-breaker state and action suppression |
+| `npm run test:eval` | Run offline eval without writing scorecards |
+| `npm run test:eval-runner` | Test eval loading, scoring, and mutation guards |
+| `npm run test:autonomy-gates` | Test promotion, demotion, policy-exempt actions, unknown-account ceilings, and autonomous caps |
+| `npm run test:autonomy-gate-runner` | Test gate execution against scorecards and policies |
+| `npm run test:autonomy-policy` | Test the tier decision ladder and guard behavior |
+| `npm run test:autonomy-policy-audit` | Test policy audit normalization and evidence |
+| `npm run test:autonomy-policy-edit` | Test authenticated policy edits |
+| `npm run test:autonomy-policy-validation` | Test policy update validation |
+| `npm run test:autonomy-policy-list` | Test policy listing and exempt-action filtering |
+| `npm run test:autonomy-policy-risk` | Test policy risk summaries |
+| `npm run test:autonomy-policy-change-requests` | Test policy change-request lifecycle |
+| `npm run test:autonomy-policy-simulation` | Test policy impact simulation |
+| `npm run test:autonomy-policy-impact` | Test change-request impact previews |
+| `npm run test:autonomy-policy-resolution` | Test approving and rejecting change requests |
+| `npm run test:autonomy-ui` | Test autonomy UI formatting helpers |
 | `npm run test:imports` | Test import validation and idempotency utilities |
 | `npm run test:connectors` | Test connector normalization and provenance |
 | `npm run test:operator-auth` | Test signed operator sessions and server-bound audit attribution |
@@ -167,8 +260,9 @@ The smart-lock and unknown-account scenarios demonstrate support routing and saf
 ```text
 app/                  Next.js pages and API routes
 components/           Shared supervision UI components
-lib/agent/            Decisions, policy, execution, and audit
+lib/agent/            Decisions, autonomy policy, gates, execution, and audit
 lib/connectors/       Normalized connector contracts and mock source
+lib/eval/             Golden-set offline evaluation and scorecard types
 lib/intake/           Intake orchestration
 lib/post-sales/       Deterministic post-sales automation
 lib/*/repository.ts   PostgreSQL access boundaries
@@ -187,6 +281,10 @@ Linea is a local development project, not a production-ready customer-data platf
 
 - Policy Admin has local single-operator authentication with signed sessions. It does not yet provide multi-user RBAC, MFA, centralized identity, tenant isolation, or production secret management.
 - Post-sales automation currently focuses on deterministic onboarding-blocker workflows.
+- The offline eval set is small: 26 hand-labeled synthetic cases. It is useful for regression checks, not for accuracy claims.
+- F1 floors are deliberately lenient while the golden set is small. They should rise as the set grows and covers more segments and edge cases.
+- Automatic promotion is capped at `bounded` by design. The `autonomous` tier exists in the schema and decision code, but gates do not promote into it.
+- Triage is deterministic and keyword-based; it under-flags subtle review cases where no blocker keyword is present.
 - The connector layer is a contract and synthetic mock only; no live SaaS connectors or OAuth exist.
 - Qdrant and n8n are available in Docker but are not integrated with the application.
 - There is no production migration, retention, privacy, or compliance system yet.

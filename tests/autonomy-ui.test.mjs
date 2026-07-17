@@ -3,6 +3,7 @@ import {
   getAutonomyBadges,
   getAutonomySummary,
 } from "../lib/ui/autonomy.ts";
+import { formatDisplayLabel } from "../lib/ui/labels.ts";
 
 assert.equal(
   getAutonomySummary({
@@ -95,10 +96,16 @@ assert.deepEqual(
     enqueue_review: true,
   }),
   [
-    { kind: "tier", label: "Supervised policy" },
+    {
+      kind: "tier",
+      label: "Supervised policy",
+      title: "Supervised policy: proposes only; a human must approve.",
+    },
     { kind: "counterfactual", label: "Counterfactual" },
     { kind: "review", label: "Review queued" },
   ]
 );
+
+assert.equal(formatDisplayLabel("create_csm_task"), "Create CSM Task");
 
 console.log("PASS autonomy UI formatting");

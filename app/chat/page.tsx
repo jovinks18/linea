@@ -13,6 +13,7 @@ import {
   sentimentVariant,
 } from "../../lib/ui/status";
 import { formatOperatorDateTime } from "../../lib/ui/datetime";
+import { formatDisplayLabel } from "../../lib/ui/labels";
 
 type AgentDecision = {
   classification: string;
@@ -116,15 +117,6 @@ const workflowSteps = [
   "Execute actions",
   "Audit result",
 ] as const;
-
-function formatLabel(value: string | null | undefined) {
-  if (!value) return "Not set";
-
-  return value
-    .split("_")
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-    .join(" ");
-}
 
 function DetailRow({
   label,
@@ -387,7 +379,7 @@ export default function ChatPage() {
               action={
                 reply && (
                   <StatusPill variant="default">
-                    {formatLabel(reply.status)}
+                    {formatDisplayLabel(reply.status)}
                   </StatusPill>
                 )
               }
@@ -428,7 +420,7 @@ export default function ChatPage() {
                             sentimentVariant(reply.sentiment)
                           }
                         >
-                          {formatLabel(reply.sentiment)}
+                          {formatDisplayLabel(reply.sentiment)}
                         </StatusPill>
                       }
                     />
@@ -468,12 +460,14 @@ export default function ChatPage() {
                                     : "info"
                                 }
                               >
-                                {formatLabel(agentDecision.classification)}
+                                {formatDisplayLabel(
+                                  agentDecision.classification
+                                )}
                               </StatusPill>
                             }
                           />
                           <DetailRow
-                            label="Confidence"
+                            label="Agent confidence"
                             value={
                               <div className="grid gap-2">
                                 <span className="font-mono text-lg text-[var(--text-primary)]">
@@ -521,7 +515,7 @@ export default function ChatPage() {
                               <StatusPill
                                 variant={healthVariant(account.health_status)}
                               >
-                                {formatLabel(account.health_status)}
+                                {formatDisplayLabel(account.health_status)}
                               </StatusPill>
                             }
                           />
@@ -552,11 +546,15 @@ export default function ChatPage() {
                         What Linea actually executed for this intake.
                       </p>
                     </div>
+                    <p className="mt-4 text-sm leading-6 text-[var(--text-secondary)]">
+                      Actions auto-execute only for verified linked accounts.
+                      Unknown accounts hold for human review.
+                    </p>
                     {completedActions.length > 0 ? (
                       <div className="mt-4 flex flex-wrap gap-2">
                         {completedActions.map((action) => (
                           <StatusPill key={action} variant="success">
-                            {formatLabel(action)}
+                            {formatDisplayLabel(action)}
                           </StatusPill>
                         ))}
                       </div>
@@ -632,7 +630,7 @@ export default function ChatPage() {
                           value={agentDecision.classification}
                         />
                         <DetailRow
-                          label="Confidence"
+                          label="Agent confidence"
                           value={agentDecision.confidence}
                         />
                         <DetailRow
@@ -708,7 +706,7 @@ export default function ChatPage() {
                               >
                                 <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
                                   <p className="text-sm font-medium text-zinc-200">
-                                    {formatLabel(msg.sender_type)}
+                                    {formatDisplayLabel(msg.sender_type)}
                                   </p>
                                   <p className="text-xs text-zinc-600">
                                     {formatOperatorDateTime(msg.created_at)}

@@ -8,6 +8,7 @@ export type AutonomyActionLike = {
 export type AutonomyBadge = {
   kind: "tier" | "counterfactual" | "review" | "exempt";
   label: string;
+  title?: string;
 };
 
 export type AutonomyDetails = {
@@ -44,6 +45,26 @@ function formatValue(value: string) {
     .split("_")
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
     .join(" ");
+}
+
+export function getAutonomyTermDefinition(term: string | null | undefined) {
+  if (term === "bounded") {
+    return "Bounded policy: executes automatically within guardrails.";
+  }
+
+  if (term === "supervised") {
+    return "Supervised policy: proposes only; a human must approve.";
+  }
+
+  if (term === "blast_radius") {
+    return "Blast radius: how many records this action would touch.";
+  }
+
+  if (term === "confidence_floor") {
+    return "Confidence floor: minimum agent confidence this policy requires.";
+  }
+
+  return undefined;
 }
 
 function formatSegment(value: string) {
@@ -135,7 +156,11 @@ export function getAutonomyBadges(
     });
   }
   if (tier) {
-    badges.push({ kind: "tier", label: `${tier} policy` });
+    badges.push({
+      kind: "tier",
+      label: `${tier} policy`,
+      title: getAutonomyTermDefinition(details.tier),
+    });
   }
   if (details.counterfactual) {
     badges.push({ kind: "counterfactual", label: "Counterfactual" });

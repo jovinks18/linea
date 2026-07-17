@@ -1,15 +1,10 @@
+import { formatDisplayLabel } from "../lib/ui/labels";
+
 type AccountMetadataProps = {
   metadata: Record<string, unknown> | null | undefined;
 };
 
 const primaryKeys = ["arr", "renewal_date", "usage_score"] as const;
-
-function formatLabel(value: string) {
-  return value
-    .split("_")
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-    .join(" ");
-}
 
 function formatValue(key: string, value: unknown) {
   if (key === "arr") {
@@ -71,7 +66,7 @@ export function AccountMetadata({ metadata }: AccountMetadataProps) {
           {primaryEntries.map(([key, value]) => (
             <div key={key} className="min-w-0">
               <dt className="text-xs text-[var(--text-subtle)]">
-                {formatLabel(key)}
+                {formatDisplayLabel(key)}
               </dt>
               <dd className="mt-1 break-words text-sm font-medium text-[var(--text-secondary)]">
                 {formatValue(key, value)}
@@ -93,7 +88,7 @@ export function AccountMetadata({ metadata }: AccountMetadataProps) {
                 className="grid grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)] gap-3 py-2 text-xs"
               >
                 <dt className="break-words text-[var(--text-subtle)]">
-                  {formatLabel(key)}
+                  {formatDisplayLabel(key)}
                 </dt>
                 <dd className="break-words text-right text-[var(--text-secondary)]">
                   {formatValue(key, value)}

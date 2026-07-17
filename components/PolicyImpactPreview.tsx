@@ -3,17 +3,11 @@ import type {
   PolicyImpactSummary,
 } from "../lib/agent/autonomy-policy-simulation";
 import { formatOperatorDateTime } from "../lib/ui/datetime";
+import { formatDisplayLabel } from "../lib/ui/labels";
 import {
   StatusPill,
   type StatusPillVariant,
 } from "./StatusPill";
-
-function formatLabel(value: string) {
-  return value
-    .split("_")
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-    .join(" ");
-}
 
 function statusVariant(status: PolicyImpactStatus): StatusPillVariant {
   if (status === "executed") return "success";
@@ -120,7 +114,7 @@ export function PolicyImpactPreview({
                   Simulated
                 </th>
                 <th scope="col" className="px-3 py-2">
-                  Confidence
+                  Agent confidence
                 </th>
                 <th scope="col" className="px-3 py-2">
                   Scope
@@ -144,14 +138,14 @@ export function PolicyImpactPreview({
                   </td>
                   <td className="px-3 py-3">
                     <StatusPill variant={statusVariant(sample.current_status)}>
-                      {formatLabel(sample.current_status)}
+                      {formatDisplayLabel(sample.current_status)}
                     </StatusPill>
                   </td>
                   <td className="px-3 py-3">
                     <StatusPill
                       variant={statusVariant(sample.simulated_status)}
                     >
-                      {formatLabel(sample.simulated_status)}
+                      {formatDisplayLabel(sample.simulated_status)}
                     </StatusPill>
                   </td>
                   <td className="px-3 py-3">
@@ -159,7 +153,7 @@ export function PolicyImpactPreview({
                   </td>
                   <td className="px-3 py-3">
                     {sample.blast_radius_scope
-                      ? formatLabel(sample.blast_radius_scope)
+                      ? formatDisplayLabel(sample.blast_radius_scope)
                       : "Not recorded"}
                   </td>
                   <td className="max-w-64 px-3 py-3 leading-5">

@@ -10,7 +10,9 @@ import {
   getAutonomyBadges,
   getAutonomyDetails,
   getAutonomySummary,
+  getAutonomyTermDefinition,
 } from "../../../lib/ui/autonomy";
+import { formatDisplayLabel } from "../../../lib/ui/labels";
 import {
   agentActionStatusVariant,
   healthVariant,
@@ -23,25 +25,21 @@ import { formatOperatorDateTime } from "../../../lib/ui/datetime";
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
-function formatLabel(value: string | null | undefined) {
-  if (!value) return "Not set";
-
-  return value
-    .split("_")
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-    .join(" ");
-}
-
 function Detail({
   label,
   children,
+  title,
 }: {
   label: string;
   children: React.ReactNode;
+  title?: string;
 }) {
   return (
     <div>
-      <dt className="text-xs font-medium uppercase tracking-[0.14em] text-[var(--text-subtle)]">
+      <dt
+        className="text-xs font-medium uppercase tracking-[0.14em] text-[var(--text-subtle)]"
+        title={title}
+      >
         {label}
       </dt>
       <dd className="mt-1 text-sm text-[var(--text-secondary)]">{children}</dd>
@@ -93,13 +91,13 @@ export default async function CaseDetailPage({
           className="flex flex-wrap gap-2 rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-1)] p-4"
         >
           <StatusPill variant="default">
-            {formatLabel(detail.case.status)}
+            {formatDisplayLabel(detail.case.status)}
           </StatusPill>
           <StatusPill variant={priorityVariant(detail.case.priority)}>
             {detail.case.priority}
           </StatusPill>
           <StatusPill variant={sentimentVariant(detail.case.sentiment)}>
-            {formatLabel(detail.case.sentiment)}
+            {formatDisplayLabel(detail.case.sentiment)}
           </StatusPill>
           <StatusPill
             variant={reviewVariant(detail.case.requires_human_review)}
@@ -108,6 +106,10 @@ export default async function CaseDetailPage({
               ? "Human review required"
               : "No review required"}
           </StatusPill>
+          <p className="basis-full pt-2 text-sm leading-6 text-[var(--text-secondary)]">
+            Actions auto-execute only for verified linked accounts. Unknown
+            accounts hold for human review.
+          </p>
         </section>
 
         <div className="grid gap-6 xl:grid-cols-2">
@@ -118,13 +120,13 @@ export default async function CaseDetailPage({
               </Detail>
               <Detail label="Email">{detail.case.customer_email}</Detail>
               <Detail label="Intent">
-                {formatLabel(detail.case.intent)}
+                {formatDisplayLabel(detail.case.intent)}
               </Detail>
               <Detail label="Channel">
-                {formatLabel(detail.case.channel_origin)}
+                {formatDisplayLabel(detail.case.channel_origin)}
               </Detail>
               <Detail label="Review status">
-                {formatLabel(detail.case.review_status)}
+                {formatDisplayLabel(detail.case.review_status)}
               </Detail>
               <Detail label="Last activity">
                 {formatOperatorDateTime(detail.case.last_activity_at)}
@@ -148,7 +150,7 @@ export default async function CaseDetailPage({
                   <StatusPill
                     variant={healthVariant(detail.account.health_status)}
                   >
-                    {formatLabel(detail.account.health_status)}
+                    {formatDisplayLabel(detail.account.health_status)}
                   </StatusPill>
                 </div>
                 <dl className="grid gap-4 sm:grid-cols-2">
@@ -174,16 +176,18 @@ export default async function CaseDetailPage({
             <div className="grid gap-6">
               <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-4">
                 <Detail label="Classification">
-                  {formatLabel(agentDecision.classification)}
+                  {formatDisplayLabel(agentDecision.classification)}
                 </Detail>
-                <Detail label="Confidence">
+                <Detail label="Agent confidence">
                   {Math.round(agentDecision.confidence * 100)}%
                 </Detail>
                 <Detail label="Source">
-                  {formatLabel(agentDecision.source)}
+                  {formatDisplayLabel(agentDecision.source)}
                 </Detail>
                 <Detail label="Human review">
-                  {agentDecision.requires_human_review ? "Required" : "Not required"}
+                  {agentDecision.requires_human_review
+                    ? "Required"
+                    : "Not required"}
                 </Detail>
               </div>
               <p className="text-sm leading-6 text-[var(--text-secondary)]">
@@ -197,7 +201,7 @@ export default async function CaseDetailPage({
                   <div className="mt-3 flex flex-wrap gap-2">
                     {agentDecision.recommended_actions.map((action) => (
                       <StatusPill key={action} variant="warning">
-                        {formatLabel(action)}
+                        {formatDisplayLabel(action)}
                       </StatusPill>
                     ))}
                   </div>
@@ -209,7 +213,7 @@ export default async function CaseDetailPage({
                   <div className="mt-3 flex flex-wrap gap-2">
                     {agentDecision.executed_actions.map((action) => (
                       <StatusPill key={action} variant="success">
-                        {formatLabel(action)}
+                        {formatDisplayLabel(action)}
                       </StatusPill>
                     ))}
                   </div>
@@ -238,7 +242,7 @@ export default async function CaseDetailPage({
                 >
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <p className="text-sm font-medium text-[var(--text-primary)]">
-                      {formatLabel(message.sender_type)}
+                      {formatDisplayLabel(message.sender_type)}
                     </p>
                     <time
                       dateTime={message.created_at}
@@ -280,16 +284,17 @@ export default async function CaseDetailPage({
                     <div>
                       <div className="flex flex-wrap items-center gap-2">
                         <p className="text-sm font-medium text-[var(--text-primary)]">
-                          {formatLabel(action.action_type)}
+                          {formatDisplayLabel(action.action_type)}
                         </p>
                         <StatusPill
                           variant={agentActionStatusVariant(action.status)}
                         >
-                          {formatLabel(action.status)}
+                          {formatDisplayLabel(action.status)}
                         </StatusPill>
                         {autonomyBadges.map((badge) => (
                           <StatusPill
                             key={badge.kind}
+                            title={badge.title}
                             variant={
                               badge.kind === "review"
                                 ? "warning"
@@ -303,14 +308,14 @@ export default async function CaseDetailPage({
                         ))}
                         {autonomyDetails.segment ? (
                           <StatusPill variant="default">
-                            {formatLabel(autonomyDetails.segment)}
+                            {formatDisplayLabel(autonomyDetails.segment)}
                           </StatusPill>
                         ) : null}
                       </div>
                       <p className="mt-2 text-xs text-[var(--text-muted)]">
-                        Source: {formatLabel(action.source)}
+                        Source: {formatDisplayLabel(action.source)}
                         {action.confidence
-                          ? ` / ${Math.round(Number(action.confidence) * 100)}% confidence`
+                          ? ` / Agent confidence: ${Math.round(Number(action.confidence) * 100)}%`
                           : ""}
                       </p>
                       <div className="mt-3 border-l-2 border-[var(--border-strong)] pl-3">
@@ -330,25 +335,39 @@ export default async function CaseDetailPage({
                           <dl className="mt-3 grid gap-3 text-xs sm:grid-cols-2 lg:grid-cols-3">
                             {autonomyDetails.reason ? (
                               <Detail label="Reason">
-                                {formatLabel(autonomyDetails.reason)}
+                                {formatDisplayLabel(autonomyDetails.reason)}
                               </Detail>
                             ) : null}
                             {autonomyDetails.confidenceFloor !== null ? (
-                              <Detail label="Confidence floor">
-                                {Math.round(
-                                  autonomyDetails.confidenceFloor * 100
+                              <Detail
+                                label="Policy requires"
+                                title={getAutonomyTermDefinition(
+                                  "confidence_floor"
                                 )}
-                                %
+                              >
+                                {`>= ${Math.round(
+                                  autonomyDetails.confidenceFloor * 100
+                                )}%`}
                               </Detail>
                             ) : null}
                             {autonomyDetails.blastRadius !== null ? (
-                              <Detail label="Blast radius">
+                              <Detail
+                                label="Blast radius"
+                                title={getAutonomyTermDefinition(
+                                  "blast_radius"
+                                )}
+                              >
                                 {autonomyDetails.blastRadius}
                               </Detail>
                             ) : null}
                             {autonomyDetails.maxBlastRadius !== null ? (
-                              <Detail label="Maximum blast radius">
-                                {autonomyDetails.maxBlastRadius}
+                              <Detail
+                                label="Policy allows"
+                                title={getAutonomyTermDefinition(
+                                  "blast_radius"
+                                )}
+                              >
+                                {`Blast radius <= ${autonomyDetails.maxBlastRadius}`}
                               </Detail>
                             ) : null}
                             {autonomyDetails.reversible !== null ? (

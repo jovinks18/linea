@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRef, useState } from "react";
 import { Panel } from "./Panel";
 import { StatusPill } from "./StatusPill";
+import { formatDisplayLabel } from "../lib/ui/labels";
 
 type Profile = {
   file: string;
@@ -167,13 +168,6 @@ const summaryFields: {
     label: "Cases to skip",
   },
 ];
-
-function formatLabel(value: string) {
-  return value
-    .split("_")
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-    .join(" ");
-}
 
 function issueText(issue: Record<string, unknown>) {
   for (const key of ["error", "warning", "message"]) {
@@ -549,7 +543,7 @@ export function DataOnboardingWorkspace() {
       )}
 
       <div aria-live="polite" className="sr-only">
-        {pending ? `${formatLabel(pending)} in progress` : ""}
+        {pending ? `${formatDisplayLabel(pending)} in progress` : ""}
       </div>
 
       {step === 1 && (
@@ -760,7 +754,7 @@ export function DataOnboardingWorkspace() {
                       {item.file}
                     </p>
                     <p className="mt-1 text-xs text-[var(--text-subtle)]">
-                      {formatLabel(item.entity_guess)}
+                      {formatDisplayLabel(item.entity_guess)}
                     </p>
                   </div>
                   <StatusPill variant="info">
@@ -869,7 +863,7 @@ export function DataOnboardingWorkspace() {
                   <div className="flex items-center justify-between gap-3 border-b border-[var(--border-subtle)] px-4 py-3">
                     <div>
                       <p className="font-medium text-[var(--text-primary)]">
-                        {formatLabel(entity)}
+                        {formatDisplayLabel(entity)}
                       </p>
                       <p className="mt-1 font-mono text-xs text-[var(--text-subtle)]">
                         {entityMapping.file}

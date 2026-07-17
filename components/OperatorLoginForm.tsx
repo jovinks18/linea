@@ -68,6 +68,12 @@ export function OperatorLoginForm({ returnTo }: { returnTo: string }) {
         </div>
       ) : null}
 
+      <p className="rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-1)] p-3 text-sm leading-6 text-[var(--text-muted)]">
+        Set <code>LINEA_ADMIN_USERNAME</code> and{" "}
+        <code>LINEA_ADMIN_PASSWORD</code> in <code>.env.local</code>. See
+        README.
+      </p>
+
       <label className="grid gap-2 text-sm text-[var(--text-secondary)]">
         Operator username
         <input

@@ -22,16 +22,19 @@ const variantClasses: Record<StatusPillVariant, string> = {
 
 export function StatusPill({
   children,
+  title,
   variant = "default",
   className = "",
 }: {
   children: React.ReactNode;
+  title?: string;
   variant?: StatusPillVariant;
   className?: string;
 }) {
   return (
     <span
       role="status"
+      title={title}
       className={`inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-medium ${variantClasses[variant]} ${className}`}
     >
       {children}

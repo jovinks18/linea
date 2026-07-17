@@ -34,7 +34,9 @@ import type {
 } from "../../../lib/agent/autonomy-policy";
 import { pool } from "../../../lib/db";
 import { getCurrentOperator } from "../../../lib/auth/current-operator";
+import { getAutonomyTermDefinition } from "../../../lib/ui/autonomy";
 import { formatOperatorDateTime } from "../../../lib/ui/datetime";
+import { formatDisplayLabel } from "../../../lib/ui/labels";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -64,15 +66,8 @@ const tierExplanations: {
   },
 ];
 
-function formatLabel(value: string) {
-  return value
-    .split("_")
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-    .join(" ");
-}
-
 function formatSegment(segment: string | null) {
-  return segment === null ? "Default" : formatLabel(segment);
+  return segment === null ? "Default" : formatDisplayLabel(segment);
 }
 
 function tierVariant(tier: AutonomyTier): StatusPillVariant {
@@ -269,8 +264,11 @@ export default async function AutonomyPoliciesPage() {
                 key={tier}
                 className="rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-2)] p-4"
               >
-                <StatusPill variant={tierVariant(tier)}>
-                  {formatLabel(tier)}
+                <StatusPill
+                  title={getAutonomyTermDefinition(tier)}
+                  variant={tierVariant(tier)}
+                >
+                  {formatDisplayLabel(tier)}
                 </StatusPill>
                 <p className="mt-3 text-sm leading-6 text-[var(--text-secondary)]">
                   {description}
@@ -337,7 +335,7 @@ export default async function AutonomyPoliciesPage() {
                       </p>
                       <StatusPill variant="danger">Active</StatusPill>
                       <StatusPill variant="default">
-                        {formatLabel(breaker.scope)}
+                        {formatDisplayLabel(breaker.scope)}
                       </StatusPill>
                     </div>
                     <p className="mt-3 text-sm leading-6 text-[var(--text-secondary)]">
@@ -509,7 +507,7 @@ export default async function AutonomyPoliciesPage() {
                       <StatusPill
                         variant={changeTypeVariant(audit.change_type)}
                       >
-                        {formatLabel(audit.change_type)}
+                        {formatDisplayLabel(audit.change_type)}
                       </StatusPill>
                       <StatusPill variant="default">
                         {formatSegment(audit.segment)}

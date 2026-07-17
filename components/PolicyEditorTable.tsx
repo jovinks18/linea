@@ -9,6 +9,8 @@ import {
 import { PolicyImpactPreview } from "./PolicyImpactPreview";
 import type { PolicyImpactSummary } from "../lib/agent/autonomy-policy-simulation";
 import { formatOperatorDateTime } from "../lib/ui/datetime";
+import { getAutonomyTermDefinition } from "../lib/ui/autonomy";
+import { formatDisplayLabel } from "../lib/ui/labels";
 
 type AutonomyTier = "shadow" | "supervised" | "bounded" | "autonomous";
 
@@ -37,15 +39,8 @@ function policyKey(policy: EditableAutonomyPolicy) {
   return `${policy.action_type}:${policy.segment ?? "default"}`;
 }
 
-function formatLabel(value: string) {
-  return value
-    .split("_")
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-    .join(" ");
-}
-
 function formatSegment(segment: string | null) {
-  return segment === null ? "Default" : formatLabel(segment);
+  return segment === null ? "Default" : formatDisplayLabel(segment);
 }
 
 function tierVariant(tier: AutonomyTier): StatusPillVariant {
@@ -236,10 +231,18 @@ export function PolicyEditorTable({
               <th scope="col" className="px-4 py-3">
                 Tier
               </th>
-              <th scope="col" className="px-4 py-3">
+              <th
+                scope="col"
+                className="px-4 py-3"
+                title={getAutonomyTermDefinition("confidence_floor")}
+              >
                 Confidence floor
               </th>
-              <th scope="col" className="px-4 py-3">
+              <th
+                scope="col"
+                className="px-4 py-3"
+                title={getAutonomyTermDefinition("blast_radius")}
+              >
                 Max blast radius
               </th>
               <th scope="col" className="px-4 py-3">
@@ -274,8 +277,11 @@ export function PolicyEditorTable({
                       {formatSegment(policy.segment)}
                     </td>
                     <td className="px-4 py-4">
-                      <StatusPill variant={tierVariant(policy.tier)}>
-                        {formatLabel(policy.tier)}
+                      <StatusPill
+                        title={getAutonomyTermDefinition(policy.tier)}
+                        variant={tierVariant(policy.tier)}
+                      >
+                        {formatDisplayLabel(policy.tier)}
                       </StatusPill>
                     </td>
                     <td className="px-4 py-4">
@@ -367,13 +373,22 @@ export function PolicyEditorTable({
                                 </option>
                               </select>
                               <span className="text-xs leading-5 text-[var(--text-subtle)]">
+                                Bounded policy executes automatically within
+                                guardrails. Supervised policy proposes only; a
+                                human must approve.{" "}
                                 Autonomous upgrades are disabled in this
                                 prototype.
                               </span>
                             </label>
 
                             <label className="grid gap-2 text-sm text-[var(--text-secondary)]">
-                              Confidence floor
+                              <span
+                                title={getAutonomyTermDefinition(
+                                  "confidence_floor"
+                                )}
+                              >
+                                Confidence floor
+                              </span>
                               <input
                                 type="number"
                                 min="0.75"
@@ -392,12 +407,19 @@ export function PolicyEditorTable({
                                 className="rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-1)] px-3 py-2 text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/40"
                               />
                               <span className="text-xs leading-5 text-[var(--text-subtle)]">
-                                Confidence floor must be 0.75-1.00.
+                                Minimum agent confidence this policy requires;
+                                must be 0.75-1.00.
                               </span>
                             </label>
 
                             <label className="grid gap-2 text-sm text-[var(--text-secondary)]">
-                              Max blast radius
+                              <span
+                                title={getAutonomyTermDefinition(
+                                  "blast_radius"
+                                )}
+                              >
+                                Max blast radius
+                              </span>
                               <input
                                 type="number"
                                 min="0"
@@ -416,7 +438,8 @@ export function PolicyEditorTable({
                                 className="rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-1)] px-3 py-2 text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/40"
                               />
                               <span className="text-xs leading-5 text-[var(--text-subtle)]">
-                                Blast radius is capped at 1.
+                                How many records this action would touch;
+                                capped at 1.
                               </span>
                             </label>
 

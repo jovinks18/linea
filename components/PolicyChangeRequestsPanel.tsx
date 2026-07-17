@@ -3,7 +3,9 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import type { PolicyImpactSummary } from "../lib/agent/autonomy-policy-simulation";
+import { getAutonomyTermDefinition } from "../lib/ui/autonomy";
 import { formatOperatorDateTime } from "../lib/ui/datetime";
+import { formatDisplayLabel } from "../lib/ui/labels";
 import { PolicyImpactPreview } from "./PolicyImpactPreview";
 import { StatusPill } from "./StatusPill";
 
@@ -31,15 +33,8 @@ type ReviewState = {
   reviewReason: string;
 };
 
-function formatLabel(value: string) {
-  return value
-    .split("_")
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-    .join(" ");
-}
-
 function formatSegment(segment: string | null) {
-  return segment === null ? "Default" : formatLabel(segment);
+  return segment === null ? "Default" : formatDisplayLabel(segment);
 }
 
 function Snapshot({
@@ -57,13 +52,23 @@ function Snapshot({
       <dl className="mt-3 grid grid-cols-2 gap-x-4 gap-y-2 text-xs">
         <dt className="text-[var(--text-subtle)]">Tier</dt>
         <dd className="text-right text-[var(--text-primary)]">
-          {formatLabel(policy.tier)}
+          {formatDisplayLabel(policy.tier)}
         </dd>
-        <dt className="text-[var(--text-subtle)]">Confidence</dt>
+        <dt
+          className="text-[var(--text-subtle)]"
+          title={getAutonomyTermDefinition("confidence_floor")}
+        >
+          Policy requires
+        </dt>
         <dd className="text-right text-[var(--text-primary)]">
-          {Math.round(policy.confidence_floor * 100)}%
+          &gt;= {Math.round(policy.confidence_floor * 100)}%
         </dd>
-        <dt className="text-[var(--text-subtle)]">Blast radius</dt>
+        <dt
+          className="text-[var(--text-subtle)]"
+          title={getAutonomyTermDefinition("blast_radius")}
+        >
+          Max blast radius
+        </dt>
         <dd className="text-right text-[var(--text-primary)]">
           {policy.max_blast_radius}
         </dd>

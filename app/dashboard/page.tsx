@@ -16,6 +16,7 @@ import {
   severityVariant,
 } from "../../lib/ui/status";
 import { formatOperatorDateTime } from "../../lib/ui/datetime";
+import { formatDisplayLabel } from "../../lib/ui/labels";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -28,21 +29,12 @@ function EmptyState({ label }: { label: string }) {
   );
 }
 
-function formatLabel(value: string | null | undefined) {
-  if (!value) return "Not set";
-
-  return value
-    .split("_")
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-    .join(" ");
-}
-
 function formatConfidence(value: string | null) {
   if (!value) return null;
 
   const confidence = Number(value);
   return Number.isFinite(confidence)
-    ? `${Math.round(confidence * 100)}% confidence`
+    ? `Agent confidence: ${Math.round(confidence * 100)}%`
     : null;
 }
 
@@ -233,7 +225,7 @@ export default async function DashboardPage({
                       {supportCase.priority ?? "P2"}
                     </StatusPill>
                     <StatusPill variant="danger">
-                      {formatLabel(supportCase.review_status)}
+                      {formatDisplayLabel(supportCase.review_status)}
                     </StatusPill>
                   </div>
                 </Link>
@@ -276,16 +268,17 @@ export default async function DashboardPage({
                     <div className="min-w-0">
                       <div className="flex flex-wrap items-center gap-2">
                         <p className="text-sm font-medium text-[var(--text-primary)]">
-                          {formatLabel(action.action_type)}
+                          {formatDisplayLabel(action.action_type)}
                         </p>
                         <StatusPill
                           variant={agentActionStatusVariant(action.status)}
                         >
-                          {formatLabel(action.status)}
+                          {formatDisplayLabel(action.status)}
                         </StatusPill>
                         {autonomyBadges.map((badge) => (
                           <StatusPill
                             key={badge.kind}
+                            title={badge.title}
                             variant={
                               badge.kind === "review"
                                 ? "warning"
@@ -329,7 +322,7 @@ export default async function DashboardPage({
                     </div>
 
                     <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-[var(--text-subtle)] sm:max-w-52 sm:justify-end sm:text-right">
-                      <span>{formatLabel(action.source)}</span>
+                      <span>{formatDisplayLabel(action.source)}</span>
                       {confidence && <span>{confidence}</span>}
                       <time
                         dateTime={action.executed_at ?? action.created_at}
@@ -447,7 +440,7 @@ export default async function DashboardPage({
                       </div>
                       <div className="flex flex-wrap gap-2 sm:justify-end">
                         <StatusPill variant="default">
-                          {formatLabel(task.status)}
+                          {formatDisplayLabel(task.status)}
                         </StatusPill>
                         <StatusPill
                           variant={priorityVariant(task.priority)}
@@ -499,12 +492,12 @@ export default async function DashboardPage({
                           {signal.severity ?? "medium"}
                         </StatusPill>
                         <StatusPill variant="muted">
-                          {formatLabel(signal.status)}
+                          {formatDisplayLabel(signal.status)}
                         </StatusPill>
                       </div>
                     </div>
                     <p className="mt-4 text-sm text-[var(--text-secondary)]">
-                      Type: {formatLabel(signal.signal_type)}
+                      Type: {formatDisplayLabel(signal.signal_type)}
                     </p>
                   </div>
                 ))}
@@ -532,7 +525,9 @@ export default async function DashboardPage({
                     active={(params.status ?? "all") === status}
                     href={buildCaseQuery(params, { status })}
                   >
-                    {status === "all" ? "All statuses" : formatLabel(status)}
+                    {status === "all"
+                      ? "All statuses"
+                      : formatDisplayLabel(status)}
                   </FilterLink>
                 ))}
               </div>
@@ -543,7 +538,7 @@ export default async function DashboardPage({
                     active={(params.sort ?? "recency") === sort}
                     href={buildCaseQuery(params, { sort })}
                   >
-                    Sort: {formatLabel(sort)}
+                    Sort: {formatDisplayLabel(sort)}
                   </FilterLink>
                 ))}
               </div>
@@ -589,7 +584,7 @@ export default async function DashboardPage({
                       </div>
                       <div className="flex flex-wrap gap-2 sm:justify-end">
                         <StatusPill variant="default">
-                          {formatLabel(supportCase.status)}
+                          {formatDisplayLabel(supportCase.status)}
                         </StatusPill>
                         <StatusPill
                           variant={priorityVariant(supportCase.priority)}
