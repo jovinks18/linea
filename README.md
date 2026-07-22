@@ -1,8 +1,28 @@
 # Linea
 
-**A local-first workspace for supervised post-sales agent governance.**
+A supervised agent runtime for post-sales operations. The model proposes, policy decides, the executor acts, audit records facts, and a human supervises.
 
-Linea turns synthetic customer messages into structured cases, account context, proposed post-sales actions, autonomy decisions, evaluation scorecards, and an auditable policy trail. It is an early open-source project for exploring how support, customer success, implementation, and product teams can verify and govern agents before allowing them to act on customer accounts.
+Autonomy is granted per action type, never to "the agent" as a whole, and it is earned rather than assumed. An offline eval harness scores the real decision path against a hand-labeled golden set and writes the result to a scorecard. Gates read that scorecard and move autonomy tiers on evidence: promotion is slow and requires human approval, demotion is automatic and immediate. Every tier change is auditable back to the exact eval run that caused it.
+
+Automatic promotion is capped at "bounded" by design. Nothing in this system promotes itself to fully autonomous.
+
+## Try it in two minutes
+
+```bash
+git clone https://github.com/jovinks18/linea
+cd linea
+npm ci
+cp .env.example .env.local
+docker compose up -d postgres
+npm run dev
+```
+
+Then open [http://localhost:3000/chat](http://localhost:3000/chat) and send both demo messages:
+
+1. `maya.chen@example.com`, "Our API setup is still blocked and we are supposed to go live Friday." This resolves to a verified account and executes the post-sales actions within policy.
+2. Any unrecognized email, same message. This creates the case, holds every account action, and queues it for human review.
+
+Open the case pages side by side. The difference between them is the product.
 
 ## What Linea Does
 
@@ -19,12 +39,6 @@ Linea currently:
 - Shows case context, agent decisions, post-sales actions, and recent activity in `/chat` and `/dashboard`.
 - Profiles, maps, validates, and idempotently imports CSV data into a canonical post-sales schema.
 - Defines a normalized, provenance-aware foundation for future CRM, support, and product connectors.
-
-## Why It Exists
-
-Post-sales work is fragmented across conversations, tickets, CRM records, onboarding plans, product feedback, and health scores. Agents can help connect those signals, but only if operators can see what the agent understood, what it proposed, what actually executed, and where human review is required.
-
-Linea treats supervision and auditability as core product behavior rather than an afterthought.
 
 ## Core Capabilities
 
