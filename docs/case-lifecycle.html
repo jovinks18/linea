@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Linea — Case Lifecycle</title>
+<style>
+  :root{
+    --bg:#0b0c0e; --panel:#111317; --line:#2a2e37; --muted:#8b909b;
+    --text:#e8eaed; --accent:#5eead4; --amber:#f5c453; --red:#f0787a;
+    --green:#6fcf97; --blue:#7aa2f7; --exempt:#b48ce8;
+    --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+    --sans:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);font-family:var(--sans);
+    padding:32px 20px 64px;}
+  .wrap{max-width:1080px;margin:0 auto}
+  h1{font-size:20px;font-weight:650;margin:0 0 2px}
+  .sub{color:var(--muted);font-size:13px;margin:0 0 24px}
+  svg{width:100%;height:auto;display:block;background:var(--bg);
+    border:1px solid var(--line);border-radius:12px}
+  .legend{display:flex;flex-wrap:wrap;gap:14px 22px;margin-top:20px;
+    font-size:12.5px;color:var(--muted)}
+  .legend span{display:inline-flex;align-items:center;gap:7px}
+  .dot{width:11px;height:11px;border-radius:3px;display:inline-block}
+  .note{margin-top:22px;font-size:13px;color:var(--muted);line-height:1.55;
+    border-top:1px solid var(--line);padding-top:16px}
+  .note b{color:var(--text);font-weight:600}
+  text{font-family:var(--sans)}
+  .lbl{fill:var(--text);font-size:13px;font-weight:600}
+  .sm{fill:var(--muted);font-size:11px}
+  .mono{font-family:var(--mono);fill:var(--accent);font-size:11px}
+  .edge{stroke:var(--line);stroke-width:1.5;fill:none}
+  .edgeYes{stroke:var(--green);stroke-width:1.6;fill:none}
+  .edgeNo{stroke:var(--muted);stroke-width:1.4;fill:none;stroke-dasharray:4 4}
+  .elabel{fill:var(--muted);font-size:10.5px;font-family:var(--mono)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Linea — Case Lifecycle & Decision Model</h1>
+  <p class="sub">How a message moves from intake to audit, and the four decision points where ground truth lives.</p>
+
+  <svg viewBox="0 0 1040 1580" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Linea case lifecycle flowchart">
+    <defs>
+      <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+        <path d="M0 0 L10 5 L0 10 z" fill="#6b7280"/>
+      </marker>
+      <marker id="arrowG" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+        <path d="M0 0 L10 5 L0 10 z" fill="#6fcf97"/>
+      </marker>
+    </defs>
+
+    <!-- ============ PIPELINE SPINE ============ -->
+
+    <!-- 1 Message -->
+    <rect x="410" y="24" width="220" height="52" rx="10" fill="#111317" stroke="#2a2e37"/>
+    <text x="520" y="47" text-anchor="middle" class="lbl">Customer message</text>
+    <text x="520" y="63" text-anchor="middle" class="sm">email + text enters intake</text>
+
+    <line x1="520" y1="76" x2="520" y2="104" class="edge" marker-end="url(#arrow)"/>
+
+    <!-- 2 Triage -->
+    <rect x="410" y="106" width="220" height="66" rx="10" fill="#111317" stroke="#2a2e37"/>
+    <text x="520" y="128" text-anchor="middle" class="lbl">Triage  (deterministic)</text>
+    <text x="520" y="145" text-anchor="middle" class="sm">intent · sentiment · priority · subject</text>
+    <text x="520" y="161" text-anchor="middle" class="mono">DECISION POINT 3 → priority</text>
+
+    <line x1="520" y1="172" x2="520" y2="200" class="edge" marker-end="url(#arrow)"/>
+
+    <!-- 3 Account lookup -->
+    <rect x="410" y="202" width="220" height="66" rx="10" fill="#111317" stroke="#2a2e37"/>
+    <text x="520" y="224" text-anchor="middle" class="lbl">Account lookup</text>
+    <text x="520" y="241" text-anchor="middle" class="sm">email → contact → account?</text>
+    <text x="520" y="257" text-anchor="middle" class="mono">sets segment</text>
+
+    <line x1="520" y1="268" x2="520" y2="296" class="edge" marker-end="url(#arrow)"/>
+
+    <!-- segment diamond -->
+    <polygon points="520,298 610,346 520,394 430,346" fill="#0f1115" stroke="#2a2e37"/>
+    <text x="520" y="342" text-anchor="middle" class="lbl">Linked account?</text>
+    <text x="520" y="360" text-anchor="middle" class="sm">verified vs unknown</text>
+
+    <!-- left: unknown -->
+    <path d="M430 346 H250 V430" class="edgeNo" marker-end="url(#arrow)"/>
+    <text x="300" y="338" class="elabel">no → unknown_account</text>
+    <!-- right: linked -->
+    <path d="M610 346 H790 V430" class="edgeYes" marker-end="url(#arrowG)"/>
+    <text x="640" y="338" class="elabel">yes → linked_account</text>
+
+    <!-- 4 Classification (center, both paths rejoin conceptually) -->
+    <line x1="520" y1="394" x2="520" y2="430" class="edge" marker-end="url(#arrow)"/>
+    <rect x="380" y="432" width="280" height="72" rx="10" fill="#111317" stroke="#2a2e37"/>
+    <text x="520" y="456" text-anchor="middle" class="lbl">Classification + recommend actions</text>
+    <text x="520" y="473" text-anchor="middle" class="sm">blocker · support · feedback · unknown</text>
+    <text x="520" y="490" text-anchor="middle" class="mono">DECISION POINT 1 → is it a blocker?</text>
+
+    <!-- unknown-account rail note -->
+    <rect x="140" y="432" width="210" height="72" rx="10" fill="#141014" stroke="#3a2a34"/>
+    <text x="245" y="456" text-anchor="middle" class="lbl" style="fill:#f0787a">Unknown account</text>
+    <text x="245" y="473" text-anchor="middle" class="sm">no account mutations allowed</text>
+    <text x="245" y="490" text-anchor="middle" class="sm">→ forces review (uncertainty)</text>
+    <path d="M245 504 V690 H455" class="edgeNo" marker-end="url(#arrow)"/>
+
+    <!-- linked-account rail note -->
+    <rect x="690" y="432" width="210" height="72" rx="10" fill="#0f1512" stroke="#264033"/>
+    <text x="795" y="456" text-anchor="middle" class="lbl" style="fill:#6fcf97">Linked account</text>
+    <text x="795" y="473" text-anchor="middle" class="sm">account actions permitted</text>
+    <text x="795" y="490" text-anchor="middle" class="sm">→ subject to stakes check</text>
+    <path d="M795 504 V620 H585" class="edgeYes" marker-end="url(#arrowG)"/>
+
+    <line x1="520" y1="504" x2="520" y2="556" class="edge" marker-end="url(#arrow)"/>
+
+    <!-- STAKES diamond -->
+    <polygon points="520,558 640,606 520,654 400,606" fill="#0f1115" stroke="#3a3320"/>
+    <text x="520" y="600" text-anchor="middle" class="lbl">Stakes trigger?</text>
+    <text x="520" y="618" text-anchor="middle" class="sm">DECISION POINT 2</text>
+
+    <!-- stakes yes -> review -->
+    <path d="M400 606 H150 V712" class="edgeYes" marker-end="url(#arrowG)"/>
+    <text x="200" y="598" class="elabel" style="fill:#f5c453">yes → require review</text>
+    <!-- stakes no -> policy -->
+    <line x1="520" y1="654" x2="520" y2="706" class="edge" marker-end="url(#arrow)"/>
+    <text x="532" y="682" class="elabel">no</text>
+
+    <!-- review box -->
+    <rect x="40" y="690" width="220" height="66" rx="10" fill="#151206" stroke="#4a3d18"/>
+    <text x="150" y="712" text-anchor="middle" class="lbl" style="fill:#f5c453">require_human_review</text>
+    <text x="150" y="729" text-anchor="middle" class="sm">policy-exempt · safe fallback</text>
+    <text x="150" y="745" text-anchor="middle" class="sm">holds high-stakes actions</text>
+
+    <!-- 5 Policy / decide -->
+    <rect x="400" y="708" width="240" height="72" rx="10" fill="#111317" stroke="#2a2e37"/>
+    <text x="520" y="732" text-anchor="middle" class="lbl">Policy resolves per action + segment</text>
+    <text x="520" y="749" text-anchor="middle" class="mono">decide() → execute · suggest · hold</text>
+    <text x="520" y="766" text-anchor="middle" class="sm">tier: shadow · supervised · bounded · autonomous</text>
+
+    <path d="M260 723 H400" class="edgeYes" marker-end="url(#arrowG)"/>
+    <line x1="520" y1="780" x2="520" y2="812" class="edge" marker-end="url(#arrow)"/>
+
+    <!-- health diamond -->
+    <polygon points="520,814 650,862 520,910 390,862" fill="#0f1115" stroke="#3a2a34"/>
+    <text x="520" y="856" text-anchor="middle" class="lbl">Mutate account health?</text>
+    <text x="520" y="874" text-anchor="middle" class="sm">DECISION POINT 4</text>
+
+    <!-- health -> at_risk requires review floor -->
+    <path d="M650 862 H840 V930" class="edgeYes" marker-end="url(#arrowG)"/>
+    <text x="672" y="854" class="elabel" style="fill:#f0787a">→ at_risk = high-stakes</text>
+    <rect x="720" y="932" width="240" height="72" rx="10" fill="#141014" stroke="#3a2a34"/>
+    <text x="840" y="956" text-anchor="middle" class="lbl" style="fill:#f0787a">Health→at_risk requires review</text>
+    <text x="840" y="973" text-anchor="middle" class="sm">floored: gates cannot auto-promote</text>
+    <text x="840" y="989" text-anchor="middle" class="sm">out of this review requirement</text>
+    <path d="M840 1004 V1052 H600" class="edgeNo" marker-end="url(#arrow)"/>
+
+    <line x1="520" y1="910" x2="520" y2="1050" class="edge" marker-end="url(#arrow)"/>
+
+    <!-- 6 Execute -->
+    <rect x="400" y="1052" width="240" height="66" rx="10" fill="#111317" stroke="#2a2e37"/>
+    <text x="520" y="1075" text-anchor="middle" class="lbl">Executor acts</text>
+    <text x="520" y="1092" text-anchor="middle" class="sm">only actions whose directive allows</text>
+    <text x="520" y="1108" text-anchor="middle" class="sm">create_support_case always runs (exempt)</text>
+
+    <line x1="520" y1="1118" x2="520" y2="1146" class="edge" marker-end="url(#arrow)"/>
+
+    <!-- 7 Audit -->
+    <rect x="400" y="1148" width="240" height="66" rx="10" fill="#111317" stroke="#2a2e37"/>
+    <text x="520" y="1171" text-anchor="middle" class="lbl">agent_actions audit</text>
+    <text x="520" y="1188" text-anchor="middle" class="sm">one row per proposed action</text>
+    <text x="520" y="1204" text-anchor="middle" class="sm">executed · suggested · skipped · failed</text>
+
+    <line x1="520" y1="1214" x2="520" y2="1242" class="edge" marker-end="url(#arrow)"/>
+
+    <!-- 8 review queue + gates -->
+    <rect x="330" y="1244" width="180" height="60" rx="10" fill="#111317" stroke="#2a2e37"/>
+    <text x="420" y="1268" text-anchor="middle" class="lbl">Human review queue</text>
+    <text x="420" y="1285" text-anchor="middle" class="sm">operator can flag / override</text>
+
+    <rect x="540" y="1244" width="180" height="60" rx="10" fill="#111317" stroke="#2a2e37"/>
+    <text x="630" y="1268" text-anchor="middle" class="lbl">Eval + gates</text>
+    <text x="630" y="1285" text-anchor="middle" class="sm">scorecard moves tiers</text>
+
+    <!-- flywheel back-edge -->
+    <path d="M330 1274 H90 V520 H140" class="edge" marker-end="url(#arrow)" stroke-dasharray="5 5"/>
+    <text x="60" y="900" class="elabel" transform="rotate(-90 60 900)">operator corrections → new golden cases (flywheel)</text>
+  </svg>
+
+  <div class="legend">
+    <span><i class="dot" style="background:var(--green)"></i>allowed / verified path</span>
+    <span><i class="dot" style="background:var(--muted)"></i>held / unknown path</span>
+    <span><i class="dot" style="background:var(--amber)"></i>review required</span>
+    <span><i class="dot" style="background:var(--red)"></i>high-stakes / at_risk</span>
+    <span><i class="dot" style="background:var(--accent)"></i>decision point</span>
+  </div>
+
+  <div class="note">
+    <b>The four decision points are where your ground truth lives.</b> Everything else is mechanism.<br><br>
+    <b>1 · Is it a blocker?</b> Blocker = a currently <i>blocked state that stops progress</i>, not just go-live vocabulary. (Fixes the keyword-biased labels.)<br>
+    <b>2 · Stakes trigger?</b> Review fires on <i>uncertainty</i> (unknown account) OR <i>stakes</i> (SLA breach, outage, security/compliance, billing dispute, churn/cancellation, VIP account, health→at_risk).<br>
+    <b>3 · Priority</b> follows the standard impact matrix: P1 blocked/down/many affected · P2 degraded/single-user/workaround exists · P3 minor/informational/future.<br>
+    <b>4 · Health→at_risk</b> is high-stakes by design: it requires review and is <i>floored</i> so the gates can never auto-promote it back into silent auto-execution.
+  </div>
+</div>
+</body>
+</html>
