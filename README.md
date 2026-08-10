@@ -66,6 +66,19 @@ Linea currently provides:
 - CSV profiling, mapping recommendation, validation, dry runs, and idempotent imports into the canonical schema.
 - A connector contract and synthetic HubSpot-style fixture importer, without live SaaS credentials or writeback.
 
+## How Linea Decides
+
+Linea acts on its own when the case is confident and low-risk, hands off to a human when the case is uncertain or high-stakes, and records every decision so an operator can audit or override it.
+
+The decision model asks four questions:
+
+- Is this a current blocker, or only blocker-like vocabulary?
+- How urgent is the impact right now?
+- Does uncertainty or stakes require human review?
+- Does this create or change account-health state?
+
+The full rules live in [docs/DECISION-SPEC.md](docs/DECISION-SPEC.md), which is a living document with an amendment log. The requested case lifecycle flowchart path, `docs/case-lifecycle.html`, is not present in this checkout yet.
+
 ## Autonomy Ladder
 
 Autonomy policy is keyed by `action_type` and segment: `linked_account`, `unknown_account`, or a default row. The tiers are:
@@ -90,11 +103,13 @@ Two actions are policy-exempt:
 
 The offline harness lives in `lib/eval` and runs through `scripts/eval.mjs`.
 
-It loads the bundled hand-labeled golden set in `lib/eval/golden`, currently 26 synthetic cases with deliberate near-misses. The labels are hand-authored because unknown labels cannot benchmark correctness, and model-generated labels would only measure model-vs-model agreement.
+It loads the bundled hand-labeled golden set in `lib/eval/golden`, currently 26 synthetic cases with deliberate near-misses. The labels are derived from the decision spec and kept hand-authored because unknown labels cannot benchmark correctness, and model-generated labels would only measure model-vs-model agreement.
 
 The harness runs the real runtime path: `runBasicTriage`, `buildPolicyDecision`, `buildActionDirectives`, and the same `decide()` logic used by action directives. It aborts unless `MODEL_PROVIDER=deterministic`.
 
 Eval runs are read-only except for `model_scorecard`. The runner fingerprints guarded business tables before and after evaluation and fails if the eval mutates business data. When scorecard writes are enabled, it inserts one row per evaluated action type with `eval_run_id`, `f1`, `precision`, `recall`, `priority_exact`, `unsafe_gate_rate`, and `sample_size`.
+
+The golden labels are intentionally kept honest even when that lowers scores. Removing keyword-biased blocker labels dropped blocker-classification F1 to about `0.667` on the current truthful labels. That is the baseline a smarter classifier needs to beat.
 
 Use the no-write eval command as the regression gate:
 
@@ -102,7 +117,7 @@ Use the no-write eval command as the regression gate:
 npm run test:eval
 ```
 
-It fails when any action F1 is below the configured floor or when `unsafe_gate_rate` is greater than zero. The floors are intentionally lenient while the golden set is small and should rise as the set grows.
+It fails when any action F1 is below the configured floor or when `unsafe_gate_rate` is greater than zero. The current blocker-action F1 is below the floor, so the CI gate fails by design. The intended fix is a better classifier and decision path, not lowering the floor.
 
 ## Autonomy Gates
 
