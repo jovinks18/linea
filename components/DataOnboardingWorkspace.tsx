@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useRef, useState } from "react";
+import { PageBody, PageHeader } from "./PageHeader";
 import { Panel } from "./Panel";
 import { StatusPill } from "./StatusPill";
 import { formatDisplayLabel } from "../lib/ui/labels";
@@ -468,27 +469,18 @@ export function DataOnboardingWorkspace() {
   }
 
   return (
-    <div className="grid gap-7">
-      <header>
-        <div className="flex flex-wrap items-center gap-3">
-          <p className="text-xs font-medium uppercase tracking-[0.18em] text-[var(--text-subtle)]">
-            Data onboarding
-          </p>
+    <PageBody>
+      <PageHeader
+        title="Data onboarding"
+        description="Profile, map, validate, and import synthetic customer context."
+        action={
           <StatusPill variant="info">
             {sourceMode === "sample"
               ? "Sample dataset mode"
               : "Uploaded CSV mode"}
           </StatusPill>
-        </div>
-        <h1 className="mt-3 text-3xl font-semibold text-[var(--text-primary)] sm:text-4xl">
-          Prepare customer context for Linea
-        </h1>
-        <p className="mt-3 max-w-3xl text-sm leading-6 text-[var(--text-muted)] sm:text-base">
-          Profile, map, validate, and import customer data through a supervised
-          workflow. Nothing writes to PostgreSQL until the final confirmed
-          import.
-        </p>
-      </header>
+        }
+      />
 
       <nav aria-label="Data onboarding progress">
         <ol className="grid grid-cols-5 overflow-hidden rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-1)]">
@@ -507,7 +499,7 @@ export function DataOnboardingWorkspace() {
                   disabled={!isAvailable}
                   onClick={() => setStep(item.number)}
                   aria-current={isActive ? "step" : undefined}
-                  className={`flex min-h-20 w-full flex-col items-center justify-center gap-1 px-2 py-3 text-center transition focus:outline-none focus:ring-2 focus:ring-inset focus:ring-[var(--accent)]/40 disabled:cursor-not-allowed ${
+                  className={`flex min-h-14 w-full flex-col items-center justify-center gap-1 px-2 py-2 text-center transition focus:outline-none focus:ring-2 focus:ring-inset focus:ring-[var(--accent)]/40 disabled:cursor-not-allowed sm:min-h-16 ${
                     isActive
                       ? "bg-[var(--accent-muted)] text-[var(--text-primary)]"
                       : "text-[var(--text-muted)] hover:bg-[var(--surface-2)]"
@@ -547,7 +539,7 @@ export function DataOnboardingWorkspace() {
       </div>
 
       {step === 1 && (
-        <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_22rem]">
+        <div className="grid items-start gap-5 xl:grid-cols-[minmax(0,1fr)_20rem]">
           <Panel eyebrow="Step 1" title="Select a data source">
             <div className="grid grid-cols-2 rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-2)] p-1">
               {[
@@ -572,20 +564,17 @@ export function DataOnboardingWorkspace() {
 
             {sourceMode === "sample" ? (
               <>
-                <div className="mt-5 rounded-lg border border-dashed border-[var(--border-strong)] bg-[var(--surface-2)] p-6 text-center sm:p-8">
-                  <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-lg border border-[var(--border-strong)] bg-[var(--surface-1)] font-mono text-xs font-semibold text-[var(--text-secondary)]">
-                    CSV
-                  </span>
-                  <h2 className="mt-4 text-lg font-semibold text-[var(--text-primary)]">
+                <div className="mt-4 rounded-lg border border-dashed border-[var(--border-strong)] bg-[var(--surface-2)] p-4 text-center sm:p-5">
+                  <h2 className="text-base font-semibold text-[var(--text-primary)]">
                     Local template bundle selected
                   </h2>
-                  <p className="mx-auto mt-2 max-w-xl text-sm leading-6 text-[var(--text-muted)]">
+                  <p className="mx-auto mt-1 max-w-xl text-sm leading-6 text-[var(--text-muted)]">
                     Use the checked-in synthetic templates to explore the full
                     workflow without providing your own files.
                   </p>
                 </div>
 
-                <div className="mt-5 grid gap-3 sm:grid-cols-2">
+                <div className="mt-4 grid gap-3 sm:grid-cols-2">
                   {sampleFiles.map((item) => (
                     <div
                       key={item.file}
@@ -605,12 +594,9 @@ export function DataOnboardingWorkspace() {
                 </div>
               </>
             ) : (
-              <div className="mt-5 rounded-lg border border-dashed border-[var(--border-strong)] bg-[var(--surface-2)] p-4 sm:p-6">
+              <div className="mt-4 rounded-lg border border-dashed border-[var(--border-strong)] bg-[var(--surface-2)] p-4 sm:p-5">
                 <div className="text-center">
-                  <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-lg border border-[var(--border-strong)] bg-[var(--surface-1)] font-mono text-xs font-semibold text-[var(--text-secondary)]">
-                    CSV
-                  </span>
-                  <h2 className="mt-4 text-lg font-semibold text-[var(--text-primary)]">
+                  <h2 className="text-base font-semibold text-[var(--text-primary)]">
                     Choose local CSV files
                   </h2>
                   <p className="mx-auto mt-2 max-w-xl text-sm leading-6 text-[var(--text-muted)]">
@@ -620,14 +606,14 @@ export function DataOnboardingWorkspace() {
                   </p>
                 </div>
 
-                <div className="mt-6 grid gap-3">
+                <div className="mt-4 grid gap-3">
                   {uploadFields.map((field) => {
                     const file = uploadedFiles[field.entity];
 
                     return (
                       <label
                         key={field.entity}
-                        className="grid gap-3 rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-1)] p-4 sm:grid-cols-[minmax(0,1fr)_minmax(12rem,0.8fr)] sm:items-center"
+                        className="grid gap-3 rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-1)] p-3 sm:grid-cols-[minmax(0,1fr)_minmax(12rem,0.8fr)] sm:items-center"
                       >
                         <span>
                           <span className="flex items-center gap-2 text-sm font-medium text-[var(--text-primary)]">
@@ -667,7 +653,7 @@ export function DataOnboardingWorkspace() {
               </div>
             )}
 
-            <div className="mt-6 flex justify-end">
+            <div className="mt-4 flex justify-end">
               <ActionButton
                 disabled={pending !== null}
                 onClick={profileData}
@@ -1078,6 +1064,6 @@ export function DataOnboardingWorkspace() {
           </div>
         </Panel>
       )}
-    </div>
+    </PageBody>
   );
 }

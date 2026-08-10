@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { AccountMetadata } from "../../../components/AccountMetadata";
 import { AppShell } from "../../../components/AppShell";
 import { FlagReviewButton } from "../../../components/FlagReviewButton";
+import { PageBody, PageHeader } from "../../../components/PageHeader";
 import { Panel } from "../../../components/Panel";
 import { StatusPill } from "../../../components/StatusPill";
 import { getCaseDetail } from "../../../lib/cases/detail-repository";
@@ -65,8 +66,8 @@ export default async function CaseDetailPage({
 
   return (
     <AppShell active="dashboard">
-      <div className="grid gap-8">
-        <header className="grid gap-4 sm:grid-cols-[1fr_auto] sm:items-end">
+      <PageBody>
+        <div className="grid gap-3">
           <div>
             <Link
               href="/dashboard"
@@ -74,21 +75,19 @@ export default async function CaseDetailPage({
             >
               Back to Command Center
             </Link>
-            <p className="mt-5 text-xs font-medium uppercase tracking-[0.18em] text-[var(--text-subtle)]">
-              Case supervision
-            </p>
-            <h1 className="mt-2 font-mono text-2xl font-semibold text-[var(--text-primary)] sm:text-3xl">
-              {detail.case.case_number}
-            </h1>
-            <p className="mt-2 text-base text-[var(--text-secondary)]">
-              {detail.case.subject ?? "No subject"}
-            </p>
           </div>
-          <FlagReviewButton
-            caseNumber={detail.case.case_number}
-            initialRequiresReview={detail.case.requires_human_review}
+          <PageHeader
+            title={detail.case.case_number}
+            eyebrow="Case supervision"
+            description={detail.case.subject ?? "No subject"}
+            action={
+              <FlagReviewButton
+                caseNumber={detail.case.case_number}
+                initialRequiresReview={detail.case.requires_human_review}
+              />
+            }
           />
-        </header>
+        </div>
 
         <section
           aria-label="Case status"
@@ -116,7 +115,7 @@ export default async function CaseDetailPage({
           </p>
         </section>
 
-        <div className="grid gap-6 xl:grid-cols-2">
+        <div className="grid items-start gap-5 xl:grid-cols-2">
           <Panel eyebrow="Customer" title="Case context">
             <dl className="grid gap-5 sm:grid-cols-2">
               <Detail label="Customer">
@@ -128,9 +127,6 @@ export default async function CaseDetailPage({
               </Detail>
               <Detail label="Channel">
                 {formatDisplayLabel(detail.case.channel_origin)}
-              </Detail>
-              <Detail label="Review status">
-                {formatDisplayLabel(detail.case.review_status)}
               </Detail>
               <Detail label="Last activity">
                 {formatOperatorDateTime(detail.case.last_activity_at)}
@@ -148,7 +144,7 @@ export default async function CaseDetailPage({
                     </p>
                     <p className="mt-1 text-sm text-[var(--text-muted)]">
                       {detail.account.plan ?? "No plan"} /{" "}
-                      {detail.account.stage ?? "No stage"}
+                      {formatDisplayLabel(detail.account.stage)}
                     </p>
                   </div>
                   <StatusPill
@@ -175,61 +171,241 @@ export default async function CaseDetailPage({
           </Panel>
         </div>
 
-        <Panel eyebrow="Decision" title="Agent decision">
-          {agentDecision ? (
-            <div className="grid gap-6">
-              <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-4">
-                <Detail label="Classification">
-                  {formatDisplayLabel(agentDecision.classification)}
-                </Detail>
-                <Detail label="Agent confidence">
-                  {Math.round(agentDecision.confidence * 100)}%
-                </Detail>
-                <Detail label="Source">
-                  {formatDisplayLabel(agentDecision.source)}
-                </Detail>
-                <Detail label="Human review">
-                  {agentDecision.requires_human_review
-                    ? "Required"
-                    : "Not required"}
-                </Detail>
+        <Panel eyebrow="Decision" title="Agent decision and audit">
+          <div className="grid gap-7">
+            {agentDecision ? (
+              <div className="grid gap-6">
+                <div>
+                  <p className="text-xs font-medium uppercase tracking-[0.14em] text-[var(--text-subtle)]">
+                    Reason
+                  </p>
+                  <p className="mt-2 text-lg font-semibold leading-8 text-[var(--text-primary)]">
+                    {agentDecision.reasoning_summary}
+                  </p>
+                </div>
+                <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-4">
+                  <Detail label="Classification">
+                    {formatDisplayLabel(agentDecision.classification)}
+                  </Detail>
+                  <Detail label="Agent confidence">
+                    {Math.round(agentDecision.confidence * 100)}%
+                  </Detail>
+                  <Detail label="Source">
+                    {formatDisplayLabel(agentDecision.source)}
+                  </Detail>
+                  <Detail label="Human review">
+                    {agentDecision.requires_human_review
+                      ? "Required"
+                      : "Not required"}
+                  </Detail>
+                </div>
+                <div className="grid gap-5 lg:grid-cols-2">
+                  <div>
+                    <p className="text-xs font-medium uppercase tracking-[0.14em] text-[var(--text-subtle)]">
+                      Recommended
+                    </p>
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      {agentDecision.recommended_actions.length > 0 ? (
+                        agentDecision.recommended_actions.map((action) => (
+                          <StatusPill key={action} variant="warning">
+                            {formatDisplayLabel(action)}
+                          </StatusPill>
+                        ))
+                      ) : (
+                        <StatusPill variant="muted">None</StatusPill>
+                      )}
+                    </div>
+                  </div>
+                  <div>
+                    <p className="text-xs font-medium uppercase tracking-[0.14em] text-[var(--text-subtle)]">
+                      Executed
+                    </p>
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      {agentDecision.executed_actions.length > 0 ? (
+                        agentDecision.executed_actions.map((action) => (
+                          <StatusPill key={action} variant="success">
+                            {formatDisplayLabel(action)}
+                          </StatusPill>
+                        ))
+                      ) : (
+                        <StatusPill variant="muted">None</StatusPill>
+                      )}
+                    </div>
+                  </div>
+                </div>
               </div>
-              <p className="text-sm leading-6 text-[var(--text-secondary)]">
-                {agentDecision.reasoning_summary}
+            ) : (
+              <p className="text-sm text-[var(--text-muted)]">
+                No persisted agent decision is available for this older case.
+                The audit trail remains authoritative.
               </p>
-              <div className="grid gap-5 lg:grid-cols-2">
-                <div>
-                  <p className="text-xs font-medium uppercase tracking-[0.14em] text-[var(--text-subtle)]">
-                    Recommended
-                  </p>
-                  <div className="mt-3 flex flex-wrap gap-2">
-                    {agentDecision.recommended_actions.map((action) => (
-                      <StatusPill key={action} variant="warning">
-                        {formatDisplayLabel(action)}
-                      </StatusPill>
-                    ))}
-                  </div>
-                </div>
-                <div>
-                  <p className="text-xs font-medium uppercase tracking-[0.14em] text-[var(--text-subtle)]">
-                    Executed
-                  </p>
-                  <div className="mt-3 flex flex-wrap gap-2">
-                    {agentDecision.executed_actions.map((action) => (
-                      <StatusPill key={action} variant="success">
-                        {formatDisplayLabel(action)}
-                      </StatusPill>
-                    ))}
-                  </div>
-                </div>
+            )}
+
+            {detail.agent_actions.length === 0 ? (
+              <p className="text-sm text-[var(--text-muted)]">
+                No agent actions recorded for this case.
+              </p>
+            ) : (
+              <div className="audit-list border">
+                {detail.agent_actions.map((action) => {
+                  const autonomyDetails = getAutonomyDetails(action.metadata);
+                  const autonomyBadges = getAutonomyBadges(action.metadata);
+                  const autonomySummary =
+                    getAutonomySummary(action) ??
+                    "No autonomy policy metadata was recorded for this action.";
+                  const hasMetadata =
+                    Object.keys(action.metadata).length > 0;
+
+                  return (
+                    <article
+                      key={action.id}
+                      className={`grid gap-4 p-4 sm:grid-cols-[minmax(0,1fr)_auto] ${getAuditRowClassName(
+                        {
+                          policyExempt: autonomyDetails.policyExempt,
+                          status: action.status,
+                        }
+                      )}`}
+                    >
+                      <div className="min-w-0">
+                        <div className="flex flex-wrap items-center gap-x-2 gap-y-2">
+                          <p className="mr-1 text-sm font-semibold text-[var(--text-primary)]">
+                            {formatDisplayLabel(action.action_type)}
+                          </p>
+                          <StatusPill
+                            className={getAuditStatusPillClassName(
+                              action.status
+                            )}
+                            variant={agentActionStatusVariant(action.status)}
+                          >
+                            {formatDisplayLabel(action.status)}
+                          </StatusPill>
+                          {autonomyBadges.map((badge) => (
+                            <StatusPill
+                              key={badge.kind}
+                              title={badge.title}
+                              variant={
+                                badge.kind === "review"
+                                  ? "warning"
+                                  : badge.kind === "counterfactual"
+                                    ? "muted"
+                                    : "info"
+                              }
+                            >
+                              {badge.label}
+                            </StatusPill>
+                          ))}
+                          {autonomyDetails.segment ? (
+                            <StatusPill variant="default">
+                              {formatDisplayLabel(autonomyDetails.segment)}
+                            </StatusPill>
+                          ) : null}
+                        </div>
+
+                        <div className="mt-4 rounded-md border border-[var(--border-subtle)] bg-[var(--surface-1)] px-3 py-3">
+                          <p className="text-xs font-medium uppercase tracking-[0.14em] text-[var(--text-subtle)]">
+                            Policy citation
+                          </p>
+                          <p className="mt-1 text-base font-medium leading-6 text-[var(--text-primary)]">
+                            {autonomySummary}
+                          </p>
+                        </div>
+
+                        {action.reasoning_summary && (
+                          <p className="mt-3 text-sm leading-6 text-[var(--text-muted)]">
+                            {action.reasoning_summary}
+                          </p>
+                        )}
+
+                        {hasMetadata ? (
+                          <details className="mt-4 rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-1)]">
+                            <summary className="cursor-pointer px-3 py-2 text-xs font-medium uppercase tracking-[0.14em] text-[var(--text-subtle)] marker:text-[var(--accent)]">
+                              Debug: policy guard details and raw metadata
+                            </summary>
+                            <div className="border-t border-[var(--border-subtle)] p-3">
+                              <dl className="grid gap-3 text-xs sm:grid-cols-2 lg:grid-cols-3">
+                                {autonomyDetails.reason ? (
+                                  <Detail label="Reason">
+                                    {formatDisplayLabel(autonomyDetails.reason)}
+                                  </Detail>
+                                ) : null}
+                                {autonomyDetails.confidenceFloor !== null ? (
+                                  <Detail
+                                    label="Policy requires"
+                                    title={getAutonomyTermDefinition(
+                                      "confidence_floor"
+                                    )}
+                                  >
+                                    {`>= ${Math.round(
+                                      autonomyDetails.confidenceFloor * 100
+                                    )}%`}
+                                  </Detail>
+                                ) : null}
+                                {autonomyDetails.blastRadius !== null ? (
+                                  <Detail
+                                    label="Blast radius"
+                                    title={getAutonomyTermDefinition(
+                                      "blast_radius"
+                                    )}
+                                  >
+                                    {autonomyDetails.blastRadius}
+                                  </Detail>
+                                ) : null}
+                                {autonomyDetails.maxBlastRadius !== null ? (
+                                  <Detail
+                                    label="Policy allows"
+                                    title={getAutonomyTermDefinition(
+                                      "blast_radius"
+                                    )}
+                                  >
+                                    {`Blast radius <= ${autonomyDetails.maxBlastRadius}`}
+                                  </Detail>
+                                ) : null}
+                                {autonomyDetails.reversible !== null ? (
+                                  <Detail label="Reversible">
+                                    {autonomyDetails.reversible ? "Yes" : "No"}
+                                  </Detail>
+                                ) : null}
+                                {autonomyDetails.requiresReversible !== null ? (
+                                  <Detail label="Requires reversible">
+                                    {autonomyDetails.requiresReversible
+                                      ? "Yes"
+                                      : "No"}
+                                  </Detail>
+                                ) : null}
+                              </dl>
+                              <p className="mt-4 text-xs font-medium uppercase tracking-[0.14em] text-[var(--text-subtle)]">
+                                Raw metadata
+                              </p>
+                              <pre className="mt-2 max-h-64 overflow-auto rounded-lg bg-[var(--surface-2)] p-3 text-xs leading-5 text-[var(--text-muted)]">
+                                {JSON.stringify(action.metadata, null, 2)}
+                              </pre>
+                            </div>
+                          </details>
+                        ) : null}
+                      </div>
+                      <div className="text-xs text-[var(--text-subtle)] sm:text-right">
+                        <p>{formatDisplayLabel(action.source)}</p>
+                        {action.confidence ? (
+                          <p className="mt-1">
+                            Agent confidence:{" "}
+                            {Math.round(Number(action.confidence) * 100)}%
+                          </p>
+                        ) : null}
+                        <time
+                          dateTime={action.executed_at ?? action.created_at}
+                          className="mt-2 block"
+                        >
+                          {formatOperatorDateTime(
+                            action.executed_at ?? action.created_at
+                          )}
+                        </time>
+                      </div>
+                    </article>
+                  );
+                })}
               </div>
-            </div>
-          ) : (
-            <p className="text-sm text-[var(--text-muted)]">
-              No persisted agent decision is available for this older case.
-              The audit trail below remains authoritative.
-            </p>
-          )}
+            )}
+          </div>
         </Panel>
 
         <Panel eyebrow="Conversation" title="Full timeline">
@@ -264,161 +440,7 @@ export default async function CaseDetailPage({
           )}
         </Panel>
 
-        <Panel eyebrow="Audit" title="Agent actions">
-          {detail.agent_actions.length === 0 ? (
-            <p className="text-sm text-[var(--text-muted)]">
-              No agent actions recorded for this case.
-            </p>
-          ) : (
-            <div className="audit-list border">
-              {detail.agent_actions.map((action) => {
-                const autonomyDetails = getAutonomyDetails(action.metadata);
-                const autonomyBadges = getAutonomyBadges(action.metadata);
-                const autonomySummary =
-                  getAutonomySummary(action) ??
-                  "No autonomy policy metadata was recorded for this action.";
-                const hasMetadata =
-                  Object.keys(action.metadata).length > 0;
-
-                return (
-                  <article
-                    key={action.id}
-                    className={`grid gap-4 p-4 sm:grid-cols-[1fr_auto] ${getAuditRowClassName(
-                      {
-                        policyExempt: autonomyDetails.policyExempt,
-                        status: action.status,
-                      }
-                    )}`}
-                  >
-                    <div>
-                      <div className="flex flex-wrap items-center gap-x-2 gap-y-2">
-                        <p className="mr-1 text-sm font-semibold text-[var(--text-primary)]">
-                          {formatDisplayLabel(action.action_type)}
-                        </p>
-                        <StatusPill
-                          className={getAuditStatusPillClassName(
-                            action.status
-                          )}
-                          variant={agentActionStatusVariant(action.status)}
-                        >
-                          {formatDisplayLabel(action.status)}
-                        </StatusPill>
-                        {autonomyBadges.map((badge) => (
-                          <StatusPill
-                            key={badge.kind}
-                            title={badge.title}
-                            variant={
-                              badge.kind === "review"
-                                ? "warning"
-                                : badge.kind === "counterfactual"
-                                  ? "muted"
-                                  : "info"
-                            }
-                          >
-                            {badge.label}
-                          </StatusPill>
-                        ))}
-                        {autonomyDetails.segment ? (
-                          <StatusPill variant="default">
-                            {formatDisplayLabel(autonomyDetails.segment)}
-                          </StatusPill>
-                        ) : null}
-                      </div>
-                      <p className="mt-2 text-xs leading-5 text-[var(--text-muted)]">
-                        Source: {formatDisplayLabel(action.source)}
-                        {action.confidence
-                          ? ` / Agent confidence: ${Math.round(Number(action.confidence) * 100)}%`
-                          : ""}
-                      </p>
-                      <div className="mt-4 rounded-md border border-[var(--border-subtle)] bg-[var(--surface-1)] px-3 py-2.5">
-                        <p className="text-xs font-medium uppercase tracking-[0.14em] text-[var(--text-subtle)]">
-                          Autonomy decision
-                        </p>
-                        <p className="mt-1 text-sm leading-5 text-[var(--text-secondary)]">
-                          {autonomySummary}
-                        </p>
-                      </div>
-
-                      {hasMetadata ? (
-                        <details className="mt-3 border-t border-[var(--border-subtle)] pt-3">
-                          <summary className="cursor-pointer text-xs font-medium text-[var(--text-muted)] marker:text-[var(--accent)]">
-                            View policy guard details
-                          </summary>
-                          <dl className="mt-3 grid gap-2 text-xs sm:grid-cols-2 lg:grid-cols-3">
-                            {autonomyDetails.reason ? (
-                              <Detail label="Reason">
-                                {formatDisplayLabel(autonomyDetails.reason)}
-                              </Detail>
-                            ) : null}
-                            {autonomyDetails.confidenceFloor !== null ? (
-                              <Detail
-                                label="Policy requires"
-                                title={getAutonomyTermDefinition(
-                                  "confidence_floor"
-                                )}
-                              >
-                                {`>= ${Math.round(
-                                  autonomyDetails.confidenceFloor * 100
-                                )}%`}
-                              </Detail>
-                            ) : null}
-                            {autonomyDetails.blastRadius !== null ? (
-                              <Detail
-                                label="Blast radius"
-                                title={getAutonomyTermDefinition(
-                                  "blast_radius"
-                                )}
-                              >
-                                {autonomyDetails.blastRadius}
-                              </Detail>
-                            ) : null}
-                            {autonomyDetails.maxBlastRadius !== null ? (
-                              <Detail
-                                label="Policy allows"
-                                title={getAutonomyTermDefinition(
-                                  "blast_radius"
-                                )}
-                              >
-                                {`Blast radius <= ${autonomyDetails.maxBlastRadius}`}
-                              </Detail>
-                            ) : null}
-                            {autonomyDetails.reversible !== null ? (
-                              <Detail label="Reversible">
-                                {autonomyDetails.reversible ? "Yes" : "No"}
-                              </Detail>
-                            ) : null}
-                            {autonomyDetails.requiresReversible !== null ? (
-                              <Detail label="Requires reversible">
-                                {autonomyDetails.requiresReversible
-                                  ? "Yes"
-                                  : "No"}
-                              </Detail>
-                            ) : null}
-                          </dl>
-                          <p className="mt-4 text-xs font-medium uppercase tracking-[0.14em] text-[var(--text-subtle)]">
-                            Raw metadata
-                          </p>
-                          <pre className="mt-2 max-h-64 overflow-auto rounded-lg bg-[var(--surface-1)] p-3 text-xs leading-5 text-[var(--text-muted)]">
-                            {JSON.stringify(action.metadata, null, 2)}
-                          </pre>
-                        </details>
-                      ) : null}
-                    </div>
-                    <time
-                      dateTime={action.executed_at ?? action.created_at}
-                      className="text-xs text-[var(--text-subtle)]"
-                    >
-                      {formatOperatorDateTime(
-                        action.executed_at ?? action.created_at
-                      )}
-                    </time>
-                  </article>
-                );
-              })}
-            </div>
-          )}
-        </Panel>
-      </div>
+      </PageBody>
     </AppShell>
   );
 }

@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { AccountMetadata } from "../../components/AccountMetadata";
 import { AppShell } from "../../components/AppShell";
 import { FlagReviewButton } from "../../components/FlagReviewButton";
+import { PageBody, PageHeader } from "../../components/PageHeader";
 import { Panel } from "../../components/Panel";
 import { StatusPill } from "../../components/StatusPill";
 import {
@@ -12,7 +13,6 @@ import {
   reviewVariant,
   sentimentVariant,
 } from "../../lib/ui/status";
-import { formatOperatorDateTime } from "../../lib/ui/datetime";
 import { formatDisplayLabel } from "../../lib/ui/labels";
 
 type AgentDecision = {
@@ -266,25 +266,37 @@ export default function ChatPage() {
   const confidence = agentDecision
     ? Math.round(agentDecision.confidence * 100)
     : 0;
+  const rawEvent = reply
+    ? {
+        response: reply,
+        case: caseDetails?.case ?? null,
+        messages: caseDetails?.messages ?? [],
+      }
+    : null;
+  const hasResultColumn = Boolean(reply || loading);
 
   return (
     <AppShell active="chat">
-      <div className="grid gap-8">
-        <header>
-          <p className="text-xs font-medium uppercase tracking-[0.18em] text-[var(--text-subtle)]">
-            Chat intake
-          </p>
-          <h1 className="mt-2 text-3xl font-semibold text-zinc-50 sm:text-4xl">
-            Run an intake workflow
-          </h1>
-          <p className="mt-3 max-w-3xl text-sm leading-6 text-zinc-400 sm:text-base">
-            Send one customer message and see what Linea understood, which
-            account it found, and which post-sales actions actually ran.
-          </p>
-        </header>
+      <PageBody>
+        <PageHeader
+          title="Chat intake"
+          description="Run one customer message through account lookup, policy, execution, and audit."
+        />
 
-        <div className="grid gap-6 xl:grid-cols-[420px_1fr]">
-          <div className="grid gap-4">
+        <div
+          className={`grid gap-5 ${
+            hasResultColumn
+              ? "xl:grid-cols-[400px_minmax(0,1fr)]"
+              : "xl:max-w-4xl xl:grid-cols-[minmax(0,1fr)]"
+          }`}
+        >
+          <div
+            className={`grid gap-4 ${
+              hasResultColumn
+                ? ""
+                : "xl:grid-cols-[320px_minmax(0,1fr)] xl:items-start"
+            }`}
+          >
             <Panel eyebrow="Demo" title="Try a demo scenario">
               <div className="grid gap-2">
                 {demoScenarios.map((scenario) => (
@@ -321,9 +333,12 @@ export default function ChatPage() {
                   />
                 </div>
 
-                <details className="rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-2)] px-3 py-2">
-                  <summary className="cursor-pointer text-xs font-medium uppercase tracking-[0.14em] text-[var(--text-subtle)] marker:text-[var(--accent)]">
-                    Optional case restore
+                <details className="quiet-disclosure rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-2)] px-3 py-2">
+                  <summary className="flex cursor-pointer items-center justify-between gap-3 text-sm font-medium text-[var(--text-muted)]">
+                    <span>Optional case restore</span>
+                    <span className="text-xs text-[var(--text-subtle)]">
+                      Load existing case
+                    </span>
                   </summary>
                   <div className="mt-3 flex gap-2">
                     <input
@@ -372,6 +387,7 @@ export default function ChatPage() {
             </Panel>
           </div>
 
+          {hasResultColumn && (
           <div className="grid gap-4">
             <Panel
               eyebrow="Result"
@@ -448,7 +464,31 @@ export default function ChatPage() {
                         What Linea understood
                       </h2>
                       {agentDecision ? (
-                        <div className="mt-4 grid gap-4">
+                        <div className="mt-4 grid gap-5">
+                          <div>
+                            <p className="text-xs font-medium uppercase tracking-[0.14em] text-[var(--text-subtle)]">
+                              Explanation
+                            </p>
+                            <p className="mt-2 text-base font-medium leading-7 text-[var(--text-primary)]">
+                              {agentDecision.reasoning_summary}
+                            </p>
+                          </div>
+                          <div>
+                            <p className="text-xs font-medium uppercase tracking-[0.14em] text-[var(--text-subtle)]">
+                              Agent confidence
+                            </p>
+                            <div className="mt-2 grid gap-2">
+                              <span className="font-mono text-xl font-semibold text-[var(--text-primary)]">
+                                {confidence}%
+                              </span>
+                              <span className="h-2 overflow-hidden rounded-full bg-[var(--surface-3)]">
+                                <span
+                                  className="block h-full rounded-full bg-[var(--accent)]"
+                                  style={{ width: `${confidence}%` }}
+                                />
+                              </span>
+                            </div>
+                          </div>
                           <DetailRow
                             label="Type"
                             value={
@@ -465,26 +505,6 @@ export default function ChatPage() {
                                 )}
                               </StatusPill>
                             }
-                          />
-                          <DetailRow
-                            label="Agent confidence"
-                            value={
-                              <div className="grid gap-2">
-                                <span className="font-mono text-lg text-[var(--text-primary)]">
-                                  {confidence}%
-                                </span>
-                                <span className="h-2 overflow-hidden rounded-full bg-[var(--surface-3)]">
-                                  <span
-                                    className="block h-full rounded-full bg-[var(--accent)]"
-                                    style={{ width: `${confidence}%` }}
-                                  />
-                                </span>
-                              </div>
-                            }
-                          />
-                          <DetailRow
-                            label="Explanation"
-                            value={agentDecision.reasoning_summary}
                           />
                         </div>
                       ) : (
@@ -507,7 +527,7 @@ export default function ChatPage() {
                           />
                           <DetailRow
                             label="Stage"
-                            value={account.stage ?? "Not set"}
+                            value={formatDisplayLabel(account.stage)}
                           />
                           <DetailRow
                             label="Health"
@@ -619,109 +639,23 @@ export default function ChatPage() {
                     </p>
                   </section>
 
-                  {agentDecision && (
-                    <details className="rounded-lg border border-white/10 bg-black/20">
-                      <summary className="cursor-pointer px-4 py-3 text-sm font-medium text-zinc-300 marker:text-[var(--accent)]">
-                        Expand technical agent decision
+                  {rawEvent && (
+                    <details className="rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-2)]">
+                      <summary className="cursor-pointer px-4 py-3 text-sm font-medium text-[var(--text-secondary)] marker:text-[var(--accent)]">
+                        View raw event
                       </summary>
-                      <div className="grid gap-4 border-t border-white/10 p-4 text-sm">
-                        <DetailRow
-                          label="Classification"
-                          value={agentDecision.classification}
-                        />
-                        <DetailRow
-                          label="Agent confidence"
-                          value={agentDecision.confidence}
-                        />
-                        <DetailRow
-                          label="Recommended actions"
-                          value={
-                            agentDecision.recommended_actions.length > 0
-                              ? agentDecision.recommended_actions.join(", ")
-                              : "None"
-                          }
-                        />
-                        <DetailRow
-                          label="Executed actions"
-                          value={
-                            agentDecision.executed_actions.length > 0
-                              ? agentDecision.executed_actions.join(", ")
-                              : "None"
-                          }
-                        />
-                        <DetailRow
-                          label="Requires human review"
-                          value={String(agentDecision.requires_human_review)}
-                        />
+                      <div className="border-t border-[var(--border-subtle)] p-4">
+                        {historyLoading && (
+                          <p className="mb-3 text-sm text-[var(--text-muted)]">
+                            Loading latest case snapshot...
+                          </p>
+                        )}
+                        <pre className="max-h-80 overflow-auto rounded-lg bg-[var(--surface-1)] p-3 text-xs leading-5 text-[var(--text-muted)]">
+                          {JSON.stringify(rawEvent, null, 2)}
+                        </pre>
                       </div>
                     </details>
                   )}
-
-                  <details className="rounded-lg border border-white/10 bg-black/20">
-                    <summary className="cursor-pointer px-4 py-3 text-sm font-medium text-zinc-300 marker:text-[var(--accent)]">
-                      Expand conversation timeline
-                    </summary>
-                    <div className="border-t border-white/10 p-4">
-                      {historyLoading && (
-                        <p className="text-sm text-zinc-500">
-                          Loading case history...
-                        </p>
-                      )}
-
-                      {!historyLoading && !caseDetails && (
-                        <p className="text-sm text-zinc-500">
-                          Enter a case number and click Load, or send a new
-                          message to create a case.
-                        </p>
-                      )}
-
-                      {caseDetails && (
-                        <div className="grid gap-4">
-                          <div className="grid gap-3 rounded-lg border border-white/10 bg-black/25 p-4 text-sm sm:grid-cols-2">
-                            <DetailRow
-                              label="Case"
-                              value={caseDetails.case.case_number}
-                            />
-                            <DetailRow
-                              label="Customer"
-                              value={caseDetails.case.customer_email}
-                            />
-                            <DetailRow
-                              label="Subject"
-                              value={caseDetails.case.subject}
-                            />
-                            <DetailRow
-                              label="Last activity"
-                              value={formatOperatorDateTime(
-                                caseDetails.case.last_activity_at
-                              )}
-                            />
-                          </div>
-
-                          <div className="grid gap-3">
-                            {caseDetails.messages.map((msg) => (
-                              <div
-                                key={msg.id}
-                                className="rounded-lg border border-white/10 bg-black/25 p-4"
-                              >
-                                <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
-                                  <p className="text-sm font-medium text-zinc-200">
-                                    {formatDisplayLabel(msg.sender_type)}
-                                  </p>
-                                  <p className="text-xs text-zinc-600">
-                                    {formatOperatorDateTime(msg.created_at)}
-                                  </p>
-                                </div>
-                                <p className="mt-3 text-sm leading-6 text-zinc-400">
-                                  {msg.message_text}
-                                </p>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  </details>
                 </div>
               ) : loading ? (
                 <div className="grid gap-4 text-sm text-[var(--text-muted)]">
@@ -789,8 +723,9 @@ export default function ChatPage() {
               )}
             </Panel>
           </div>
+          )}
         </div>
-      </div>
+      </PageBody>
     </AppShell>
   );
 }

@@ -1,21 +1,11 @@
 import Link from "next/link";
 import { AccountMetadata } from "../../components/AccountMetadata";
 import { AppShell } from "../../components/AppShell";
-import { MetricCard } from "../../components/MetricCard";
+import { PageBody, PageHeader } from "../../components/PageHeader";
 import { Panel } from "../../components/Panel";
 import { StatusPill } from "../../components/StatusPill";
 import { getDashboardData } from "../../lib/dashboard/repository";
 import {
-  getAutonomyBadges,
-  getAutonomyDetails,
-  getAutonomySummary,
-} from "../../lib/ui/autonomy";
-import {
-  getAuditRowClassName,
-  getAuditStatusPillClassName,
-} from "../../lib/ui/audit-visuals";
-import {
-  agentActionStatusVariant,
   healthVariant,
   priorityVariant,
   severityVariant,
@@ -32,15 +22,6 @@ function EmptyState({ label }: { label: string }) {
       {label}
     </div>
   );
-}
-
-function formatConfidence(value: string | null) {
-  if (!value) return null;
-
-  const confidence = Number(value);
-  return Number.isFinite(confidence)
-    ? `Agent confidence: ${Math.round(confidence * 100)}%`
-    : null;
 }
 
 type DashboardSearchParams = {
@@ -108,9 +89,6 @@ export default async function DashboardPage({
 }) {
   const data = await getDashboardData();
   const params = (await searchParams) ?? {};
-  const openCaseCount = data.recentCases.filter(
-    (supportCase) => supportCase.status === "open"
-  ).length;
   const accountOptions = Array.from(
     new Set(data.recentCases.map((supportCase) => supportCase.account).filter(Boolean))
   ) as string[];
@@ -154,38 +132,11 @@ export default async function DashboardPage({
 
   return (
     <AppShell active="dashboard">
-      <div className="grid gap-8">
-        <header>
-          <p className="text-xs font-medium uppercase tracking-[0.18em] text-[var(--text-subtle)]">
-            Command center
-          </p>
-          <h1 className="mt-2 text-3xl font-semibold text-[var(--text-primary)] sm:text-4xl">
-            Post-sales operations console
-          </h1>
-          <p className="mt-3 max-w-3xl text-sm leading-6 text-[var(--text-muted)] sm:text-base">
-            Monitor account risk, follow-up work, product signals, and recent
-            support activity from the local demo database.
-          </p>
-        </header>
-
-        <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-          <MetricCard
-            label="At-risk accounts"
-            value={data.atRiskAccounts.length}
-          />
-          <MetricCard
-            label="Open tasks"
-            value={data.openTasks.length}
-          />
-          <MetricCard
-            label="Product signals"
-            value={data.recentProductSignals.length}
-          />
-          <MetricCard
-            label="Open cases"
-            value={openCaseCount}
-          />
-        </section>
+      <PageBody>
+        <PageHeader
+          title="Command center"
+          description="Review what needs human attention, then scan account risk, work, signals, and cases."
+        />
 
         <Panel
           eyebrow="Supervision"
@@ -235,121 +186,6 @@ export default async function DashboardPage({
           )}
         </Panel>
 
-        <Panel
-          eyebrow="Audit trail"
-          title="Agent Activity"
-          action={
-            <Link
-              href="/admin/policies"
-              className="rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-2)] px-3 py-2 text-xs font-medium text-[var(--text-secondary)] transition hover:border-[var(--border-strong)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/40"
-            >
-              View policies
-            </Link>
-          }
-        >
-          <p className="mb-5 text-sm leading-6 text-[var(--text-muted)]">
-            Auditable record of actions Linea executed, suggested, skipped, or
-            failed.
-          </p>
-
-          {data.agentActions.length === 0 ? (
-            <EmptyState label="No agent actions recorded yet. Run a demo message from Chat Intake." />
-          ) : (
-            <div className="audit-list border">
-              {data.agentActions.map((action) => {
-                const confidence = formatConfidence(action.confidence);
-                const autonomyBadges = getAutonomyBadges(action.metadata);
-                const autonomyDetails = getAutonomyDetails(action.metadata);
-                const autonomySummary = getAutonomySummary(action);
-
-                return (
-                  <article
-                    key={action.id}
-                    className={`grid gap-4 px-4 py-3.5 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-start ${getAuditRowClassName(
-                      {
-                        policyExempt: autonomyDetails.policyExempt,
-                        status: action.status,
-                      }
-                    )}`}
-                  >
-                    <div className="min-w-0">
-                      <div className="flex flex-wrap items-center gap-x-2 gap-y-2">
-                        <p className="mr-1 text-sm font-semibold text-[var(--text-primary)]">
-                          {formatDisplayLabel(action.action_type)}
-                        </p>
-                        <StatusPill
-                          className={getAuditStatusPillClassName(
-                            action.status
-                          )}
-                          variant={agentActionStatusVariant(action.status)}
-                        >
-                          {formatDisplayLabel(action.status)}
-                        </StatusPill>
-                        {autonomyBadges.map((badge) => (
-                          <StatusPill
-                            key={badge.kind}
-                            title={badge.title}
-                            variant={
-                              badge.kind === "review"
-                                ? "warning"
-                                : badge.kind === "counterfactual"
-                                  ? "muted"
-                                  : "info"
-                            }
-                          >
-                            {badge.label}
-                          </StatusPill>
-                        ))}
-                      </div>
-
-                      <p className="mt-2 text-xs leading-5 text-[var(--text-muted)]">
-                        {action.account_name ?? "No linked account"}
-                        {action.case_number && (
-                          <>
-                            {" "}
-                            /{" "}
-                            <span className="font-mono">
-                              {action.case_number}
-                            </span>
-                          </>
-                        )}
-                      </p>
-
-                      {autonomySummary && (
-                        <p className="mt-3 rounded-md border border-[var(--border-subtle)] bg-[var(--surface-1)] px-3 py-2 text-xs font-medium leading-5 text-[var(--text-secondary)]">
-                          {autonomySummary}
-                        </p>
-                      )}
-
-                      {action.reasoning_summary && (
-                        <p
-                          className="mt-2 line-clamp-2 text-xs leading-5 text-[var(--text-subtle)]"
-                          title={action.reasoning_summary}
-                        >
-                          {action.reasoning_summary}
-                        </p>
-                      )}
-                    </div>
-
-                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-[var(--text-subtle)] sm:max-w-52 sm:justify-end sm:text-right">
-                      <span>{formatDisplayLabel(action.source)}</span>
-                      {confidence && <span>{confidence}</span>}
-                      <time
-                        dateTime={action.executed_at ?? action.created_at}
-                        className="basis-full"
-                      >
-                        {formatOperatorDateTime(
-                          action.executed_at ?? action.created_at
-                        )}
-                      </time>
-                    </div>
-                  </article>
-                );
-              })}
-            </div>
-          )}
-        </Panel>
-
         {data.importedAccounts.length > 0 && (
           <Panel
             eyebrow="Imported data"
@@ -375,7 +211,7 @@ export default async function DashboardPage({
                     </p>
                     <p className="mt-1 text-sm text-[var(--text-muted)]">
                       {account.plan ?? "No plan"} /{" "}
-                      {account.stage ?? "No stage"}
+                      {formatDisplayLabel(account.stage)}
                     </p>
                     <p className="mt-3 text-sm text-[var(--text-secondary)]">
                       Owner: {account.owner_name ?? "Unassigned"}
@@ -383,7 +219,7 @@ export default async function DashboardPage({
                   </div>
                   <div className="sm:text-right">
                     <StatusPill variant={healthVariant(account.health_status)}>
-                      {account.health_status ?? "unknown"}
+                      {formatDisplayLabel(account.health_status)}
                     </StatusPill>
                   </div>
                   <div className="sm:col-span-2">
@@ -395,7 +231,7 @@ export default async function DashboardPage({
           </Panel>
         )}
 
-        <div className="grid gap-6 xl:grid-cols-2">
+        <div className="grid items-start gap-5 xl:grid-cols-2">
           <Panel eyebrow="Accounts" title="At-risk accounts">
             {data.atRiskAccounts.length === 0 ? (
               <EmptyState label="No at-risk accounts - all accounts are currently stable." />
@@ -412,7 +248,7 @@ export default async function DashboardPage({
                       </p>
                       <p className="mt-1 text-sm text-[var(--text-muted)]">
                         {account.plan ?? "No plan"} /{" "}
-                        {account.stage ?? "No stage"}
+                        {formatDisplayLabel(account.stage)}
                       </p>
                       <p className="mt-3 text-sm text-[var(--text-secondary)]">
                         Owner: {account.owner_name ?? "Unassigned"}
@@ -420,7 +256,7 @@ export default async function DashboardPage({
                     </div>
                     <div className="sm:text-right">
                       <StatusPill variant={healthVariant(account.health_status)}>
-                        {account.health_status ?? "unknown"}
+                        {formatDisplayLabel(account.health_status)}
                       </StatusPill>
                     </div>
                     <div className="sm:col-span-2">
@@ -499,7 +335,7 @@ export default async function DashboardPage({
                         <StatusPill
                           variant={severityVariant(signal.severity)}
                         >
-                          {signal.severity ?? "medium"}
+                          {formatDisplayLabel(signal.severity)}
                         </StatusPill>
                         <StatusPill variant="muted">
                           {formatDisplayLabel(signal.status)}
@@ -626,7 +462,7 @@ export default async function DashboardPage({
             )}
           </Panel>
         </div>
-      </div>
+      </PageBody>
     </AppShell>
   );
 }

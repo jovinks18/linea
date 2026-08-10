@@ -2,6 +2,7 @@ import type { PoolClient } from "pg";
 import { redirect } from "next/navigation";
 import { AppShell } from "../../../components/AppShell";
 import { OperatorIdentity } from "../../../components/OperatorIdentity";
+import { PageBody, PageHeader } from "../../../components/PageHeader";
 import { Panel } from "../../../components/Panel";
 import { PolicyEditorTable } from "../../../components/PolicyEditorTable";
 import {
@@ -239,23 +240,13 @@ export default async function AutonomyPoliciesPage() {
 
   return (
     <AppShell active="policies">
-      <div className="grid min-w-0 gap-8">
-        <header className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-          <div>
-            <p className="text-xs font-medium uppercase tracking-[0.18em] text-[var(--text-subtle)]">
-              Policy admin
-            </p>
-            <h1 className="mt-2 text-3xl font-semibold text-[var(--text-primary)] sm:text-4xl">
-              Autonomy Policies
-            </h1>
-            <p className="mt-3 max-w-3xl text-sm leading-6 text-[var(--text-muted)] sm:text-base">
-              Inspect the rules that determine whether Linea may execute,
-              suggest, or shadow each proposed action. Existing rows can be
-              changed only through guarded, audited updates.
-            </p>
-          </div>
-          <OperatorIdentity username={operator.username} />
-        </header>
+      <PageBody>
+        <PageHeader
+          title="Autonomy policies"
+          eyebrow="Policy admin"
+          description="Inspect execution tiers, guardrails, pending approvals, and audited policy changes."
+          action={<OperatorIdentity username={operator.username} />}
+        />
 
         <Panel eyebrow="Control plane" title="How autonomy tiers behave">
           <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
@@ -537,7 +528,7 @@ export default async function AutonomyPoliciesPage() {
             </div>
           )}
         </Panel>
-      </div>
+      </PageBody>
     </AppShell>
   );
 }

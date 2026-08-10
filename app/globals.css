@@ -88,6 +88,19 @@ summary {
   outline-offset: 2px;
 }
 
+.quiet-disclosure > summary {
+  list-style: none;
+  list-style-type: none;
+}
+
+.quiet-disclosure > summary::marker {
+  content: "";
+}
+
+.quiet-disclosure > summary::-webkit-details-marker {
+  display: none;
+}
+
 .audit-list {
   border-color: var(--border-subtle);
   border-radius: 0.5rem;

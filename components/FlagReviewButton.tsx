@@ -47,7 +47,7 @@ export function FlagReviewButton({
         type="button"
         onClick={flagForReview}
         disabled={loading || requiresReview}
-        className="rounded-lg border border-[var(--border-strong)] bg-[var(--surface-2)] px-3 py-2 text-sm font-medium text-[var(--text-primary)] transition hover:bg-[var(--surface-3)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/40 disabled:cursor-not-allowed disabled:opacity-60"
+        className="rounded-lg border border-[var(--accent)] bg-[var(--accent)] px-4 py-2.5 text-sm font-semibold text-[var(--background)] shadow-[0_0_0_1px_var(--accent-muted)] transition hover:brightness-110 focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/40 disabled:cursor-not-allowed disabled:border-[var(--border-strong)] disabled:bg-[var(--surface-2)] disabled:text-[var(--text-muted)] disabled:shadow-none"
       >
         {loading
           ? "Flagging review..."
