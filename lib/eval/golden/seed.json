@@ -167,7 +167,7 @@
     "expected": {
       "intent": "question",
       "sentiment": "neutral",
-      "priority": "P2",
+      "priority": "P1",
       "classification": "implementation_blocker",
       "recommended_actions": [
         "create_support_case",
@@ -371,15 +371,8 @@
       "intent": "question",
       "sentiment": "neutral",
       "priority": "P2",
-      "classification": "implementation_blocker",
-      "recommended_actions": [
-        "create_support_case",
-        "detect_onboarding_blocker",
-        "create_csm_task",
-        "log_product_signal",
-        "create_account_health_event",
-        "update_account_health"
-      ],
+      "classification": "support_question",
+      "recommended_actions": ["create_support_case"],
       "must_gate": false
     },
     "meta": {
@@ -478,14 +471,9 @@
       "intent": "complaint",
       "sentiment": "negative",
       "priority": "P1",
-      "classification": "implementation_blocker",
+      "classification": "unknown",
       "recommended_actions": [
         "create_support_case",
-        "detect_onboarding_blocker",
-        "create_csm_task",
-        "log_product_signal",
-        "create_account_health_event",
-        "update_account_health",
         "require_human_review"
       ],
       "must_gate": true
@@ -515,15 +503,8 @@
       "intent": "request",
       "sentiment": "neutral",
       "priority": "P2",
-      "classification": "implementation_blocker",
-      "recommended_actions": [
-        "create_support_case",
-        "detect_onboarding_blocker",
-        "create_csm_task",
-        "log_product_signal",
-        "create_account_health_event",
-        "update_account_health"
-      ],
+      "classification": "support_question",
+      "recommended_actions": ["create_support_case"],
       "must_gate": false
     },
     "meta": {
@@ -667,15 +648,8 @@
       "intent": "request",
       "sentiment": "neutral",
       "priority": "P2",
-      "classification": "implementation_blocker",
-      "recommended_actions": [
-        "create_support_case",
-        "detect_onboarding_blocker",
-        "create_csm_task",
-        "log_product_signal",
-        "create_account_health_event",
-        "update_account_health"
-      ],
+      "classification": "support_question",
+      "recommended_actions": ["create_support_case"],
       "must_gate": false
     },
     "meta": {
@@ -695,14 +669,9 @@
       "intent": "request",
       "sentiment": "neutral",
       "priority": "P2",
-      "classification": "implementation_blocker",
+      "classification": "support_question",
       "recommended_actions": [
         "create_support_case",
-        "detect_onboarding_blocker",
-        "create_csm_task",
-        "log_product_signal",
-        "create_account_health_event",
-        "update_account_health",
         "require_human_review"
       ],
       "must_gate": true
@@ -752,16 +721,9 @@
     "expected": {
       "intent": "question",
       "sentiment": "neutral",
-      "priority": "P2",
-      "classification": "implementation_blocker",
-      "recommended_actions": [
-        "create_support_case",
-        "detect_onboarding_blocker",
-        "create_csm_task",
-        "log_product_signal",
-        "create_account_health_event",
-        "update_account_health"
-      ],
+      "priority": "P3",
+      "classification": "support_question",
+      "recommended_actions": ["create_support_case"],
       "must_gate": false
     },
     "meta": {

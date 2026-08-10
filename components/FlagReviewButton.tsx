@@ -1,15 +1,20 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+
+const operatorSignInMessage = "Sign in as an operator to flag this case.";
 
 export function FlagReviewButton({
   caseNumber,
   initialRequiresReview = false,
+  operatorAuthenticated = false,
   onFlagged,
 }: {
   caseNumber: string;
   initialRequiresReview?: boolean;
+  operatorAuthenticated?: boolean;
   onFlagged?: () => void;
 }) {
   const router = useRouter();
@@ -28,17 +33,52 @@ export function FlagReviewButton({
       );
 
       if (!response.ok) {
-        throw new Error("Review flag request failed");
+        if (response.status === 401) {
+          throw new Error(operatorSignInMessage);
+        }
+
+        let message = "Could not flag this case. Try again.";
+
+        try {
+          const body = (await response.json()) as { errors?: unknown };
+          if (Array.isArray(body.errors) && body.errors.length > 0) {
+            message = body.errors.filter(Boolean).join(" ");
+          }
+        } catch {
+          // Keep the generic fallback when the response is not JSON.
+        }
+
+        throw new Error(message);
       }
 
       setRequiresReview(true);
       onFlagged?.();
       router.refresh();
-    } catch {
-      setError("Could not flag this case. Try again.");
+    } catch (flagError) {
+      setError(
+        flagError instanceof Error
+          ? flagError.message
+          : "Could not flag this case. Try again."
+      );
     } finally {
       setLoading(false);
     }
+  }
+
+  if (!operatorAuthenticated && !requiresReview) {
+    return (
+      <div className="grid justify-items-start gap-2 sm:justify-items-end">
+        <Link
+          href="/login"
+          className="rounded-lg border border-[var(--border-strong)] bg-[var(--surface-2)] px-4 py-2.5 text-sm font-semibold text-[var(--text-secondary)] transition hover:border-[var(--accent)] hover:text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/40"
+        >
+          Sign in to flag
+        </Link>
+        <p aria-live="polite" className="text-xs text-[var(--text-muted)]">
+          {operatorSignInMessage}
+        </p>
+      </div>
+    );
   }
 
   return (

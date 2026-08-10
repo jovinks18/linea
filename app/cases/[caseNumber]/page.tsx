@@ -6,6 +6,7 @@ import { FlagReviewButton } from "../../../components/FlagReviewButton";
 import { PageBody, PageHeader } from "../../../components/PageHeader";
 import { Panel } from "../../../components/Panel";
 import { StatusPill } from "../../../components/StatusPill";
+import { getCurrentOperator } from "../../../lib/auth/current-operator";
 import { getCaseDetail } from "../../../lib/cases/detail-repository";
 import {
   getAutonomyBadges,
@@ -58,7 +59,10 @@ export default async function CaseDetailPage({
   params: Promise<{ caseNumber: string }>;
 }) {
   const { caseNumber } = await params;
-  const detail = await getCaseDetail(caseNumber);
+  const [detail, operator] = await Promise.all([
+    getCaseDetail(caseNumber),
+    getCurrentOperator(),
+  ]);
 
   if (!detail) notFound();
 
@@ -84,6 +88,7 @@ export default async function CaseDetailPage({
               <FlagReviewButton
                 caseNumber={detail.case.case_number}
                 initialRequiresReview={detail.case.requires_human_review}
+                operatorAuthenticated={operator !== null}
               />
             }
           />
