@@ -1,4 +1,4 @@
-export type TriageIntent = "question" | "request" | "complaint";
+export type TriageIntent = "question" | "request" | "complaint" | "no_action";
 
 export type TriageSentiment = "positive" | "neutral" | "negative";
 

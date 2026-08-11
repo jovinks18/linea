@@ -9,7 +9,9 @@ type ModelConfig = {
 };
 
 function getProvider(value: string | undefined): ModelProvider {
-  if (value === "openai_compatible" || value === "ollama") return value;
+  if (value === "openai_compatible" || value === "ollama" || value === "groq") {
+    return value;
+  }
 
   return "deterministic";
 }
@@ -19,13 +21,24 @@ function getModelConfig(): ModelConfig | null {
 
   if (provider === "deterministic") return null;
 
-  const baseUrl = process.env.MODEL_BASE_URL?.trim() ?? "";
-  const modelName = process.env.MODEL_NAME?.trim() ?? "";
-  const apiKey = process.env.MODEL_API_KEY?.trim() ?? "";
+  const baseUrl =
+    provider === "groq"
+      ? "https://api.groq.com/openai/v1"
+      : process.env.MODEL_BASE_URL?.trim() ?? "";
+  const modelName =
+    provider === "groq"
+      ? process.env.GROQ_MODEL?.trim() ?? ""
+      : process.env.MODEL_NAME?.trim() ?? "";
+  const apiKey =
+    provider === "groq"
+      ? process.env.GROQ_API_KEY?.trim() ?? ""
+      : process.env.MODEL_API_KEY?.trim() ?? "";
   const timeoutMs = Number(process.env.MODEL_TIMEOUT_MS ?? 15000);
 
   if (!baseUrl || !modelName) return null;
-  if (provider === "openai_compatible" && !apiKey) return null;
+  if ((provider === "openai_compatible" || provider === "groq") && !apiKey) {
+    return null;
+  }
 
   return {
     provider,
@@ -47,9 +60,12 @@ function withTimeout(timeoutMs: number) {
 }
 
 function chatCompletionsUrl(baseUrl: string) {
-  if (baseUrl.endsWith("/chat/completions")) return baseUrl;
+  const normalized = baseUrl.replace(/\/$/, "");
 
-  return `${baseUrl.replace(/\/$/, "")}/v1/chat/completions`;
+  if (normalized.endsWith("/chat/completions")) return normalized;
+  if (normalized.endsWith("/v1")) return `${normalized}/chat/completions`;
+
+  return `${normalized}/v1/chat/completions`;
 }
 
 function ollamaChatUrl(baseUrl: string) {
@@ -152,23 +168,27 @@ async function callOllama({
 }
 
 export async function callConfiguredModel(
-  messages: ModelChatMessage[]
+  messages: ModelChatMessage[],
+  options: { logFallback?: boolean } = {}
 ): Promise<unknown | null> {
   const config = getModelConfig();
+  const logFallback = options.logFallback ?? true;
 
   if (!config) return null;
 
   try {
-    if (config.provider === "openai_compatible") {
+    if (config.provider === "openai_compatible" || config.provider === "groq") {
       return await callOpenAICompatible({ config, messages });
     }
 
     return await callOllama({ config, messages });
   } catch (error) {
-    console.warn(
-      "Linea model planner unavailable; using deterministic fallback.",
-      error instanceof Error ? error.message : "Unknown model error"
-    );
+    if (logFallback) {
+      console.warn(
+        "Linea model planner unavailable; using deterministic fallback.",
+        error instanceof Error ? error.message : "Unknown model error"
+      );
+    }
 
     return null;
   }

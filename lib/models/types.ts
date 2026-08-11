@@ -1,4 +1,8 @@
-export type ModelProvider = "deterministic" | "openai_compatible" | "ollama";
+export type ModelProvider =
+  | "deterministic"
+  | "openai_compatible"
+  | "ollama"
+  | "groq";
 
 export type AgentPlanClassification =
   | "support_question"

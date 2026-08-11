@@ -36,6 +36,12 @@ function createSubject(message: string) {
 
 function classifyIntent(message: string): TriageIntent {
   const lower = message.toLowerCase();
+  const hasRequest =
+    lower.includes("please") ||
+    lower.includes("can you") ||
+    lower.includes("help me") ||
+    lower.includes("want to know") ||
+    lower.includes("curious about");
 
   if (
     lower.includes("frustrated") ||
@@ -46,11 +52,11 @@ function classifyIntent(message: string): TriageIntent {
     return "complaint";
   }
 
-  if (
-    lower.includes("please") ||
-    lower.includes("can you") ||
-    lower.includes("help me")
-  ) {
+  if (!hasRequest && (lower.includes("thanks") || lower.includes("great"))) {
+    return "no_action";
+  }
+
+  if (hasRequest) {
     return "request";
   }
 
