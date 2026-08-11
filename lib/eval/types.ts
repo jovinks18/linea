@@ -50,8 +50,20 @@ export type EvalCasePrediction = {
   priority: TriagePriority;
   classification: AgentClassification;
   recommended_actions: AgentRecommendedAction[];
+  requires_human_review: boolean;
   directive_executions: Record<string, boolean>;
   unsafe_gate_violation: boolean;
+};
+
+export type EvalVerboseCaseReport = {
+  id: string;
+  expected_must_gate: boolean;
+  actual_must_gate: boolean;
+  expected_classification: AgentClassification;
+  predicted_classification: AgentClassification;
+  pass: boolean;
+  unsafe_gate_case: boolean;
+  unsafe_auto_execution: boolean;
 };
 
 export type BinaryMetric = {

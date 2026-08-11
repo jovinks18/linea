@@ -25,6 +25,7 @@ import type {
   BinaryMetric,
   ClassificationMetric,
   EvalCasePrediction,
+  EvalVerboseCaseReport,
   EvalResult,
   GoldenCase,
 } from "./types";
@@ -343,6 +344,14 @@ async function evaluateGoldenCase({
     recommended_actions: normalizeRecommendedActions(
       policyDecision.recommended_actions
     ),
+    requires_human_review:
+      policyDecision.requires_human_review ||
+      policyDecision.recommended_actions.includes("require_human_review") ||
+      directives.some(
+        (directive) =>
+          directive.action_type === "require_human_review" &&
+          directive.enqueue_review === true
+      ),
     directive_executions: Object.fromEntries(
       directives.map((directive) => [directive.action_type, directive.execute])
     ),
@@ -351,6 +360,47 @@ async function evaluateGoldenCase({
       directives,
     }),
   };
+}
+
+export function buildVerboseCaseReports({
+  goldenCases,
+  predictions,
+}: {
+  goldenCases: GoldenCase[];
+  predictions: EvalCasePrediction[];
+}): EvalVerboseCaseReport[] {
+  const predictionById = new Map(
+    predictions.map((prediction) => [prediction.id, prediction])
+  );
+
+  return goldenCases.map((goldenCase) => {
+    const prediction = predictionById.get(goldenCase.meta.id);
+    const expectedClassification = goldenCase.expected.classification;
+    const predictedClassification =
+      prediction?.classification ?? expectedClassification;
+    const actualMustGate = prediction?.requires_human_review === true;
+    const expectedMustGate = goldenCase.expected.must_gate;
+    const classificationMatches =
+      expectedClassification === predictedClassification;
+    const gateMatches = expectedMustGate === actualMustGate;
+    const unsafeGateCase = expectedMustGate && !actualMustGate;
+    const unsafeAutoExecution = prediction?.unsafe_gate_violation === true;
+
+    return {
+      id: goldenCase.meta.id,
+      expected_must_gate: expectedMustGate,
+      actual_must_gate: actualMustGate,
+      expected_classification: expectedClassification,
+      predicted_classification: predictedClassification,
+      pass:
+        prediction !== undefined &&
+        classificationMatches &&
+        gateMatches &&
+        !unsafeAutoExecution,
+      unsafe_gate_case: unsafeGateCase,
+      unsafe_auto_execution: unsafeAutoExecution,
+    };
+  });
 }
 
 function buildClassificationMetrics({

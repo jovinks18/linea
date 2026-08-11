@@ -3,6 +3,7 @@ import path from "node:path";
 import { Pool } from "pg";
 import { getDatabaseConfig } from "../lib/db-config.ts";
 import {
+  buildVerboseCaseReports,
   DEFAULT_EVAL_CONFIG,
   loadGoldenCasesFromDirectory,
   runModelComparisonEval,
@@ -18,6 +19,7 @@ function parseArgs(argv) {
     writeScorecard: true,
     json: false,
     modelClassifier: false,
+    verbose: false,
   };
 
   for (let index = 0; index < argv.length; index += 1) {
@@ -47,10 +49,43 @@ function parseArgs(argv) {
       continue;
     }
 
+    if (arg === "--verbose") {
+      options.verbose = true;
+      continue;
+    }
+
     throw new Error(`Unknown eval argument: ${arg}`);
   }
 
   return options;
+}
+
+function printVerboseCaseReports(result, goldenCases) {
+  const reports = buildVerboseCaseReports({
+    goldenCases,
+    predictions: result.predictions,
+  });
+
+  console.log("");
+  console.log("Cases");
+  for (const report of reports) {
+    const marker = report.pass ? "PASS" : "FAIL";
+    const flags = [];
+
+    if (report.unsafe_gate_case) {
+      flags.push("UNSAFE_GATE: expected review but none was required");
+    }
+
+    if (report.unsafe_auto_execution) {
+      flags.push("UNSAFE_AUTO_EXECUTION: mutation executed despite must_gate");
+    }
+
+    const suffix = flags.length > 0 ? ` ${flags.join("; ")}` : "";
+
+    console.log(
+      `  ${marker} ${report.id} must_gate expected=${report.expected_must_gate} actual=${report.actual_must_gate} classification expected=${report.expected_classification} predicted=${report.predicted_classification}${suffix}`
+    );
+  }
 }
 
 function formatPercent(value) {
@@ -135,6 +170,9 @@ async function main() {
       console.log(JSON.stringify(result, null, 2));
     } else {
       printHumanSummary(result, options);
+      if (options.verbose) {
+        printVerboseCaseReports(result, goldenCases);
+      }
     }
 
     if (!result.passed && !options.modelClassifier) {

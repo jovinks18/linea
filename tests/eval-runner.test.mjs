@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import {
   assertBusinessFingerprintsEqual,
   assertDeterministicEvalMode,
+  buildVerboseCaseReports,
   evaluateGoldenCases,
   loadGoldenCasesFromDirectory,
   runModelComparisonEval,
@@ -152,5 +153,52 @@ const comparison = await runModelComparisonEval({
 
 assert.equal(comparison.mode, "model_comparison");
 assert.equal(comparison.sample_size, goldenCases.length);
+
+const verboseReports = buildVerboseCaseReports({
+  goldenCases: [
+    {
+      expected: {
+        must_gate: true,
+        classification: "implementation_blocker",
+        recommended_actions: [],
+      },
+      meta: { id: "case-1" },
+    },
+    {
+      expected: {
+        must_gate: false,
+        classification: "support_question",
+        recommended_actions: [],
+      },
+      meta: { id: "case-2" },
+    },
+  ],
+  predictions: [
+    {
+      id: "case-1",
+      classification: "support_question",
+      requires_human_review: false,
+      unsafe_gate_violation: false,
+    },
+    {
+      id: "case-2",
+      classification: "support_question",
+      requires_human_review: false,
+      unsafe_gate_violation: false,
+    },
+  ],
+});
+
+assert.deepEqual(verboseReports[0], {
+  id: "case-1",
+  expected_must_gate: true,
+  actual_must_gate: false,
+  expected_classification: "implementation_blocker",
+  predicted_classification: "support_question",
+  pass: false,
+  unsafe_gate_case: true,
+  unsafe_auto_execution: false,
+});
+assert.equal(verboseReports[1].pass, true);
 
 console.log("PASS offline eval runner");
