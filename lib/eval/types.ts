@@ -79,7 +79,7 @@ export type PriorityMetric = {
 
 export type EvalResult = {
   eval_run_id: string;
-  mode: "offline";
+  mode: "offline" | "model_comparison";
   sample_size: number;
   passed: boolean;
   failures: string[];

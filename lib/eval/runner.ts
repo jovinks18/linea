@@ -17,6 +17,8 @@ import type {
 import { createEmptyPostSalesActions, detectOnboardingBlocker } from "../post-sales/automation.ts";
 // @ts-expect-error Node's direct TypeScript test runner requires the extension.
 import { runBasicTriage } from "../triage/engine.ts";
+// @ts-expect-error Node's direct TypeScript test runner requires the extension.
+import { classifyWithModel } from "../triage/model-classifier.ts";
 import type { TriagePriority } from "../triage/types";
 import type {
   ActionMetric,
@@ -276,14 +278,30 @@ async function evaluateGoldenCase({
   client,
   goldenCase,
   caseId,
+  useModelClassifier = false,
 }: {
   client: PoolClient;
   goldenCase: GoldenCase;
   caseId: number;
+  useModelClassifier?: boolean;
 }): Promise<EvalCasePrediction> {
   const accountId = getAccountId(goldenCase);
   const customerId = getCustomerId(goldenCase);
-  const triage = runBasicTriage(goldenCase.input.message);
+  const deterministicTriage = runBasicTriage(goldenCase.input.message);
+  const modelClassification = useModelClassifier
+    ? await classifyWithModel({
+        message: goldenCase.input.message,
+        account: goldenCase.input.account_context,
+      })
+    : null;
+  const triage = modelClassification
+    ? {
+        ...deterministicTriage,
+        intent: modelClassification.intent,
+        sentiment: modelClassification.sentiment,
+        priority: modelClassification.priority,
+      }
+    : deterministicTriage;
   const onboardingBlockerDetected = detectOnboardingBlocker(
     goldenCase.input.message
   );
@@ -301,6 +319,8 @@ async function evaluateGoldenCase({
     onboardingBlockerDetected,
     executionResult: emptyExecution,
     modelProposal: null,
+    modelClassification,
+    accountHealthStatus: goldenCase.input.account_context?.health_status ?? null,
   });
   const directives = await buildActionDirectives({
     client,
@@ -571,11 +591,15 @@ export async function evaluateGoldenCases({
   goldenCases,
   evalRunId = randomUUID(),
   config = DEFAULT_EVAL_CONFIG,
+  mode = "offline",
+  useModelClassifier = false,
 }: {
   client: PoolClient;
   goldenCases: GoldenCase[];
   evalRunId?: string;
   config?: EvalConfig;
+  mode?: EvalResult["mode"];
+  useModelClassifier?: boolean;
 }): Promise<EvalResult> {
   const predictions: EvalCasePrediction[] = [];
 
@@ -585,6 +609,7 @@ export async function evaluateGoldenCases({
         client,
         goldenCase,
         caseId: index + 1,
+        useModelClassifier,
       })
     );
   }
@@ -595,7 +620,7 @@ export async function evaluateGoldenCases({
   });
   const resultWithoutGate: Omit<EvalResult, "passed" | "failures"> = {
     eval_run_id: evalRunId,
-    mode: "offline",
+    mode,
     sample_size: goldenCases.length,
     priority: buildPriorityMetric({ goldenCases, predictions }),
     classification_metrics: classification.metrics,
@@ -639,6 +664,36 @@ export async function runOfflineEval({
   if (writeScorecard) {
     await insertScorecardRows({ client, result });
   }
+
+  if (beforeFingerprint) {
+    const afterFingerprint = await fingerprintBusinessTables(client);
+    assertBusinessFingerprintsEqual(beforeFingerprint, afterFingerprint);
+  }
+
+  return result;
+}
+
+export async function runModelComparisonEval({
+  client,
+  goldenCases,
+  evalRunId,
+  config = DEFAULT_EVAL_CONFIG,
+  assertNoBusinessMutation = true,
+}: Omit<
+  OfflineEvalOptions,
+  "writeScorecard" | "environment"
+>): Promise<EvalResult> {
+  const beforeFingerprint = assertNoBusinessMutation
+    ? await fingerprintBusinessTables(client)
+    : null;
+  const result = await evaluateGoldenCases({
+    client,
+    goldenCases,
+    evalRunId,
+    config,
+    mode: "model_comparison",
+    useModelClassifier: true,
+  });
 
   if (beforeFingerprint) {
     const afterFingerprint = await fingerprintBusinessTables(client);

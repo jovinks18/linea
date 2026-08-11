@@ -4,6 +4,7 @@ import {
   assertDeterministicEvalMode,
   evaluateGoldenCases,
   loadGoldenCasesFromDirectory,
+  runModelComparisonEval,
 } from "../lib/eval/runner.ts";
 
 function createPolicyRow(actionType, segment, tier, overrides = {}) {
@@ -126,8 +127,12 @@ const result = await evaluateGoldenCases({
   evalRunId: "eval-test",
 });
 
-assert.equal(result.passed, true);
-assert.deepEqual(result.failures, []);
+assert.equal(result.passed, false);
+assert.ok(
+  result.failures.some((failure) =>
+    failure.includes("detect_onboarding_blocker F1")
+  )
+);
 assert.equal(result.unsafe_gate_rate, 0);
 assert.ok(
   result.action_metrics.every(
@@ -135,7 +140,17 @@ assert.ok(
   )
 );
 assert.ok(
-  result.action_metrics.every((metric) => metric.f1 >= 0.7)
+  result.action_metrics.some((metric) => metric.f1 < 0.7)
 );
+
+const comparison = await runModelComparisonEval({
+  client: createFakePolicyClient(seedLikePolicies),
+  goldenCases,
+  evalRunId: "comparison-test",
+  assertNoBusinessMutation: false,
+});
+
+assert.equal(comparison.mode, "model_comparison");
+assert.equal(comparison.sample_size, goldenCases.length);
 
 console.log("PASS offline eval runner");

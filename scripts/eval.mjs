@@ -5,6 +5,7 @@ import { getDatabaseConfig } from "../lib/db-config.ts";
 import {
   DEFAULT_EVAL_CONFIG,
   loadGoldenCasesFromDirectory,
+  runModelComparisonEval,
   runOfflineEval,
 } from "../lib/eval/runner.ts";
 
@@ -16,6 +17,7 @@ function parseArgs(argv) {
     dir: defaultGoldenDir,
     writeScorecard: true,
     json: false,
+    modelClassifier: false,
   };
 
   for (let index = 0; index < argv.length; index += 1) {
@@ -39,6 +41,12 @@ function parseArgs(argv) {
       continue;
     }
 
+    if (arg === "--model-classifier") {
+      options.modelClassifier = true;
+      options.writeScorecard = false;
+      continue;
+    }
+
     throw new Error(`Unknown eval argument: ${arg}`);
   }
 
@@ -54,6 +62,9 @@ function printHumanSummary(result, { writeScorecard }) {
   console.log(`Mode: ${result.mode}`);
   console.log(`Samples: ${result.sample_size}`);
   console.log(`Scorecard write: ${writeScorecard ? "enabled" : "disabled"}`);
+  if (result.mode === "model_comparison") {
+    console.log("Non-blocking comparison: enabled");
+  }
   console.log("");
   console.log("Priority");
   console.log(`  exact: ${formatPercent(result.priority.exact_match_rate)}`);
@@ -109,11 +120,16 @@ async function main() {
   const client = await pool.connect();
 
   try {
-    const result = await runOfflineEval({
-      client,
-      goldenCases,
-      writeScorecard: options.writeScorecard,
-    });
+    const result = options.modelClassifier
+      ? await runModelComparisonEval({
+          client,
+          goldenCases,
+        })
+      : await runOfflineEval({
+          client,
+          goldenCases,
+          writeScorecard: options.writeScorecard,
+        });
 
     if (options.json) {
       console.log(JSON.stringify(result, null, 2));
@@ -121,7 +137,7 @@ async function main() {
       printHumanSummary(result, options);
     }
 
-    if (!result.passed) {
+    if (!result.passed && !options.modelClassifier) {
       process.exitCode = 1;
     }
   } finally {
