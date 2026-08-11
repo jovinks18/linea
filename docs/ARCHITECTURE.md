@@ -1,211 +1,112 @@
 # Architecture
 
-Linea is currently a Next.js App Router application with a PostgreSQL-backed support case flow. The product direction is an AI post-sales command center that turns conversations into support cases, onboarding tasks, product signals, account health updates, and human follow-ups.
-
-## Current Runtime Components
-
-- Chat UI: `app/chat/page.tsx`
-- Intake API: `app/api/intake/route.ts`
-- Case history API: `app/api/cases/[case_number]/route.ts`
-- Database pool: `lib/db.ts`
-- Model provider layer: `lib/models`
-- Agent planner: `lib/agent/planner.ts`
-- Agent action audit repository: `lib/agent/repository.ts`
-- Operator session boundary: `lib/auth`
-- Data onboarding scripts: `scripts/profile-csv.js`, `scripts/recommend-mapping.js`, and `scripts/import-csv.js`
-- PostgreSQL schema: `sql/schema.sql`
-- Demo knowledge base: `knowledge-base/smart-lock-battery.md`
-
-## Current Flow
+Linea is a supervised agent runtime for post-sales operations. Its central
+invariant is:
 
 ```text
-/chat
-  -> POST /api/intake
-  -> deterministic triage
-  -> account lookup
-  -> optional structured model plan
-  -> case restore/create
-  -> message persistence
-  -> post-sales automation
-  -> agent action audit
-  -> demo AI response persistence
-  -> response UI with account context and action status
-  -> GET /api/cases/[case_number]
-  -> conversation history display
+model proposes -> policy decides -> executor acts -> agent_actions audit -> human supervises
 ```
 
-## Post-Sales Data Flow
+The model never writes to PostgreSQL, calls repositories, or bypasses policy.
+Every database mutation is performed by deterministic server code after policy
+and directive checks, and every proposed, executed, skipped, or failed action is
+recorded in `agent_actions`.
+
+## Runtime Map
 
 ```text
-message
-  -> case
-  -> account
-  -> implementation step
-  -> task
-  -> product signal
-  -> health event
-```
-
-An inbound customer message can now do more than create a ticket. Linea preserves the support case, connects it to the right synthetic account when one exists, identifies whether an implementation or onboarding step is blocked, creates a human follow-up task, logs a product signal, and updates account health when the conversation indicates risk.
-
-## Detailed Flow
-
-1. A user opens `/chat` and enters a synthetic customer email, an optional case number, and a support message.
-2. The chat page sends the message to `POST /api/intake`.
-3. The intake route validates that `customer_email` and `message` are present.
-4. Deterministic triage classifies subject, intent, sentiment, and priority.
-5. PostgreSQL is queried for an existing customer by email.
-6. If no customer exists, a synthetic customer record is created.
-7. Account context is looked up through `account_contacts`.
-8. The optional model planner can enrich the agent decision with a validated structured plan.
-9. If a case number is provided, the route tries to restore a case owned by that customer.
-10. If no matching case is found, a new case is created.
-11. The route persists the customer message.
-12. Rule-based post-sales automation checks for onboarding or go-live blocker language.
-13. For a known account blocker, Linea creates or updates a task, product signal, and health event, then updates account health to `at_risk`.
-14. Linea records executed, suggested, skipped, or failed policy actions in `agent_actions`.
-15. The route persists a deterministic demo AI response.
-16. The route updates the case activity timestamp.
-17. The chat page requests `GET /api/cases/[case_number]`.
-18. The case history route returns case metadata and ordered messages.
-19. The chat page displays the latest response, account context, post-sales actions, and conversation timeline.
-
-## Model Provider Layer
-
-Linea is local-first and open-source-first. The model layer supports three paths:
-
-1. **Deterministic fallback:** the default mode. It requires no model server, API key, or paid API and keeps the current workflow fully functional.
-2. **Local model planner via Ollama:** the recommended model-powered path. Ollama runs an open-source model locally and returns a structured plan that enriches the deterministic agent decision.
-3. **Optional hosted OpenAI-compatible adapter:** available for users who choose a compatible hosted API. It is an adapter, not a requirement or the default architecture.
-
-The provider boundary is intentionally narrow. A model may classify a message and return a validated JSON plan containing confidence, urgency, a user-safe reasoning summary, and recommended actions. It never calls repositories, writes to PostgreSQL, or claims that actions were executed. Deterministic application policy remains responsible for deciding whether account-linked tasks, product signals, and health events may be created.
-
-If a provider is missing configuration, fails, times out, or returns invalid JSON, the planner returns no model plan and intake continues with the deterministic decision.
-
-## Agent Action Audit
-
-`agent_actions` is Linea's durable audit layer between an agent recommendation and a database mutation. It records the case and account context, action type, outcome, decision source, confidence, user-safe reasoning, metadata, and execution time.
-
-The model never writes SQL or calls a repository. It can only return a validated structured plan. The deterministic service and policy layer decides which recommendations are safe, repository functions perform approved writes, and the resulting outcomes are logged inside the same PostgreSQL transaction. Unknown-account blocker actions are skipped rather than applied to account-level tables, while human review is recorded as suggested until a human workflow actually accepts or assigns it.
-
-This boundary prepares Linea for future approval queues and external tools: integrations can consume explicit action records without granting a model direct database access.
-
-## Runtime Guardrails
-
-Each proposed action receives a computed blast radius based on its actual case,
-account, multi-account, or global scope. Directive planning records the numeric
-radius, scope, and user-safe reason before applying the configured autonomy
-policy.
-
-Circuit-breaker state is evaluated from three deterministic sources:
-
-1. Active manual breakers scoped globally, by action type, or by segment.
-2. Three or more recent failed agent actions within the lookback window.
-3. Three or more recent rejected policy changes within the lookback window.
-
-A tripped breaker causes bounded or autonomous directives to become suggested
-through the existing `decide()` guard path. The post-sales executor therefore
-does not perform the blocked account mutation. Audit metadata records the
-breaker source, keys, reasons, and computed blast-radius evidence. Historical
-policy simulation replays only the evidence stored with each action and never
-queries current breaker state.
-
-Autonomy promotion and demotion gates are evidence-based and read only the
-latest `model_scorecard` rows. Scorecards are currently action-level, while
-policies are action + segment. The same scorecard evidence can evaluate each
-segment row for an action, but segment ceilings still apply: `unknown_account`
-may not be promoted into bounded or autonomous auto-execution from aggregate
-evidence. Automatic promotion is also deliberately capped at `bounded`.
-`bounded` to `autonomous` readiness may be reported as a recommendation, but it
-does not create an approval request or bypass the autonomous-upgrade block in
-policy validation. This is intentional until the golden set and human review
-process are stronger.
-
-## Operator Identity And Policy Governance
-
-Policy administration requires a configured local operator username, password,
-and session-signing secret. Successful authentication creates a signed,
-short-lived HttpOnly cookie containing the operator identity, role, unique
-session ID, and expiry.
-
-The policy page and every `/api/admin` route verify this session server-side.
-Policy mutation and approval routes derive `changed_by`, `reviewed_by`, and
-resulting `updated_by` values exclusively from the verified session. Request
-bodies cannot assert or override actor identity. Policy impact simulation is
-also authenticated, although it remains entirely read-only.
-
-This is a local single-operator boundary, not a production identity platform.
-Production deployment still requires centralized identity, role-based access,
-MFA, session revocation, tenant authorization, and managed secret storage.
-
-## Data Onboarding Agent
-
-Linea keeps a stable canonical schema for accounts, customers, account contacts, implementation steps, cases, and messages. Source-specific columns do not become new database columns: reviewed mappings place custom account and case attributes into JSON `metadata`.
-
-CSV onboarding has three explicit phases:
-
-1. The profiler reads headers and sample rows, infers an entity type, and reports missing required fields.
-2. The mapping recommender applies deterministic column heuristics first. An optional configured model may add review-only suggestions, but it cannot apply mappings, call repositories, or execute SQL.
-3. The importer validates every required field and prints a preview. Only after validation, and only without `--dry-run`, deterministic parameterized repository code writes records inside one PostgreSQL transaction.
-
-Accounts are upserted by name, customers by email, and contacts are linked through `account_contacts`. Implementation steps are upserted by account and step name. Imported cases receive a first customer message. This separation keeps the model advisory while preserving an auditable, deterministic mutation boundary.
-
-## Connector Foundation
-
-Future SaaS and product-data connectors use a source-independent ingestion boundary:
-
-```text
-external source
-  -> raw external record
-  -> normalized record with provenance
-  -> reviewed mapping and validation
-  -> canonical Linea tables
-  -> policy and execution envelope
+customer message
+  -> lib/intake orchestration
+  -> lib/triage deterministic triage + optional model classifier
+  -> lib/agent policy decision
+  -> lib/agent action directives + autonomy policy
+  -> executor + repository writes
   -> agent_actions audit
+  -> operator review and override
 ```
 
-`lib/connectors/types.ts` defines connector sources, raw records, normalized records, supported record types, provenance, and sync results. The local mock connector emits synthetic normalized account, contact, case, message, and usage records without network access or database writes.
+`lib/intake` owns request orchestration: customer/account lookup, case creation
+or restore, triage, optional model calls, directive planning, execution, audit,
+and response assembly.
 
-Connectors reuse the CSV onboarding model: source fields are mapped into Linea's stable canonical schema, while provider-specific attributes remain in metadata. Every normalized record retains its provider, connector source, external ID, original record type, source timestamp, and observation timestamp so later imports can be idempotent and explain where data came from.
+`lib/triage` owns classification inputs. The deterministic classifier is the
+default and fallback. The optional model classifier may propose `intent`,
+`sentiment`, `priority`, and `classification`, but it still enters the same
+policy and audit envelope.
 
-A connector must not mutate `accounts`, `cases`, `tasks`, `product_signals`, health tables, or external systems directly. Deterministic import services own canonical writes after validation. Derived agent actions then pass through the policy and execution envelope and are recorded in `agent_actions`. This prevents a connector or model suggestion from bypassing Linea's authorization and audit boundaries.
+`lib/agent` owns the governance layer: decision shaping, autonomy policy,
+directives, blast radius, circuit breakers, execution result shaping, audit
+records, scorecard readers, and autonomy gates.
 
-See `docs/CONNECTORS.md` for the phased connector delivery plan.
+`lib/*/repository.ts` files are the database boundary. They contain parameterized
+PostgreSQL reads and writes for their domain. Models do not import or call them.
 
-## Automation Notes
+`lib/eval` owns the offline harness and golden set. It runs the real triage,
+decision, directive, and `decide()` paths against hand-labeled cases, checks
+unsafe gates, and writes `model_scorecard` evidence for the deterministic gate.
 
-Post-sales automation currently uses deterministic rule-based detection. Messages containing phrases such as `blocked`, `go live`, `go-live`, `implementation`, `setup not working`, `API setup`, or `cannot launch` are treated as onboarding blockers when the customer is linked to an account.
+## Autonomy
 
-The current schema is intentionally simple. Some product concepts are mapped into existing columns:
+Autonomy is granted per `action_type` and segment, not to the agent as a whole.
+Segments include linked accounts, unknown accounts, and default policy rows.
 
-- Task ownership is stored in `tasks.owner_role`, even when the value is an account owner name.
-- Task due timing is stored in `tasks.due_date`.
-- Product area is included in `product_signals.description`.
-- Health transition details such as previous status, new status, and reason are stored in `account_health_events.metadata`.
+The ladder is:
 
-## Data Model
+- `shadow`: never executes; records the counterfactual suggestion.
+- `supervised`: proposes only; a human must approve.
+- `bounded`: may execute automatically when every guard passes.
+- `autonomous`: represented in the schema and decision code, but not reached by
+  automatic promotion.
 
-- `customers`: synthetic customer identities and preferred channel.
-- `cases`: support case metadata such as case number, status, intent, sentiment, priority, and channel origin.
-- `messages`: customer, AI, and future human-agent messages.
-- `case_events`: timeline events such as case creation and future workflow or triage events.
-- `accounts`: synthetic post-sales account records with stage, health status, and source-specific metadata.
-- `account_contacts`: links synthetic customers to accounts.
-- `implementation_steps`: onboarding or implementation work associated with an account and optional case.
-- `tasks`: human follow-up work for customer success, support, or implementation teams.
-- `product_signals`: structured product feedback, gaps, bugs, or requests surfaced from conversations.
-- `account_health_events`: account-level health changes and risk events.
-- `agent_actions`: audit records for recommended, executed, skipped, and failed agent actions.
-- `agent_circuit_breakers`: manual and system safety stops evaluated during directive planning.
+Execution is deny-by-default. Missing policy falls back to a restrictive
+supervised decision. Bounded execution still has to pass confidence, blast
+radius, reversibility, and circuit-breaker checks.
 
-## Planned Components
+Automatic promotion is deliberately capped at `bounded`. The `unknown_account`
+segment has an additional ceiling: it never climbs into auto-execution because
+unverified accounts must hold for human review.
 
-- Triage engine in `lib/triage`.
-- Agent dashboard in `app/dashboard`.
-- Richer post-sales account and onboarding context.
-- Expanded implementation-step and task tracking.
-- Expanded product signal capture.
-- Expanded account health events.
-- Retrieval layer in `lib/rag`.
-- Qdrant knowledge-base indexing.
-- n8n workflow triggers and callbacks.
+Gates move tiers only from `model_scorecard` evidence. Promotion creates a
+human-reviewed policy change request. Demotion is automatic and immediate when
+evidence falls below the floor or unsafe gates appear. Tier changes include
+structured evidence such as `eval_run_id`, `f1`, `unsafe_gate_rate`,
+`sample_size`, and `gate_run_id`.
+
+## Model Boundary
+
+Models are optional. The default runtime is deterministic and requires no model
+server or API key.
+
+When configured, an LLM sits in a proposer role. It may propose classification
+or planning data, but policy decides what is allowed, directives apply autonomy
+guards, the executor performs permitted writes, and audit records the facts.
+Unknown-account and high-stakes review rules still apply regardless of model
+output.
+
+The Groq classifier experiment tested whether a frontier LLM should replace
+deterministic triage. It did not: the LLM was less accurate on the honest golden
+set and showed non-deterministic unsafe-gate behavior. Deterministic triage
+therefore remains the default and safety-critical gate. See
+[GROQ-EXPERIMENT.md](GROQ-EXPERIMENT.md).
+
+## Data Boundaries
+
+Core business tables include `customers`, `accounts`, `account_contacts`,
+`cases`, `messages`, `case_events`, `implementation_steps`, `tasks`,
+`product_signals`, and `account_health_events`.
+
+Governance and audit tables include `agent_actions`, `action_autonomy_policy`,
+`action_autonomy_policy_audit`,
+`action_autonomy_policy_change_requests`, `agent_circuit_breakers`, and
+`model_scorecard`.
+
+CSV and connector ingestion normalize external-looking data into Linea's
+canonical schema before any agent behavior runs. Source-specific fields stay in
+metadata, and imports remain deterministic and auditable.
+
+## Where To Read Next
+
+- [DECISION-SPEC.md](DECISION-SPEC.md): the labeling and review rules.
+- [case-lifecycle.html](case-lifecycle.html): the case flowchart.
+- [GROQ-EXPERIMENT.md](GROQ-EXPERIMENT.md): the LLM classifier experiment.
+- [CONNECTORS.md](CONNECTORS.md): connector boundaries and ingestion phases.

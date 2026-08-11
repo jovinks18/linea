@@ -6,6 +6,8 @@ Linea is built around a narrow contract: the model proposes, policy decides, the
 
 The project is local-first and synthetic-data-only today. It demonstrates how support intake, post-sales automation, evaluation, and autonomy governance can share one auditable runtime instead of living as separate demos.
 
+Docs entry points: [docs/README.md](docs/README.md) is the documentation index, and [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) is the concise architecture map.
+
 ## How It Works
 
 The clearest path through Linea is the known-account versus unknown-account flow:
@@ -18,6 +20,10 @@ Our API setup is still blocked and we are supposed to go live Friday.
 Maya is linked to the seeded Acme Clinics account. Linea creates the support case, detects the onboarding blocker, runs the proposed account actions through policy, executes the actions that are allowed, and records the outcome in `agent_actions`.
 
 Send the same message from any unrecognized email and the behavior changes. Linea still creates the support case, but account-scoped actions hold for human review because there is no verified linked account. The operator-facing rule is: actions auto-execute only for verified linked accounts; unknown accounts hold for human review.
+
+## Classifier Experiment
+
+We tested whether a frontier LLM could replace deterministic triage. Llama 3.3 70B via Groq was less accurate on the honest golden set and had a non-deterministic unsafe-gate rate of 0-12% across identical runs, under-escalating high-stakes churn, outage, SLA, and account-health downgrade cases that deterministic triage caught every run. Deterministic triage therefore remains the default safety-critical path; the LLM is opt-in only, as a proposer under human review. See [docs/GROQ-EXPERIMENT.md](docs/GROQ-EXPERIMENT.md) for the method, results, and reproduction steps.
 
 ## Quickstart
 
@@ -77,7 +83,7 @@ The decision model asks four questions:
 - Does uncertainty or stakes require human review?
 - Does this create or change account-health state?
 
-The full rules live in [docs/DECISION-SPEC.md](docs/DECISION-SPEC.md), which is a living document with an amendment log. The requested case lifecycle flowchart path, `docs/case-lifecycle.html`, is not present in this checkout yet.
+The full rules live in [docs/DECISION-SPEC.md](docs/DECISION-SPEC.md), which is a living document with an amendment log. The flow is visualized in [docs/case-lifecycle.html](docs/case-lifecycle.html).
 
 ## Autonomy Ladder
 
@@ -103,13 +109,13 @@ Two actions are policy-exempt:
 
 The offline harness lives in `lib/eval` and runs through `scripts/eval.mjs`.
 
-It loads the bundled hand-labeled golden set in `lib/eval/golden`, currently 26 synthetic cases with deliberate near-misses. The labels are derived from the decision spec and kept hand-authored because unknown labels cannot benchmark correctness, and model-generated labels would only measure model-vs-model agreement.
+It loads the bundled hand-labeled golden set in `lib/eval/golden`, currently 33 synthetic cases with deliberate near-misses. The labels are derived from the decision spec and kept hand-authored because unknown labels cannot benchmark correctness, and model-generated labels would only measure model-vs-model agreement.
 
-The harness runs the real runtime path: `runBasicTriage`, `buildPolicyDecision`, `buildActionDirectives`, and the same `decide()` logic used by action directives. It aborts unless `MODEL_PROVIDER=deterministic`.
+The deterministic CI-gating path runs the real runtime path: `runBasicTriage`, `buildPolicyDecision`, `buildActionDirectives`, and the same `decide()` logic used by action directives. It aborts unless `MODEL_PROVIDER=deterministic`. The separate `eval:groq` script runs the opt-in model classifier in comparison mode without writing scorecards or becoming a blocking gate.
 
 Eval runs are read-only except for `model_scorecard`. The runner fingerprints guarded business tables before and after evaluation and fails if the eval mutates business data. When scorecard writes are enabled, it inserts one row per evaluated action type with `eval_run_id`, `f1`, `precision`, `recall`, `priority_exact`, `unsafe_gate_rate`, and `sample_size`.
 
-The golden labels are intentionally kept honest even when that lowers scores. Removing keyword-biased blocker labels dropped blocker-classification F1 to about `0.667` on the current truthful labels. That is the baseline a smarter classifier needs to beat.
+The golden labels are intentionally kept honest even when that lowers scores. Removing keyword-biased blocker labels and adding required coverage put blocker-classification F1 at about `0.588` on the current truthful labels. The intended improvement is a classifier and decision path that performs better on those labels without leaking unsafe gates.
 
 Use the no-write eval command as the regression gate:
 
@@ -155,9 +161,9 @@ CSV or synthetic connector fixture
 
 Core tables include `customers`, `accounts`, `account_contacts`, `cases`, `messages`, `case_events`, `implementation_steps`, `tasks`, `product_signals`, `account_health_events`, `agent_actions`, `action_autonomy_policy`, `action_autonomy_policy_audit`, `action_autonomy_policy_change_requests`, `agent_circuit_breakers`, and `model_scorecard`.
 
-Models are optional. The default `MODEL_PROVIDER=deterministic` path requires no model server or paid API. Optional Ollama and OpenAI-compatible adapters can submit structured proposals, but model output is advisory only and cannot call repositories or write SQL.
+Models are optional. The default `MODEL_PROVIDER=deterministic` path requires no model server or paid API. Optional Ollama, OpenAI-compatible, and Groq adapters can submit structured classification proposals into triage, but they cannot call repositories or write SQL, and policy plus gates still decide what actions are allowed.
 
-For deeper design notes, see [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md), [docs/CONNECTORS.md](docs/CONNECTORS.md), and [docs/DEMO-SCENARIOS.md](docs/DEMO-SCENARIOS.md).
+For deeper design notes, start with [docs/README.md](docs/README.md), [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md), [docs/CONNECTORS.md](docs/CONNECTORS.md), and [docs/DEMO-SCENARIOS.md](docs/DEMO-SCENARIOS.md).
 
 ## Commands
 
@@ -169,6 +175,7 @@ For deeper design notes, see [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md), [docs
 | `npm run smoke` | Exercise the core intake demo flows against a running app. |
 | `npm run db:reset` | Recreate the local schema and reload synthetic seed data. |
 | `npm run eval` | Run offline eval and write `model_scorecard` rows. |
+| `npm run eval:groq` | Run the opt-in Groq classifier comparison; non-blocking and not the CI gate. |
 | `npm run test:eval` | Run offline eval without writing scorecards. |
 | `npm run gates` | Evaluate scorecards against autonomy policies. |
 | `npm run test:autonomy-gates` | Test promotion, demotion, ceilings, and policy exemptions. |
@@ -209,7 +216,7 @@ Linea is a local development project, not a production customer-data platform.
 - Policy Admin uses local single-operator authentication with signed sessions. It does not provide multi-user RBAC, MFA, centralized identity, tenant isolation, or production secret management.
 - Triage is deterministic and keyword-based; it under-flags subtle review cases where no blocker keyword is present.
 - Post-sales automation currently focuses on onboarding-blocker workflows for linked accounts.
-- The offline eval set is small: 26 hand-labeled synthetic cases.
+- The offline eval set is small: 33 hand-labeled synthetic cases.
 - F1 floors are deliberately lenient while the golden set is small and should rise as coverage grows.
 - Automatic promotion is capped at `bounded` by design.
 - The connector layer is a contract, local mock, and synthetic fixture importer only. There are no live SaaS connectors, OAuth flows, or external writebacks.

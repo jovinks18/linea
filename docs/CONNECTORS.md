@@ -20,6 +20,19 @@ A connector reads and normalizes source data. It does not create cases, tasks, p
 
 Credentials, OAuth tokens, and source secrets do not belong in normalized records or provenance metadata.
 
+## Workspace Modes
+
+Linea currently runs in local demo mode with synthetic data only. Demo mode is
+for development, product exploration, and open-source contribution. It should
+never contain real customer data, credentials, tokens, transcripts, or
+production exports.
+
+Real workspace mode is a future production path. It should keep ingestion
+explicit, auditable, reversible, and workspace-scoped. Each workspace should
+configure its own sources and credentials, preserve external source IDs for
+idempotency, minimize sensitive fields, and map source objects into Linea's
+post-sales model rather than reshaping the canonical schema for every vendor.
+
 ## Record Contract
 
 `lib/connectors/types.ts` defines the source-independent contract:
@@ -45,13 +58,44 @@ Use the local synthetic mock connector to stabilize record contracts, provenance
 
 Build one read-only SaaS adapter. Fetch source objects, retain external IDs and cursors, normalize them, and pass them into the reviewed mapping/import layer. Start with explicit manual syncs and dry-run previews.
 
-### Phase 4: Scheduled Sync
+### Phase 4: API Imports And Webhooks
+
+Add structured API import endpoints and webhook ingestion after CSV and
+one-way imports are stable. They should validate before write, support dry-run
+or preview behavior where practical, preserve source IDs, and report rejected
+records clearly. Useful events include new or updated support tickets, ticket
+comments, onboarding blockers, CSM tasks, account-health changes, and product
+feedback.
+
+### Phase 5: Scheduled Sync
 
 Add cursor-based incremental sync, retries, rate-limit handling, and durable sync-run records. Scheduled jobs remain one-way and idempotent.
 
-### Phase 5: Human-Approved Writeback
+### Phase 6: Native Connectors And Warehouse Reads
+
+Native connectors should come after the import and webhook contracts are stable.
+Potential categories include CRM, support desk, customer success, project
+management, product feedback, help center, and communication systems. Direct
+database or warehouse reads should stay read-only by default and use explicit
+table or view mappings.
+
+### Phase 7: Human-Approved Writeback
 
 Only after read paths and audit controls are mature should Linea write back to an external system. Every writeback must show the proposed change, require policy approval or explicit human approval, use idempotency keys, and record execution in `agent_actions`.
+
+## Canonical Mapping
+
+| External system data | Linea destination |
+| --- | --- |
+| CRM accounts | `accounts` |
+| CRM contacts | `customers` and `account_contacts` |
+| Support tickets | `cases` |
+| Ticket comments | `messages` |
+| Onboarding plans | `implementation_steps` |
+| CSM follow-ups | `tasks` |
+| Feature requests, bugs, docs gaps | `product_signals` |
+| Renewal or churn risk | `account_health_events` |
+| Help center articles and docs | Knowledge base and future retrieval layer |
 
 ## HubSpot-Style Fixture Importer
 
