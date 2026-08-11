@@ -16,6 +16,7 @@ export async function runPostSalesAutomation({
   customerMessageId,
   message,
   actionDirectives,
+  onboardingBlockerDetected = detectOnboardingBlocker(message),
 }: {
   client: PoolClient;
   account: PostSalesAccount | null;
@@ -23,10 +24,11 @@ export async function runPostSalesAutomation({
   customerMessageId: number;
   message: string;
   actionDirectives: ActionDirective[];
+  onboardingBlockerDetected?: boolean;
 }): Promise<PostSalesActions> {
   const actions = createEmptyPostSalesActions();
 
-  if (!detectOnboardingBlocker(message)) {
+  if (!onboardingBlockerDetected) {
     return actions;
   }
 

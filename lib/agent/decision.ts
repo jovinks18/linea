@@ -1,4 +1,5 @@
 import type { AgentPlan } from "../models/types";
+import type { ModelTriageClassification } from "../triage/model-classifier";
 import type {
   AgentDecision,
   AgentEnvelope,
@@ -48,8 +49,10 @@ function includesAnyPhrase(message: string, phrases: string[]) {
 function toRecommendedActions(actions: string[]): AgentRecommendedAction[] {
   const allowedActions: AgentRecommendedAction[] = [
     "create_support_case",
+    "detect_onboarding_blocker",
     "create_csm_task",
     "log_product_signal",
+    "create_account_health_event",
     "update_account_health",
     "require_human_review",
   ];
@@ -114,6 +117,136 @@ function applyModelProposal(
   };
 }
 
+function urgencyFromPriority(priority: string): AgentUrgency {
+  if (priority === "P0" || priority === "P1") return "high";
+  if (priority === "P2") return "medium";
+
+  return "low";
+}
+
+function isAtRiskTransition(healthStatus: string | null | undefined) {
+  return healthStatus === "healthy" || healthStatus === "watch";
+}
+
+function hasStakesTrigger(message: string) {
+  const lower = message.toLowerCase();
+  const stakePhrases = [
+    "breach",
+    "cancel",
+    "cancellation",
+    "churn",
+    "compliance",
+    "data loss",
+    "executive",
+    "invoice",
+    "many users",
+    "not renew",
+    "outage",
+    "payment",
+    "privacy",
+    "renewal",
+    "security",
+    "sla",
+    "vip",
+  ];
+
+  return (
+    stakePhrases.some((phrase) => lower.includes(phrase)) ||
+    /many .*users/.test(lower) ||
+    /several .*locations/.test(lower) ||
+    /multiple .*locations/.test(lower) ||
+    /\bvp\b/.test(lower)
+  );
+}
+
+function withReviewAction(
+  actions: AgentRecommendedAction[],
+  requiresReview: boolean
+): AgentRecommendedAction[] {
+  if (!requiresReview || actions.includes("require_human_review")) {
+    return actions;
+  }
+
+  return [...actions, "require_human_review"];
+}
+
+function buildModelClassifiedDecision(input: {
+  message: string;
+  modelClassification: ModelTriageClassification;
+  executionResult: ExecutionResult;
+  accountHealthStatus?: string | null;
+}): PolicyDecision {
+  const hasLinkedAccount = input.executionResult.account_id !== null;
+  const unknownAccountReview = !hasLinkedAccount;
+  const healthDowngradeReview =
+    hasLinkedAccount &&
+    input.modelClassification.classification === "implementation_blocker" &&
+    isAtRiskTransition(input.accountHealthStatus);
+  const stakesReview =
+    healthDowngradeReview ||
+    (input.modelClassification.priority === "P1" &&
+      hasStakesTrigger(input.message));
+  const requiresReview = unknownAccountReview || stakesReview;
+  let recommendedActions: AgentRecommendedAction[] = ["create_support_case"];
+  let productArea: string | null = null;
+  let confidence = hasLinkedAccount ? 0.75 : 0.55;
+  let reasoningSummary = hasLinkedAccount
+    ? "Model classified the customer message."
+    : "Model classified the customer message, but no linked account was found.";
+
+  if (input.modelClassification.classification === "implementation_blocker") {
+    productArea = "Implementation";
+    confidence = hasLinkedAccount ? 0.9 : 0.85;
+    reasoningSummary = hasLinkedAccount
+      ? "Model classified the customer message as a current implementation blocker."
+      : "Model classified the customer message as a current implementation blocker, but no linked account was found.";
+    recommendedActions = [
+      "create_support_case",
+      "detect_onboarding_blocker",
+      "create_csm_task",
+      "log_product_signal",
+      "create_account_health_event",
+      "update_account_health",
+    ];
+  } else if (stakesReview && hasLinkedAccount) {
+    confidence = 0.85;
+    reasoningSummary =
+      "Model classified the customer message and policy detected a high-stakes account risk.";
+    recommendedActions = [
+      "create_support_case",
+      "create_csm_task",
+      "create_account_health_event",
+      "update_account_health",
+    ];
+  } else if (
+    input.modelClassification.classification === "product_feedback"
+  ) {
+    productArea = "Product";
+    reasoningSummary = hasLinkedAccount
+      ? "Model classified the customer message as product feedback."
+      : "Model classified the customer message as product feedback, but no linked account was found.";
+  } else if (input.modelClassification.classification === "support_question") {
+    reasoningSummary = hasLinkedAccount
+      ? "Model classified the customer message as a support question."
+      : "Model classified the customer message as a support question, but no linked account was found.";
+  } else {
+    reasoningSummary = hasLinkedAccount
+      ? "Model classified the customer message as a complaint without a clear technical category."
+      : "Model classified the customer message as a complaint without a clear technical category, but no linked account was found.";
+  }
+
+  return {
+    classification: input.modelClassification.classification,
+    confidence,
+    urgency: urgencyFromPriority(input.modelClassification.priority),
+    product_area: productArea,
+    reasoning_summary: reasoningSummary,
+    recommended_actions: withReviewAction(recommendedActions, requiresReview),
+    requires_human_review: requiresReview,
+    source: "hybrid",
+  };
+}
+
 export function buildPolicyDecision(input: {
   message: string;
   intent: string;
@@ -121,7 +254,21 @@ export function buildPolicyDecision(input: {
   onboardingBlockerDetected: boolean;
   executionResult: ExecutionResult;
   modelProposal: ModelProposal | null;
+  modelClassification?: ModelTriageClassification | null;
+  accountHealthStatus?: string | null;
 }): PolicyDecision {
+  if (input.modelClassification) {
+    return applyModelProposal(
+      buildModelClassifiedDecision({
+        message: input.message,
+        modelClassification: input.modelClassification,
+        executionResult: input.executionResult,
+        accountHealthStatus: input.accountHealthStatus,
+      }),
+      input.modelProposal
+    );
+  }
+
   const blockerFact =
     input.onboardingBlockerDetected ||
     input.executionResult.post_sales_actions.onboarding_blocker_detected;
@@ -198,7 +345,9 @@ export function buildPolicyDecision(input: {
   } else {
     deterministicDecision = {
       classification:
-        input.intent === "question" || input.intent === "request"
+        input.intent === "question" ||
+        input.intent === "request" ||
+        input.intent === "no_action"
           ? "support_question"
           : "unknown",
       confidence: hasLinkedAccount ? 0.55 : 0.45,

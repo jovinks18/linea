@@ -45,6 +45,7 @@ import { PostSalesActionExecutionError } from "../post-sales/execution-error";
 import { runPostSalesAutomation } from "../post-sales/repository";
 import { generateIntakeResponse } from "../responses/router";
 import { runBasicTriage } from "../triage/engine";
+import { classifyWithModel } from "../triage/model-classifier";
 
 export type IntakeRequest = {
   channel: string;
@@ -100,18 +101,33 @@ export async function processIntakeMessage({
     const account = await findCustomerAccount(client, customer.id);
     const messageLevelOnboardingBlocker = detectOnboardingBlocker(message);
     const deterministicTriage = runBasicTriage(message);
-    const modelPlan = await planWithModel({
+    const accountContext = account
+      ? {
+          name: account.name,
+          industry: account.industry,
+          plan: account.plan,
+          stage: account.stage,
+          health_status: account.health_status,
+        }
+      : null;
+    const modelClassification = await classifyWithModel({
       message,
-      account: account
-        ? {
-            name: account.name,
-            industry: account.industry,
-            plan: account.plan,
-            stage: account.stage,
-            health_status: account.health_status,
-          }
-        : null,
+      account: accountContext,
     });
+    const triage = modelClassification
+      ? {
+          ...deterministicTriage,
+          intent: modelClassification.intent,
+          sentiment: modelClassification.sentiment,
+          priority: modelClassification.priority,
+        }
+      : deterministicTriage;
+    const modelPlan = modelClassification
+      ? null
+      : await planWithModel({
+          message,
+          account: accountContext,
+        });
 
     let supportCase = case_number
       ? await findCaseForCustomer({
@@ -127,7 +143,7 @@ export async function processIntakeMessage({
         client,
         caseNumber: generateCaseNumber(),
         customerId: customer.id,
-        triage: deterministicTriage,
+        triage,
         channel,
       });
 
@@ -163,7 +179,11 @@ export async function processIntakeMessage({
         actions: createEmptyPostSalesActions(),
       }),
       modelProposal,
+      modelClassification,
+      accountHealthStatus: account?.health_status ?? null,
     });
+    const policyOnboardingBlocker =
+      policyDecision.classification === "implementation_blocker";
     const accountId = account?.id ?? null;
     const autonomySegment = getAutonomySegment({ accountId });
     const breakerStates = await getCircuitBreakerStatesForActions(client, {
@@ -199,6 +219,7 @@ export async function processIntakeMessage({
       customerMessageId: customerMessage.id,
       message,
       actionDirectives,
+      onboardingBlockerDetected: policyOnboardingBlocker,
     });
     const executionResult = buildExecutionResult({
       caseId: supportCase.id,
@@ -211,7 +232,7 @@ export async function processIntakeMessage({
 
     const aiResponse = generateIntakeResponse({
       message,
-      onboardingBlockerDetected: messageLevelOnboardingBlocker,
+      onboardingBlockerDetected: policyOnboardingBlocker,
       hasLinkedAccount: account !== null,
       automationBlockedByBreaker: actionDirectives.some(
         (directive) =>
