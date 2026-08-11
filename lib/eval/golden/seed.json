@@ -732,5 +732,241 @@
       "labeled_by": "linea",
       "labeled_at": "2026-07-07T00:00:00.000Z"
     }
+  },
+  {
+    "input": {
+      "channel": "web_chat",
+      "message": "The resident rollout is paused because staff cannot finish access mapping; we can't move forward until that setup is completed.",
+      "account_context": {
+        "account_id": 2,
+        "customer_id": 2,
+        "name": "Northstar Apartments",
+        "industry": "Property Management",
+        "plan": "Pro",
+        "stage": "onboarding",
+        "health_status": "healthy"
+      }
+    },
+    "expected": {
+      "intent": "question",
+      "sentiment": "negative",
+      "priority": "P1",
+      "classification": "implementation_blocker",
+      "recommended_actions": [
+        "create_support_case",
+        "detect_onboarding_blocker",
+        "create_csm_task",
+        "log_product_signal",
+        "create_account_health_event",
+        "update_account_health",
+        "require_human_review"
+      ],
+      "must_gate": true
+    },
+    "meta": {
+      "id": "seed-healthy-rollout-hold-027",
+      "source": "seed",
+      "labeled_by": "linea",
+      "labeled_at": "2026-07-07T00:00:00.000Z"
+    }
+  },
+  {
+    "input": {
+      "channel": "email",
+      "message": "If this keeps dragging into renewal, we are going to cancel instead of expanding to the second location.",
+      "account_context": {
+        "account_id": 3,
+        "customer_id": 3,
+        "name": "Bluebird Coworking",
+        "industry": "Coworking",
+        "plan": "Starter",
+        "stage": "live",
+        "health_status": "watch"
+      }
+    },
+    "expected": {
+      "intent": "complaint",
+      "sentiment": "negative",
+      "priority": "P1",
+      "classification": "unknown",
+      "recommended_actions": [
+        "create_support_case",
+        "create_csm_task",
+        "create_account_health_event",
+        "update_account_health",
+        "require_human_review"
+      ],
+      "must_gate": true
+    },
+    "meta": {
+      "id": "seed-churn-renewal-risk-028",
+      "source": "seed",
+      "labeled_by": "linea",
+      "labeled_at": "2026-07-07T00:00:00.000Z"
+    }
+  },
+  {
+    "input": {
+      "channel": "web_chat",
+      "message": "Every building manager lost console access this morning, and residents at three properties cannot get entry codes issued.",
+      "account_context": {
+        "account_id": 2,
+        "customer_id": 2,
+        "name": "Northstar Apartments",
+        "industry": "Property Management",
+        "plan": "Pro",
+        "stage": "onboarding",
+        "health_status": "healthy"
+      }
+    },
+    "expected": {
+      "intent": "complaint",
+      "sentiment": "negative",
+      "priority": "P1",
+      "classification": "support_question",
+      "recommended_actions": [
+        "create_support_case",
+        "create_csm_task",
+        "create_account_health_event",
+        "update_account_health",
+        "require_human_review"
+      ],
+      "must_gate": true
+    },
+    "meta": {
+      "id": "seed-many-users-outage-029",
+      "source": "seed",
+      "labeled_by": "linea",
+      "labeled_at": "2026-07-07T00:00:00.000Z"
+    }
+  },
+  {
+    "input": {
+      "channel": "email",
+      "message": "Our VP is asking why yesterday's response missed the SLA, and we need an escalation before the board update.",
+      "account_context": {
+        "account_id": 3,
+        "customer_id": 3,
+        "name": "Bluebird Coworking",
+        "industry": "Coworking",
+        "plan": "Starter",
+        "stage": "live",
+        "health_status": "watch"
+      }
+    },
+    "expected": {
+      "intent": "request",
+      "sentiment": "negative",
+      "priority": "P1",
+      "classification": "unknown",
+      "recommended_actions": [
+        "create_support_case",
+        "create_csm_task",
+        "create_account_health_event",
+        "update_account_health",
+        "require_human_review"
+      ],
+      "must_gate": true
+    },
+    "meta": {
+      "id": "seed-sla-executive-escalation-030",
+      "source": "seed",
+      "labeled_by": "linea",
+      "labeled_at": "2026-07-07T00:00:00.000Z"
+    }
+  },
+  {
+    "input": {
+      "channel": "web_chat",
+      "message": "We can't move forward until the SSO roles are approved; every training session depends on that setup.",
+      "account_context": {
+        "account_id": 1,
+        "customer_id": 1,
+        "name": "Acme Clinics",
+        "industry": "Healthcare",
+        "plan": "Growth",
+        "stage": "implementation",
+        "health_status": "at_risk"
+      }
+    },
+    "expected": {
+      "intent": "question",
+      "sentiment": "negative",
+      "priority": "P1",
+      "classification": "implementation_blocker",
+      "recommended_actions": [
+        "create_support_case",
+        "detect_onboarding_blocker",
+        "create_csm_task",
+        "log_product_signal",
+        "create_account_health_event",
+        "update_account_health"
+      ],
+      "must_gate": false
+    },
+    "meta": {
+      "id": "seed-no-keyword-progress-stop-031",
+      "source": "seed",
+      "labeled_by": "linea",
+      "labeled_at": "2026-07-07T00:00:00.000Z"
+    }
+  },
+  {
+    "input": {
+      "channel": "email",
+      "message": "The rollout went smoothly, and the team is curious about premium analytics for next quarter.",
+      "account_context": {
+        "account_id": 3,
+        "customer_id": 3,
+        "name": "Bluebird Coworking",
+        "industry": "Coworking",
+        "plan": "Starter",
+        "stage": "live",
+        "health_status": "watch"
+      }
+    },
+    "expected": {
+      "intent": "no_action",
+      "sentiment": "positive",
+      "priority": "P3",
+      "classification": "support_question",
+      "recommended_actions": ["create_support_case"],
+      "must_gate": false
+    },
+    "meta": {
+      "id": "seed-positive-expansion-no-action-032",
+      "source": "seed",
+      "labeled_by": "linea",
+      "labeled_at": "2026-07-07T00:00:00.000Z"
+    }
+  },
+  {
+    "input": {
+      "channel": "web_chat",
+      "message": "We are planning a lobby rollout next quarter and want to know which checklist template to use.",
+      "account_context": {
+        "account_id": 4,
+        "customer_id": null,
+        "name": "Summit School District",
+        "industry": "Education",
+        "plan": "Enterprise",
+        "stage": "discovery",
+        "health_status": "unknown"
+      }
+    },
+    "expected": {
+      "intent": "request",
+      "sentiment": "neutral",
+      "priority": "P3",
+      "classification": "support_question",
+      "recommended_actions": ["create_support_case"],
+      "must_gate": false
+    },
+    "meta": {
+      "id": "seed-future-checklist-info-033",
+      "source": "seed",
+      "labeled_by": "linea",
+      "labeled_at": "2026-07-07T00:00:00.000Z"
+    }
   }
 ]
